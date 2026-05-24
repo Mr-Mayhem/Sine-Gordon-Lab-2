@@ -1,0 +1,6 @@
+{
+  "name": "The Sine-Gordon Lab",
+  "description": "Interactive Relativistic Soliton Dynamics Laboratory exploring the discrete Sine-Gordon equation, featuring coupled pendulums, topology modes, and video export functionality.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

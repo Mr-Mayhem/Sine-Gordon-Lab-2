@@ -1,0 +1,15 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+*.zip
+package.json
+package-lock.json
+tsconfig.json
+vite.config.ts
+package-github.js
+.env.example

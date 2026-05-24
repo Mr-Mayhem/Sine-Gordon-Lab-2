@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Import map only for Three.js bare specifiers -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/"
+      }
+    }
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Sine-Gordon Lab v11.11.10</title>
+  <link rel="icon" type="image/x-icon" href="./favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Vendor: FFmpeg.wasm UMD build -->
+  <script src="vendor/ffmpeg/ffmpeg.js?v=fresh10"></script>
+  <!-- JSZip and FileSaver for Zip downloads -->
+  <script src="vendor/jszip/jszip.min.js?v=fresh10"></script>
+  <script src="vendor/file-saver/FileSaver.min.js?v=fresh10"></script>
+</head>
+<body>
+
+  <!-- Floating HUD Alerts & Security Logs Toast Container -->
+  <div id="hud-toast-container"
+       style="position: fixed;
+              top: 24px;
+              right: 24px;
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+              z-index: 9999;
+              max-width: 360px;
+              width: 100%;
+              pointer-events: none;">
+  </div>
+
+  <div id="viewport"></div>
+
+  <!-- Title Label -->
+  <div id="title-label">
+    <span class="title-version">v11.11.10</span>
+    <h1 class="title-main">The Sine-Gordon Lab</h1>
+  </div>
+
+  <!-- View Widget (Standard Camera Presets) -->
+  <div id="view-widget"
+       style="position:absolute;
+              bottom:120px;
+              right:16px;
+              z-index:40;
+              display:flex;
+              flex-direction:column;
+              gap:4px;
+              pointer-events:auto;">
+    <button id="btn-view-front" class="view-btn" title="Front">F</button>
+    <button id="btn-view-back" class="view-btn" title="Back">B</button>
+    <button id="btn-view-left" class="view-btn" title="Left">L</button>
+    <button id="btn-view-right" class="view-btn" title="Right">R</button>
+    <button id="btn-view-top" class="view-btn" title="Top">T</button>
+    <button id="btn-view-bottom" class="view-btn" title="Bottom">⏚</button>
+    <button id="btn-view-reset" class="view-btn" title="Reset View" style="margin-top:4px;border-color:var(--accent);color:var(--accent);">↺</button>
+  </div>
+
+  <!-- Recording Indicator -->
+  <div id="recording-indicator"
+       style="display:none;
+              position:absolute;
+              top:100px;
+              left:50%;
+              transform:translateX(-50%);
+              background:rgba(239,68,68,0.25);
+              border:2px solid rgba(239,68,68,0.6);
+              color:#ef4444;
+              padding:12px 32px;
+              border-radius:9999px;
+              backdrop-filter:blur(16px);
+              align-items:center;
+              gap:16px;
+              z-index:50;
+              box-shadow:0 10px 25px -5px rgba(239,68,68,0.2);">
+    <div style="width:20px; height:20px; border-radius:50%; background:#ef4444; animation:pulse 1s infinite;"></div>
+    <span id="txt-recording" style="font-size:18px; font-weight:900; text-transform:uppercase; letter-spacing:0.05em;">REC: 0</span>
+  </div>
+
+  <!-- Theory Overlay -->
+  <div id="theory-overlay">
+    <div class="theory-content">
+
+      <header class="flex justify-between items-start">
+        <div>
+          <span class="text-xs font-bold tracking-[0.3em] text-accent uppercase">Educational Reference</span>
+          <h1 class="text-5xl font-black mt-2 tracking-tighter italic uppercase">The Sine-Gordon Lab</h1>
+          <p class="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em] mt-1">v11.11.10 • RELATIVISTIC SOLITON DYNAMICS</p>
+        </div>
+        <button id="btn-close-theory" class="btn-icon w-12 h-12 text-white hover:bg-white/10 text-xl">✕</button>
+      </header>
+
+      <section class="mt-12">
+        <h2 class="text-accent border-l-4 border-accent pl-4">Historical Context</h2>
+        <p>
+          The Sine-Gordon equation (SGE) was originally discovered in the 19th century
+          in the study of surfaces of constant negative curvature. It describes systems
+          where the restoring force is proportional to the sine of the displacement —
+          fundamentally a pendulum chain.
+        </p>
+        <div class="math bg-accent/5 border border-accent/20 rounded-2xl p-8 my-8 text-center font-mono text-white">
+          <span class="opacity-40 block mb-2 text-[10px] uppercase">Continuum Limit</span>
+          ∂²φ/∂t² − ∂²φ/∂x² + sin(φ) = 0
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-accent border-l-4 border-accent pl-4">The Discrete Model</h2>
+        <p>
+          In this laboratory, we explore the <strong>discrete Sine-Gordon system</strong>.
+          Instead of a continuous field, we simulate N coupled pendulums. The result is a
+          rich system supporting solitons — stable localized waves that maintain their
+          shape as they travel.
+        </p>
+        <ul class="space-y-4 text-white/70 italic list-none border-l border-white/10 pl-6 my-6">
+          <li><strong class="text-white not-italic">Topology:</strong> The spatial arrangement (Linear, Circular, or Lemniscate). Circular mode uses periodic boundary conditions.</li>
+          <li><strong class="text-white not-italic">Kinks:</strong> Topological twists of ±2π. They are "topological" because they cannot be removed by local deformations.</li>
+          <li><strong class="text-white not-italic">Lorentz Contraction:</strong> Because the SGE is Lorentz-invariant in its continuous form, solitons exhibit relativistic effects.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="text-accent border-l-4 border-accent pl-4">Video Export & Speed</h2>
+        <p>
+          Use the Video Record button to capture the simulation window. The capture
+          happens frame-by-frame after you stop recording, ensuring perfect quality
+          regardless of your computer's real-time performance.
+        </p>
+        <ul class="space-y-4 text-white/70 italic list-none border-l border-white/10 pl-6 my-6">
+          <li><strong class="text-white not-italic">Increasing Playback Speed:</strong> To make the final video play faster, increase the <strong>Export FPS</strong> dropdown. A higher frame rate (e.g., 120 or 240 fps) will play through the same number of frames more quickly.</li>
+          <li><strong class="text-white not-italic">Frame Integrity:</strong> All captured frames are preserved regardless of target FPS. The simulation's internal time-step determines the physical duration.</li>
+          <li><strong class="text-white not-italic">Format Support:</strong> If MP4 is not supported, the system falls back to <strong>WebM</strong>.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Topologies</h2>
+        <p>The lab supports three spatial topologies, selected from the bottom bar:</p>
+        <ul style="list-style: disc; padding-left: 1.5rem; margin: 1rem 0; color: #ccc; line-height: 1.8;">
+          <li><strong style="color: #fff;">Linear</strong> — A straight chain of pendulums. Waves reflect off the boundaries. Enable <em>Periodic Wrap</em> to connect the ends.</li>
+          <li><strong style="color: #fff;">Circular</strong> — Pendulums arranged on a circle. Kinks travel endlessly around the ring. The winding number tracks net twists around the loop.</li>
+          <li><strong style="color: #fff;">Lemniscate</strong> — A figure-eight (∞) curve. Available in two forms: Gerono (vertical oscillation) and Bernoulli (coplanar).</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Physics Parameters</h2>
+        <ul style="list-style: disc; padding-left: 1.5rem; margin: 1rem 0; color: #ccc; line-height: 1.8;">
+          <li><strong style="color: #fff;">N (Elements)</strong> — Number of pendulums in the chain (20–720). More elements = finer spatial resolution.</li>
+          <li><strong style="color: #fff;">κ (Coupling)</strong> — Torsional stiffness between neighbors (1–1000). Higher values make the chain stiffer, increasing wave speed.</li>
+          <li><strong style="color: #fff;">g (Gravity)</strong> — Restoring force strength (0.1–40). Stronger gravity makes kinks narrower and faster.</li>
+          <li><strong style="color: #fff;">γ (Damping)</strong> — Velocity-dependent friction (−0.01 to 0.5). Negative values add energy (anti-damping). At zero, the system is conservative.</li>
+          <li><strong style="color: #fff;">Δt</strong> — Fixed at 0.01. The integration timestep. The semi-implicit Euler method is stable for these parameters.</li>
+          <li><strong style="color: #fff;">Time Scale</strong> — Simulation speed multiplier (0.1×–5×). Affects how many physics steps run per animation frame.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Impulse System</h2>
+        <p>
+          The launch panel (top-right) controls soliton injection. Two independent
+          spots (A and B) can be configured with different colors, positions, modes,
+          and directions.
+        </p>
+        <ul style="list-style: disc; padding-left: 1.5rem; margin: 1rem 0; color: #ccc; line-height: 1.8;">
+          <li><strong style="color: #fff;">Position</strong> — Where on the chain the impulse is applied (shown in degrees around the circle).</li>
+          <li><strong style="color: #fff;">Mode: Kink</strong> — A single 2π twist. Travels in the chosen direction.</li>
+          <li><strong style="color: #fff;">Mode: Anti</strong> — A single −2π twist (antikink).</li>
+          <li><strong style="color: #fff;">Mode: Breath</strong> — A kink-antikink pair injected close together, forming a breather.</li>
+          <li><strong style="color: #fff;">Mode: Wind</strong> — Adds a constant phase gradient around the ring (changes winding number).</li>
+          <li><strong style="color: #fff;">Sharpness</strong> — Controls kink width (0.5–8). Lower values = sharper kinks.</li>
+          <li><strong style="color: #fff;">Amplitude</strong> — Kink strength (0.1–2). At 1.0, the kink spans exactly 2π.</li>
+          <li><strong style="color: #fff;">Velocity</strong> — Initial speed (0.5–15). The Lorentz contraction narrows fast kinks.</li>
+        </ul>
+        <p>
+          Press <strong style="color: #00ffcc;">FIRE</strong> to inject both spots
+          simultaneously. The simulation unpauses automatically. Use
+          <strong style="color: #00ffcc;">▶ Run</strong> or the side play button
+          to pause/resume.
+        </p>
+      </section>
+
+      <footer class="mt-20 pt-12 border-t border-white/10 text-center mb-12">
+        <p class="text-xs text-gray-500 uppercase tracking-widest">Sine-Gordon Lab — Interactive Soliton Dynamics</p>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Processing Overlay (Assembly Engine) -->
+  <div id="processing-overlay"
+       style="display:none;
+              position:fixed;
+              inset:0;
+              background:rgba(0,0,0,0.95);
+              backdrop-filter:blur(16px);
+              align-items:center;
+              justify-content:center;
+              z-index:200;
+              padding:16px;">
+    <div style="background:rgba(23,23,23,0.95);
+                border:1px solid rgba(255,255,255,0.1);
+                border-radius:24px;
+                padding:32px;
+                max-width:64rem;
+                width:100%;
+                display:flex;
+                flex-direction:column;
+                gap:24px;
+                position:relative;
+                box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+
+      <button id="btn-close-processing" class="btn-icon w-8 h-8 rounded-full" style="position:absolute; top:24px; right:24px; z-index:10; background:rgba(255,255,255,0.1); border:none; color:white; font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Close">✕</button>
+
+      <div class="flex flex-col items-center gap-1">
+        <span style="font-size:10px; font-weight:900; color:#00ffcc; letter-spacing:0.4em; text-transform:uppercase;">Assembly Engine</span>
+        <span id="assembly-status" style="font-size:12px; color:rgba(255,255,255,0.4); font-family:var(--font-mono);">Ready</span>
+      </div>
+
+      <!-- Preview Canvas -->
+      <div id="assembly-preview" class="w-full aspect-video bg-[#000] rounded-[16px] overflow-hidden border border-white/10 relative shadow-inner">
+        <canvas id="preview-canvas" class="w-full h-full object-contain"></canvas>
+      </div>
+
+      <div style="width:100%;" class="flex flex-col gap-3">
+        <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden;">
+          <div id="progress-fill" style="height:100%; background:linear-gradient(90deg, #00ffcc, #00aaff); width:0%; transition:none;"></div>
+        </div>
+        <div class="flex justify-between items-center px-1">
+          <span class="label-micro" style="font-size:10px; opacity:0.6;">Encoding Progress</span>
+          <span id="assembly-percent" class="display-value" style="font-size:12px; font-weight:bold;">0%</span>
+        </div>
+      </div>
+
+      <div id="assembly-ready-actions" style="display:none; width:100%; justify-content:center;" class="flex gap-2">
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Launch Panel (Impulse Controls) -->
+  <div id="launch-panel" class="widget p-3">
+    <button id="btn-collapse-launch" class="btn-collapse-widget" title="Collapse Panel">▲</button>
+
+    <div class="flex items-center justify-between border-b border-white/5 pb-2 mb-2 pl-6">
+      <div class="flex items-center gap-1.5">
+        <span class="label-micro text-accent" style="font-size:8px;">IMPULSE</span>
+      </div>
+      <div class="flex gap-1">
+        <button id="btn-impulse-master" title="Toggle Impulse Visibility" class="btn-icon">👁️</button>
+        <button id="btn-rapid-reset" title="Reset Field" class="btn-icon">↺</button>
+        <button id="btn-side-play" class="btn-icon btn-primary" style="font-size:16px;">▶</button>
+      </div>
+    </div>
+
+    <div class="widget-content flex flex-col gap-2">
+
+      <!-- Channel A -->
+      <div id="spot-a-card" class="well flex items-center justify-between border-cyan-400/20 bg-cyan-400/5 p-1 px-2 gap-2">
+        <div class="flex items-center gap-2 w-28">
+          <button id="btn-a-on" class="w-5 h-5 rounded-full border flex items-center justify-center text-[8px] font-bold">●</button>
+          <span id="spot-a-label" class="label-micro text-cyan-400" style="font-size:8px;">CH A</span>
+          <button id="btn-a-palette" class="w-7 h-2.5 rounded-full border border-white/20 bg-cyan-400 cursor-pointer"></button>
+        </div>
+        <div id="thumb-pos-a-container" class="flex-1"></div>
+        <div class="flex items-center gap-1.5 min-w-[130px] justify-end">
+          <div class="flex gap-0.5">
+            <button id="btn-a-mode-kink" class="mode-tag active">K</button>
+            <button id="btn-a-mode-anti" class="mode-tag">A</button>
+            <button id="btn-a-mode-breath" class="mode-tag">B</button>
+            <button id="btn-a-mode-wind" class="mode-tag">W</button>
+          </div>
+          <div class="flex gap-0.5 ml-1">
+            <button id="btn-a-dir-cw" class="mode-tag">→</button>
+            <button id="btn-a-dir-ccw" class="mode-tag">←</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Channel B -->
+      <div id="spot-b-card" class="well flex items-center justify-between border-fuchsia-400/20 bg-fuchsia-400/5 p-1 px-2 gap-2">
+        <div class="flex items-center gap-2 w-28">
+          <button id="btn-b-on" class="w-5 h-5 rounded-full border flex items-center justify-center text-[7px] font-bold">●</button>
+          <span id="spot-b-label" class="label-micro text-fuchsia-400" style="font-size:8px;">CH B</span>
+          <button id="btn-b-palette" class="w-7 h-2.5 rounded-full border border-white/20 bg-fuchsia-400 cursor-pointer"></button>
+        </div>
+        <div id="thumb-pos-b-container" class="flex-1"></div>
+        <div class="flex items-center gap-1.5 min-w-[130px] justify-end">
+          <div class="flex gap-0.5">
+            <button id="btn-b-mode-kink" class="mode-tag">K</button>
+            <button id="btn-b-mode-anti" class="mode-tag">A</button>
+            <button id="btn-b-mode-breath" class="mode-tag">B</button>
+            <button id="btn-b-mode-wind" class="mode-tag">W</button>
+          </div>
+          <div class="flex gap-0.5 ml-1">
+            <button id="btn-b-dir-cw" class="mode-tag">→</button>
+            <button id="btn-b-dir-ccw" class="mode-tag">←</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shared Impulse Parameters -->
+      <div class="well mt-1 flex flex-row items-center justify-center gap-6 py-1.5 px-2" id="thumb-shared-container"></div>
+
+      <!-- Fire Row -->
+      <div class="flex items-center justify-between border-t border-white/5 pt-2">
+        <div id="firing-solution-list" class="flex-1 flex flex-wrap gap-2 font-mono text-[11px] text-fuchsia-400 pr-2"></div>
+        <button id="btn-fire" class="btn-pill btn-primary px-5 py-2.5 rounded-lg text-[10px] tracking-widest">FIRE</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom Bar (Main Controls) -->
+  <div id="bottom-bar">
+    <div class="bottom-bar-inner widget flex items-start gap-4">
+      <button id="btn-collapse-bottom" class="btn-collapse-widget" title="Collapse Panel">▲</button>
+
+      <!-- Main Controls Area -->
+      <div class="widget-content flex flex-col gap-2 pl-6 pt-1 flex-1" style="pointer-events:auto;">
+        
+        <!-- Top Row: Play/Snap/Theory & Topology -->
+        <div class="flex items-center gap-2">
+          
+          <div class="flex items-center gap-1.5 border border-white/10 rounded-lg p-1 bg-white/5">
+            <button id="btn-play" class="btn-pill btn-primary h-8 px-3">▶ Run</button>
+            <button id="btn-step" class="btn-icon w-6 h-6">⏭</button>
+            <button id="btn-reset" class="btn-icon w-6 h-6">↺</button>
+          </div>
+          
+          <div class="h-6 w-px bg-white/10 mx-1"></div>
+          
+          <button id="btn-snapshot" class="btn-pill h-9 hover:bg-white/10 transition-colors">📷 Snap</button>
+          <button id="btn-theory" class="btn-pill h-9 border-purple-500/30 text-purple-400 hover:bg-white/5 transition-colors">💡 Theory</button>
+          
+          <div class="flex-1"></div>
+          
+          <div class="flex items-center gap-1.5 bg-white/5 rounded-lg p-1 border border-white/10">
+            <select id="sel-topology" class="thumb-select !py-1">
+              <option value="linear">Linear</option>
+              <option value="circ" selected>Circular</option>
+              <option value="lemniscate">Lemniscate</option>
+            </select>
+            <select id="sel-lemniscate-form" class="thumb-select !py-1" style="display:none;">
+              <option value="gerono" selected>Gerono</option>
+              <option value="bernoulli">Bernoulli</option>
+            </select>
+            <button id="btn-linear-wrap" class="mode-tag w-auto px-2" style="display:none;">W</button>
+            <select id="sel-orientation" class="thumb-select !py-1">
+              <option value="horizontal" selected>Horiz</option>
+              <option value="vertical">Vert</option>
+            </select>
+            <button id="btn-gimbal-ring" class="mode-tag w-auto px-2" title="Gimbal-Ring Mode">🪐 Gimbal-Ring</button>
+            <div id="gimbal-nudges" class="flex items-center gap-1 bg-white/5 border border-white/10 rounded px-1" style="display:none;" title="Nudge Gimbal Rings">
+              <span class="text-[9px] text-gray-400 font-mono select-none px-1">Nudge:</span>
+              <button id="btn-nudge-outer-l" class="btn-icon w-5 h-5 text-[10px] bg-white/10 hover:bg-white/20 rounded font-bold" title="Nudge Outer Ring Left (Y ↺)">Y↺</button>
+              <button id="btn-nudge-outer-r" class="btn-icon w-5 h-5 text-[10px] bg-white/10 hover:bg-white/20 rounded font-bold" title="Nudge Outer Ring Right (Y ↻)">Y↻</button>
+              <button id="btn-nudge-mid-f" class="btn-icon w-5 h-5 text-[10px] bg-white/10 hover:bg-white/20 rounded font-bold" title="Nudge Middle Ring Forward (X ⤾)">X⤾</button>
+              <button id="btn-nudge-mid-b" class="btn-icon w-5 h-5 text-[10px] bg-white/10 hover:bg-white/20 rounded font-bold" title="Nudge Middle Ring Backward (X ⤿)">X⤿</button>
+            </div>
+            <div id="thumb-nodes-container" class="ml-1"></div>
+            <button id="btn-factory-reset" class="btn-icon w-6 h-6 ml-1">↺</button>
+          </div>
+          
+        </div>
+        
+        <div class="h-px bg-white/10 w-full my-1"></div>
+        
+        <!-- Bottom Row: Video Record Group -->
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 bg-white/5 rounded-lg px-2 py-1.5 border border-white/10 w-full">
+            <button id="btn-video" class="btn-pill h-9 text-[11px] px-4 font-bold border-red-500/30 text-red-400 hover:bg-red-500/10">⏺ Record Export</button>
+            <div class="w-px h-6 bg-white/10 mx-1"></div>
+            
+            <div class="flex gap-4 items-center flex-1">
+              <div class="flex flex-col gap-1">
+                <select id="sel-action" class="thumb-select !h-[16px] !py-0 !text-[9px] !w-24 !bg-transparent border-none">
+                  <option value="record">⏺ Record</option>
+                  <option value="assemble">🛠 Assemble</option>
+                </select>
+                <select id="sel-pipeline" class="thumb-select !h-[16px] !py-0 !text-[9px] !w-24 !bg-transparent border-none">
+                  <option value="ffmpeg">FFmpeg</option>
+                  <option value="opfs">OPFS Frames</option>
+                  <option value="zip">Disk (ZIP)</option>
+                </select>
+              </div>
+              
+              <div class="flex flex-col gap-1">
+                <select id="sel-res" class="thumb-select !h-[16px] !py-0 !text-[9px] !w-24 !bg-transparent border-none" autocomplete="off">
+                  <option value="640x360">360p</option>
+                  <option value="854x480">480p</option>
+                  <option value="1280x720" selected>720p</option>
+                  <option value="1920x1080">1080p</option>
+                  <option value="2560x1440">1440p</option>
+                  <option value="3840x2160">4K</option>
+                </select>
+                <div class="flex gap-1">
+                  <select id="sel-format" class="thumb-select !h-[16px] !py-0 !text-[9px] !w-[45px] !bg-transparent border-none">
+                    <option value="mp4">MP4</option>
+                    <option value="webm">WEBM</option>
+                  </select>
+                  <select id="sel-fps" class="thumb-select !h-[16px] !py-0 !text-[9px] !w-[40px] !bg-transparent border-none">
+                    <option value="12">12</option>
+                    <option value="24">24</option>
+                    <option value="30">30</option>
+                    <option value="60">60</option>
+                    <option value="90">90</option>
+                    <option value="120">120</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="flex flex-col gap-1 border-l border-white/10 pl-3">
+                <span class="label-micro text-accent opacity-70" style="font-size:7.5px;">MAX DURATION</span>
+                <select id="sel-limit" class="thumb-select !h-[16px] !py-0 !text-[9px] !w-[110px] !bg-transparent border-none text-[var(--accent)] font-bold">
+                  <option value="min">Minimum (5s)</option>
+                  <option value="default" selected>Nominal (30s)</option>
+                  <option value="max">Available Disc Limit</option>
+                </select>
+              </div>
+              
+              <div class="flex flex-col gap-1 border-l border-white/10 pl-3">
+                <span class="label-micro text-accent opacity-70" style="font-size:7.5px;">COMPRESSION (CRF)</span>
+                <select id="sel-crf" class="thumb-select !h-[16px] !py-0 !text-[9px] !w-[100px] !bg-transparent border-none text-[var(--accent)] font-bold">
+                  <option value="0">0 (Lossless)</option>
+                  <option value="5">5 (Ultra)</option>
+                  <option value="12">12 (High)</option>
+                  <option value="18" selected>18 (Default)</option>
+                  <option value="23">23 (Medium)</option>
+                  <option value="28">28 (Low)</option>
+                  <option value="35">35 (Lowest)</option>
+                </select>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+
+      </div>
+
+      <div class="w-px bg-white/10 self-stretch my-2"></div>
+
+      <!-- Right Area: Physics Parameter Thumbs -->
+      <div class="flex items-center justify-center gap-3 pr-2 pl-1 h-full" id="physics-thumb-container" style="pointer-events:auto;">
+      </div>
+      
+      <div class="w-px bg-white/10 self-stretch my-2"></div>
+      
+      <div class="flex items-center justify-center h-full pr-1" style="pointer-events:auto;">
+        <a href="https://www.lavazzausa.com/en" target="_blank" class="btn-pill h-full flex flex-col justify-center items-center py-2 px-3 border border-yellow-500/30 text-yellow-500/80 hover:bg-yellow-500/10 hover:text-yellow-400 text-[10px] leading-tight text-center" style="min-width: 60px;">
+          <span>COFFEE</span>
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Hover ID Temp Widget -->
+  <div id="hover-id-widget"
+       style="display:none;
+              position:absolute;
+              pointer-events:none;
+              background:rgba(0, 0, 0, 0.8);
+              color:#00ffcc;
+              border:1px solid #00ffcc;
+              padding:4px 8px;
+              border-radius:4px;
+              font-family:var(--font-mono, monospace);
+              font-size:12px;
+              z-index:9999;
+              transform:translate(-50%, -100%);
+              margin-top:-10px;">
+    ID: <span id="hover-id-value"></span>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
