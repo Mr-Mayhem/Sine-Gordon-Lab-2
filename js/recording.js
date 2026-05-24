@@ -180,7 +180,7 @@ export default class RecordingEngine {
       } catch (e) { console.warn("OPFS failed, using memory buffer", e); this._zip = new window.JSZip(); }
     } else {
       try {
-        this._ffmpeg = await initFFmpeg(typeof appState !== 'undefined' ? appState.exportFormat : "webm", this);
+        this._ffmpeg = await loadFFmpeg(typeof appState !== 'undefined' ? appState.exportFormat : "webm", this);
       } catch (e) {
         console.error("FFmpeg load failed", e);
         alert("FFmpeg could not load. Try ZIP export.");
