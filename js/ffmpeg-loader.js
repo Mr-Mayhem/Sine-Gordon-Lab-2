@@ -67,6 +67,24 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
     }
   }
 
+  async function _getOPFSFileBlobURL(filename, mimeType, minSize) {
+    try {
+      if (typeof navigator === "undefined" || !navigator.storage || !navigator.storage.getDirectory) return null;
+      var root = await navigator.storage.getDirectory();
+      var vendorDir = await root.getDirectoryHandle("vendor");
+      var ffmpegDir = await vendorDir.getDirectoryHandle("ffmpeg");
+      var fileHandle = await ffmpegDir.getFileHandle(filename);
+      var file = await fileHandle.getFile();
+      if (file.size >= minSize) {
+        console.log(`[FFmpeg] Found ${filename} in browser OPFS storage.`);
+        return URL.createObjectURL(file);
+      }
+    } catch (e) {
+      // not cached in OPFS
+    }
+    return null;
+  }
+
   async function _isLocalFileValid(url, minSize) {
     try {
       var resp = await fetch(url);
@@ -85,26 +103,48 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
 
   if (needMultiThreaded) {
     console.log("SharedArrayBuffer available. Loading MT...");
-    
-    var mtCoreJsLocal = new URL("vendor/ffmpeg/ffmpeg-core-mt.js?v=fresh10", document.baseURI).href;
-    var mtWasmLocal = new URL("vendor/ffmpeg/ffmpeg-core-mt.wasm?v=fresh12", document.baseURI).href;
-    var mtWorkerLocal = new URL("vendor/ffmpeg/ffmpeg-core.worker.js?v=fresh11", document.baseURI).href;
-    
-    var localCoreJsOk = await _isLocalFileValid(mtCoreJsLocal, 50000);
-    var localWasmOk = await _isLocalFileValid(mtWasmLocal, 20000000);
-    var localWorkerOk = await _isLocalFileValid(mtWorkerLocal, 1000);
-    
-    if (localCoreJsOk && localWasmOk && localWorkerOk) {
-      console.log("All MT files valid locally. Loading from vendor...");
+
+    // 1st Priority: Read from browser sandbox OPFS cache (instant, no server request)
+    var opfsCore = await _getOPFSFileBlobURL("ffmpeg-core-mt.js", "text/javascript", 50000);
+    var opfsWasm = await _getOPFSFileBlobURL("ffmpeg-core-mt.wasm", "application/wasm", 20000000);
+    var opfsWorker = await _getOPFSFileBlobURL("ffmpeg-core.worker.js", "application/javascript", 1000);
+
+    if (opfsCore && opfsWasm && opfsWorker) {
+      console.log("[FFmpeg] Loading MT core from local OPFS cache...");
       try {
-        await ffmpeg.load({ coreURL: mtCoreJsLocal, wasmURL: mtWasmLocal, workerURL: mtWorkerLocal });
+        await ffmpeg.load({ coreURL: opfsCore, wasmURL: opfsWasm, workerURL: opfsWorker });
         loaded = true;
-        console.log("MT loaded from vendor.");
-        // Give pthread workers time to initialize
+        console.log("[FFmpeg] MT loaded successfully from OPFS.");
         await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (e) { console.warn("Local MT load failed:", e); }
+      } catch (e) {
+        console.warn("[FFmpeg] OPFS MT load failed, falling back to local server/CDN...", e);
+      }
+    }
+
+    // 2nd Priority: Load from local HTTP Server (vendor/)
+    if (!loaded) {
+      var mtCoreJsLocal = new URL("vendor/ffmpeg/ffmpeg-core-mt.js?v=fresh10", document.baseURI).href;
+      var mtWasmLocal = new URL("vendor/ffmpeg/ffmpeg-core-mt.wasm?v=fresh12", document.baseURI).href;
+      var mtWorkerLocal = new URL("vendor/ffmpeg/ffmpeg-core.worker.js?v=fresh11", document.baseURI).href;
+      
+      var localCoreJsOk = await _isLocalFileValid(mtCoreJsLocal, 50000);
+      var localWasmOk = await _isLocalFileValid(mtWasmLocal, 20000000);
+      var localWorkerOk = await _isLocalFileValid(mtWorkerLocal, 1000);
+      
+      if (localCoreJsOk && localWasmOk && localWorkerOk) {
+        console.log("All MT files valid locally. Loading from vendor...");
+        try {
+          await ffmpeg.load({ coreURL: mtCoreJsLocal, wasmURL: mtWasmLocal, workerURL: mtWorkerLocal });
+          loaded = true;
+          console.log("MT loaded from local server.");
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (e) {
+          console.warn("Local MT server load failed:", e);
+        }
+      }
     }
     
+    // 3rd Priority: Load from external CDN and Cache in OPFS
     if (!loaded) {
       console.log("Loading MT from CDN and caching...");
       try {
@@ -126,32 +166,55 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
         await ffmpeg.load({ coreURL, wasmURL, workerURL });
         loaded = true;
         console.log("MT loaded from CDN. Caching to vendor...");
-        // Give pthread workers time to initialize
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         _saveToVendor("ffmpeg-core-mt.js", coreAb);
         _saveToVendor("ffmpeg-core-mt.wasm", wasmAb);
         _saveToVendor("ffmpeg-core.worker.js", workerText);
-      } catch (e) { console.warn("MT CDN load failed:", e); }
+      } catch (e) {
+        console.warn("MT CDN load failed:", e);
+      }
     }
   }
 
   if (!loaded) {
     console.log("Using single-threaded FFmpeg core.");
-    
-    var stCoreJsLocal = new URL("vendor/ffmpeg/ffmpeg-core.js?v=fresh10", document.baseURI).href;
-    var stWasmLocal = new URL("vendor/ffmpeg/ffmpeg-core.wasm", document.baseURI).href;
-    
-    var stCoreJsOk = await _isLocalFileValid(stCoreJsLocal, 50000);
-    var stWasmOk = await _isLocalFileValid(stWasmLocal, 20000000);
-    
-    if (stCoreJsOk && stWasmOk) {
+
+    // 1st Priority: Read from browser sandbox OPFS cache
+    var opfsStCore = await _getOPFSFileBlobURL("ffmpeg-core.js", "text/javascript", 50000);
+    var opfsStWasm = await _getOPFSFileBlobURL("ffmpeg-core.wasm", "application/wasm", 20000000);
+
+    if (opfsStCore && opfsStWasm) {
+      console.log("[FFmpeg] Loading ST core from local OPFS cache...");
       try {
-        await ffmpeg.load({ coreURL: stCoreJsLocal, wasmURL: stWasmLocal });
+        await ffmpeg.load({ coreURL: opfsStCore, wasmURL: opfsStWasm });
         loaded = true;
-      } catch (e) {}
+        console.log("[FFmpeg] ST loaded successfully from OPFS.");
+      } catch (e) {
+        console.warn("[FFmpeg] OPFS ST load failed, falling back...", e);
+      }
     }
     
+    // 2nd Priority: Load from local HTTP Server (vendor/)
+    if (!loaded) {
+      var stCoreJsLocal = new URL("vendor/ffmpeg/ffmpeg-core.js?v=fresh10", document.baseURI).href;
+      var stWasmLocal = new URL("vendor/ffmpeg/ffmpeg-core.wasm", document.baseURI).href;
+      
+      var stCoreJsOk = await _isLocalFileValid(stCoreJsLocal, 50000);
+      var stWasmOk = await _isLocalFileValid(stWasmLocal, 20000000);
+      
+      if (stCoreJsOk && stWasmOk) {
+        try {
+          await ffmpeg.load({ coreURL: stCoreJsLocal, wasmURL: stWasmLocal });
+          loaded = true;
+          console.log("ST loaded from local server.");
+        } catch (e) {
+          console.warn("Local ST server load failed:", e);
+        }
+      }
+    }
+    
+    // 3rd Priority: Load from external CDN and Cache in OPFS
     if (!loaded) {
       try {
         var stCoreResp = await fetch("https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js");
@@ -166,6 +229,7 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
         
         await ffmpeg.load({ coreURL: stCoreURL, wasmURL: stWasmURL });
         loaded = true;
+        console.log("ST loaded from CDN. Caching to vendor...");
         
         _saveToVendor("ffmpeg-core.js", stCoreAb);
         _saveToVendor("ffmpeg-core.wasm", stWasmAb);
