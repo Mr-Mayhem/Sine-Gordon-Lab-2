@@ -134,7 +134,7 @@ export async function assembleFromStorage(pipeline, recorderRef) {
         var ab = await file.arrayBuffer();
         frameBytes = new Uint8Array(ab);
       }
-      await ffmpeg.writeFile(fname, frameBytes);
+      await ffmpeg.writeFile(fname, frameBytes.slice());
     }
     await _assemble(null, frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight, ffmpeg, recorderRef);
   } else {
@@ -148,7 +148,7 @@ export async function assemble(ffmpeg, frameCount, recordedFrames, recordingWidt
   if (frameCount <= 150) {
     for (let i = 0; i < recordedFrames.length; i++) {
       let fname = "frame_" + String(i).padStart(6, "0") + ".png";
-      await ffmpeg.writeFile(fname, recordedFrames[i]);
+      await ffmpeg.writeFile(fname, recordedFrames[i].slice());
     }
     await _assemble(null, frameCount, recordingWidth, recordingHeight, ffmpeg, recorderRef);
   } else {
@@ -258,7 +258,7 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
         }
 
         // 2. Write the frame data to the virtual file system.
-        await ffmpeg.writeFile("frame_" + String(i).padStart(6, "0") + ".png", frameData);
+        await ffmpeg.writeFile("frame_" + String(i).padStart(6, "0") + ".png", frameData.slice());
       }
       
       let chunkName = "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm");
