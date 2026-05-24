@@ -553,5 +553,53 @@
 //
 //
 // =============================================================================
+// 15. AI STUDIO-SPECIFIC ENVIRONMENT INTEGRATION & VITE PITFALL PREVENTION
+// =============================================================================
+//
+// 15.1 Root Cause of the "Monolithic Bundler" Conflict:
+//      Modern AI coding assistants often default to standard React/TypeScript 
+//      Vite boilerplates or full-stack Next.js/Express setups. In this project, 
+//      a previous run attempted to introduce Vite, typescript compilation (`tsc`), 
+//      and nesting structures (`js/core/`, `js/video/`, etc.) with compilation 
+//      pipelines. This broke the designed "Build-Free/No-Bundler" native 
+//      browser architecture.
+//
+//      Specific issues caused by this:
+//      - Duplicate source files inside nested folders (e.g. `js/video/recording.js` 
+//        vs. `js/recording.js`) causing import path conflicts and desynced codebases.
+//      - `vite` dev server configuration that did not serve Cross-Origin isolation 
+//        headers properly out-of-the-box or caused port binding mismatch.
+//      - Unwanted `vite.config.ts`, `tsconfig.json`, and dev dependency pollution.
+//      - Broken browser module imports due to incorrect path assumptions (e.g. importing 
+//        from `./core/state.js` inside a flat file deployment).
+//
+// 15.2 Proper Standalone HTTP Node.js Server Environment:
+//      The project runs on a custom Web container where port 3000 is mapped. 
+//      To bypass Vite, we use a lightweight, native, zero-dependency Node.js 
+//      static file server (`server.js`) that runs directly under `node server.js` 
+//      for both development and production starts.
+//
+//      Key Server Requirements kept inside `server.js`:
+//      - Custom MIME types mapped correctly to handle .js / .mjs / .html / .css / .wasm.
+//      - Explicit Cross-Origin security headers to support ES module workers and 
+//        prevent CORS/SharedArrayBuffer loading errors with FFmpeg.wasm:
+//          'Cross-Origin-Opener-Policy': 'same-origin'
+//          'Cross-Origin-Embedder-Policy': 'require-corp'
+//
+// 15.3 Folder Structure Restrictions & Absolute Rules for Future Agents:
+//      - NO TSCONFIG OR VITE CONFIGS: Do not restore Vite, rollup, webpack, tsconfig, 
+//        or any other bundlers. Keep the codebase pure JavaScript ES modules.
+//      - FLAT JS DIRECTORY: Keep all application scripts directly inside the parent 
+//        `/js/` folder (e.g., `js/state.js`, `js/recording.js`, `js/main.js`). 
+//        Do not create `js/core/`, `js/rendering/`, `js/ui/` folders.
+//      - ES MODULE PATHS: All inter-module imports in `/js/*.js` must use relative 
+//        flat paths. (e.g., `import { sgState } from "./state.js"`).
+//      - NPM SCRIPT PRESERVATION: Keep production `package.json` scripts simple:
+//          "dev": "node server.js",
+//          "build": "echo 'Unbundled build ready.'",
+//          "start": "node server.js",
+//          "lint": "echo 'Linting skipped.'"
+//
+// =============================================================================
 // END OF SPECIFICATIONS
 // =============================================================================
