@@ -1,5 +1,5 @@
 // =============================================================================
-// Sine-Gordon Lab v11.11.10 — Technical Specifications (UPDATED)
+// Sine-Gordon Lab v11.11.12 — Technical Specifications (UPDATED)
 // =============================================================================
 //
 // 1. PROJECT OVERVIEW
@@ -262,7 +262,7 @@
 //       </script>
 //       <meta charset="UTF-8" />
 //       <meta name="viewport" content="..." />
-//       <title>Sine-Gordon Lab v11.11.10</title>
+//       <title>Sine-Gordon Lab v11.11.12</title>
 //       <link rel="icon" href="./favicon.ico" />
 //       <link rel="stylesheet" href="style.css" />
 //
@@ -497,6 +497,13 @@
 //     - WebM encoding effort scales with resolution (realtime→good above 1080p).
 //     - Truncated WASM detection (< 20MB) forces CDN fallback.
 //     - Saved recording resolution used during assembly to prevent mismatch.
+//
+//   v11.11.12 — Safe Upstream Thumbnail Generation & Standardized Build System
+//     - Decoupled preview thumbnail generation from FFmpeg.wasm processing entirely.
+//     - Thumbnails are loaded and rendered on the preview canvas upstream, prior to FFmpeg interaction, preventing threading and resource conflicts.
+//     - Assembly phase (slow) extracts and previews the first frame of each double-buffer batch (or the first frame in the short buffer for < 150 frames).
+//     - ZIP export phase (fast) throttles thumbnail rendering to a maximum of 1 in 10 frames to optimize CPU cycling.
+//     - Introduced standard NPM workspace configuration and standard sandbox-compatible Node.js package.json scripts (`build`, `start`, `lint`).
 //
 //
 // 11. KNOWN LIMITATIONS & FUTURE WORK
