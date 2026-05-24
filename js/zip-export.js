@@ -5,8 +5,7 @@
 // Uses vendor/jszip/jszip.min.js (window.JSZip) and
 // vendor/file-saver/FileSaver.min.js (window.saveAs).
 // =============================================================================
-
-export async function exportToZip(dirHandle, zip, btnVideo, refreshUI) {
+export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderRef) {
   if (dirHandle) {
     console.log("Generating ZIP file(s) from OPFS buffer...");
     if (btnVideo) btnVideo.textContent = "Zipping... 0%";
@@ -25,6 +24,12 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI) {
                 console.warn("showSaveFilePicker failed early, will fallback to Blob download.", e);
             } else {
                 if (btnVideo) btnVideo.textContent = "Canceled";
+                if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
+                    console.log("[ZIP Export] Returning canvas size back to normal viewing resolution.");
+                    recorderRef._restoreCanvasSize();
+                }
+                const overlay = document.getElementById("processing-overlay");
+                if (overlay) overlay.style.display = "none";
                 setTimeout(function() { if (refreshUI) refreshUI(); }, 2000);
                 return;
             }
@@ -41,17 +46,55 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI) {
       frameFiles.sort((a,b) => a.name.localeCompare(b.name));
       
       if (frameFiles.length === 0) {
-          if(btnVideo) btnVideo.textContent = "Error: No frames";
+          if (btnVideo) btnVideo.textContent = "Error: No frames";
+          const overlay = document.getElementById("processing-overlay");
+          if (overlay) overlay.style.display = "none";
           return;
       }
       
+      const overlay = document.getElementById("processing-overlay");
+      if (overlay) overlay.style.display = "flex";
+      const statusEl = document.getElementById("assembly-status");
+      if (statusEl) statusEl.textContent = "Packaging ZIP...";
+      const percentEl = document.getElementById("assembly-percent");
+      const fill = document.getElementById("progress-fill");
+      if (percentEl) percentEl.textContent = "0%";
+      if (fill) fill.style.width = "0%";
+      const previewCanvas = document.getElementById("preview-canvas");
+
       if (btnVideo) btnVideo.textContent = `Zipping...`;
       let zip = new window.JSZip();
       Object.defineProperty(zip, "comment", { get: () => "Sine-Gordon Lab recording" });
       
-      for (let f of frameFiles) {
+      for (let i = 0; i < frameFiles.length; i++) {
+          let f = frameFiles[i];
           const file = await f.handle.getFile();
           zip.file(f.name, file);
+          
+          if (i % 10 === 0 && previewCanvas) {
+              try {
+                  const tUrl = URL.createObjectURL(file);
+                  const tImg = new Image();
+                  tImg.onload = function() {
+                      const ctx = previewCanvas.getContext("2d");
+                      if (ctx) {
+                          previewCanvas.width = tImg.naturalWidth;
+                          previewCanvas.height = tImg.naturalHeight;
+                          ctx.drawImage(tImg, 0, 0, tImg.naturalWidth, tImg.naturalHeight);
+                      }
+                      URL.revokeObjectURL(tUrl);
+                  };
+                  tImg.src = tUrl;
+              } catch (err) {
+                  console.error("[ZIP Export] Upstream thumbnail generation failed:", err);
+              }
+          }
+          
+          if (percentEl) {
+              const pct = Math.floor(((i + 1) / frameFiles.length) * 100);
+              percentEl.textContent = pct + "%";
+              if (fill) fill.style.width = pct + "%";
+          }
       }
       
       if (saveHandle) {
@@ -68,7 +111,7 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI) {
                   let chunkCount = 0;
                   let stageDataCount = 0;
                   let totalBytesWritten = 0;
-
+ 
                   let zipStream = zip.generateInternalStream({ type: "uint8array", compression: "STORE" });
                   
                   zipStream.on('data', async function(data, metadata) {
@@ -106,6 +149,10 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI) {
                           if (btnVideo) {
                               btnVideo.textContent = "Zipping... " + metadata.percent.toFixed(0) + "%";
                           }
+                          if (percentEl) {
+                              percentEl.textContent = metadata.percent.toFixed(0) + "%";
+                              if (fill) fill.style.width = metadata.percent.toFixed(0) + "%";
+                          }
                           zipStream.resume();
                       } catch(e) { reject(e); }
                   })
@@ -133,6 +180,10 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI) {
                   console.warn("showSaveFilePicker failed, trying Blob approach", e);
                   let content = await zip.generateAsync({ type: "blob", compression: "STORE" }, (meta) => {
                       if (btnVideo) btnVideo.textContent = "Zipping... " + meta.percent.toFixed(0) + "%";
+                      if (percentEl) {
+                          percentEl.textContent = meta.percent.toFixed(0) + "%";
+                          if (fill) fill.style.width = meta.percent.toFixed(0) + "%";
+                      }
                   });
                   window.saveAs(content, zipFilename);
               }
@@ -140,6 +191,10 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI) {
       } else {
           let content = await zip.generateAsync({ type: "blob", compression: "STORE" }, (meta) => {
               if (btnVideo) btnVideo.textContent = "Zipping... " + meta.percent.toFixed(0) + "%";
+              if (percentEl) {
+                  percentEl.textContent = meta.percent.toFixed(0) + "%";
+                  if (fill) fill.style.width = meta.percent.toFixed(0) + "%";
+              }
           });
           window.saveAs(content, zipFilename);
       }
@@ -152,19 +207,81 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI) {
       if (btnVideo) {
           btnVideo.textContent = "✓ Saved!";
           btnVideo.classList.remove("btn-warn");
+          if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
+              console.log("[ZIP Export] Returning canvas size back to normal viewing resolution.");
+              recorderRef._restoreCanvasSize();
+          }
+          const overlay = document.getElementById("processing-overlay");
+          if (overlay) overlay.style.display = "none";
           setTimeout(function() { if (refreshUI) refreshUI(); }, 2000);
       }
     } catch (e) {
         console.error("ZIP Generation error:", e);
         if (btnVideo) btnVideo.textContent = "Error!";
+        if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
+            console.log("[ZIP Export] Returning canvas size back to normal viewing resolution on error.");
+            recorderRef._restoreCanvasSize();
+        }
+        const overlay = document.getElementById("processing-overlay");
+        if (overlay) overlay.style.display = "none";
         setTimeout(() => { if (refreshUI) refreshUI(); }, 2000);
     }
   } else if (zip) {
     console.log("Generating ZIP file from memory buffer...");
     var btnVideo = document.getElementById("btn-video");
     
+    const overlay = document.getElementById("processing-overlay");
+    if (overlay) overlay.style.display = "flex";
+    const statusEl = document.getElementById("assembly-status");
+    if (statusEl) statusEl.textContent = "Packaging memory ZIP...";
+    const percentEl = document.getElementById("assembly-percent");
+    const fill = document.getElementById("progress-fill");
+    if (percentEl) percentEl.textContent = "0%";
+    if (fill) fill.style.width = "0%";
+    const previewCanvas = document.getElementById("preview-canvas");
+
     if (btnVideo) {
       btnVideo.textContent = "Zipping... 0%";
+    }
+    
+    // Grab the frame names and show 1 in 10 frames max
+    let frameNames = Object.keys(zip.files).filter(name => name.startsWith("frame_") && name.endsWith(".png"));
+    frameNames.sort((a, b) => a.localeCompare(b));
+    
+    for (let i = 0; i < frameNames.length; i++) {
+        if (i % 10 === 0) {
+            try {
+                let name = frameNames[i];
+                let zi = zip.file(name);
+                if (zi && previewCanvas) {
+                    let ab = await zi.async("arraybuffer");
+                    let fileBlob = new Blob([ab], { type: "image/png" });
+                    let tUrl = URL.createObjectURL(fileBlob);
+                    let tImg = new Image();
+                    await new Promise((resolve) => {
+                        tImg.onload = function() {
+                            const ctx = previewCanvas.getContext("2d");
+                            if (ctx) {
+                                previewCanvas.width = tImg.naturalWidth;
+                                previewCanvas.height = tImg.naturalHeight;
+                                ctx.drawImage(tImg, 0, 0, tImg.naturalWidth, tImg.naturalHeight);
+                            }
+                            URL.revokeObjectURL(tUrl);
+                            resolve();
+                        };
+                        tImg.onerror = () => { URL.revokeObjectURL(tUrl); resolve(); };
+                        tImg.src = tUrl;
+                    });
+                }
+            } catch (err) {
+                console.error("[ZIP Export] Memory ZIP preview error:", err);
+            }
+        }
+        if (percentEl) {
+            const pct = Math.floor(((i + 1) / frameNames.length) * 100);
+            percentEl.textContent = pct + "%";
+            if (fill) fill.style.width = pct + "%";
+        }
     }
     
     zip.generateAsync({ 
@@ -173,6 +290,10 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI) {
     }, function updateCallback(metadata) {
       if (btnVideo) {
         btnVideo.textContent = "Zipping... " + metadata.percent.toFixed(0) + "%";
+      }
+      if (percentEl) {
+        percentEl.textContent = metadata.percent.toFixed(0) + "%";
+        if (fill) fill.style.width = metadata.percent.toFixed(0) + "%";
       }
     }).then(async function(content) {
       if (window.showSaveFilePicker) {
@@ -197,11 +318,23 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI) {
       if (btnVideo) {
         btnVideo.textContent = "✓ Saved!";
         btnVideo.classList.remove("btn-warn");
+        if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
+          console.log("[ZIP Export] Returning canvas size back to normal viewing resolution.");
+          recorderRef._restoreCanvasSize();
+        }
+        const overlay = document.getElementById("processing-overlay");
+        if (overlay) overlay.style.display = "none";
         setTimeout(function() { if (refreshUI) refreshUI(); }, 2000);
       }
     }).catch(function(err) {
       console.error("ZIP Generation error:", err);
       if (btnVideo) btnVideo.textContent = "Error!";
+      if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
+        console.log("[ZIP Export] Returning canvas size back to normal viewing resolution on error.");
+        recorderRef._restoreCanvasSize();
+      }
+      const overlay = document.getElementById("processing-overlay");
+      if (overlay) overlay.style.display = "none";
       setTimeout(function() { if (refreshUI) refreshUI(); }, 2000);
       alert("Failed to create ZIP: " + err.message);
     });

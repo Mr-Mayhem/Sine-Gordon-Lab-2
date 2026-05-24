@@ -220,7 +220,7 @@ export default class RecordingEngine {
     if (this._pipeline === "ffmpeg") {
       assemble(this._ffmpeg, this._frameCount, this._recordedFrames, this._recordingWidth, this._recordingHeight, this);
     } else if (this._pipeline === "zip") {
-      exportToZip(this._dirHandle, this._zip, document.getElementById("btn-video"), window.refreshUI);
+      exportToZip(this._dirHandle, this._zip, document.getElementById("btn-video"), window.refreshUI, this);
     } else {
       console.log("Frames saved to", this._pipeline);
       var btnVideo = document.getElementById("btn-video");

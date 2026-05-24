@@ -116,6 +116,7 @@ export async function assembleFromStorage(pipeline, recorderRef) {
   
   recorderRef._recordingWidth = detectedWidth || (appState.exportWidth || 1280);
   recorderRef._recordingHeight = detectedHeight || (appState.exportHeight || 720);
+  recorderRef._firstFrameBytes = firstBytes;
   
   const overlay = document.getElementById("processing-overlay"); overlay.style.display = "flex";
   const ffmpeg = await loadFFmpeg((typeof appState !== 'undefined' ? appState.exportFormat : null) || "webm", recorderRef, null);
@@ -145,14 +146,42 @@ export async function assembleFromStorage(pipeline, recorderRef) {
 export async function assemble(ffmpeg, frameCount, recordedFrames, recordingWidth, recordingHeight, recorderRef) {
   recorderRef.isAssembling = true;
   
+  if (recordedFrames && recordedFrames.length > 0) {
+    recorderRef._firstFrameBytes = recordedFrames[0];
+  }
+  
+  var detectedWidth = null;
+  var detectedHeight = null;
+  if (recordedFrames && recordedFrames.length > 0) {
+    try {
+      var firstBytes = recordedFrames[0];
+      var blob = new Blob([firstBytes], { type: "image/png" });
+      var img = await new Promise((resolve, reject) => {
+        var image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = URL.createObjectURL(blob);
+      });
+      detectedWidth = img.naturalWidth;
+      detectedHeight = img.naturalHeight;
+      URL.revokeObjectURL(img.src);
+      console.log("[FFmpeg] Detected RAM 1st frame resolution (1st frame size test):", detectedWidth + "x" + detectedHeight);
+    } catch (e) {
+      console.warn("[FFmpeg] RAM 1st frame resolution detection failed- falling back:", e.message);
+    }
+  }
+  
+  var finalW = detectedWidth || recordingWidth || resolveRecordingResolution().width;
+  var finalH = detectedHeight || recordingHeight || resolveRecordingResolution().height;
+
   if (frameCount <= 150) {
-    await _assemble(null, frameCount, recordingWidth, recordingHeight, ffmpeg, recorderRef);
+    await _assemble(null, frameCount, finalW, finalH, ffmpeg, recorderRef);
   } else {
     let externalFrameFiles = recordedFrames.map((bytes, index) => ({
       name: "frame_" + String(index).padStart(6, "0") + ".png",
       handle: { getFile: async () => ({ arrayBuffer: async () => bytes.buffer }) }
     }));
-    await _assemble(externalFrameFiles, frameCount, recordingWidth, recordingHeight, ffmpeg, recorderRef);
+    await _assemble(externalFrameFiles, frameCount, finalW, finalH, ffmpeg, recorderRef);
   }
 }
 
@@ -171,22 +200,41 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
   const targetW = recordingWidth || resolveRecordingResolution().width;
   const targetH = recordingHeight || resolveRecordingResolution().height;
   
+  const alignedW = Math.floor(targetW / 2) * 2;
+  const alignedH = Math.floor(targetH / 2) * 2;
+  console.log(`[FFmpeg] Pipeline Stage: Verifying target dimensions ${targetW}x${targetH} -> Even aligned output resolution: ${alignedW}x${alignedH}`);
+  
   var ctx = null;
   if (previewCanvas) {
-    previewCanvas.width = targetW; previewCanvas.height = targetH;
+    previewCanvas.width = alignedW; previewCanvas.height = alignedH;
     previewCanvas.style.width = "100%"; previewCanvas.style.height = "auto";
-    previewCanvas.style.aspectRatio = `${targetW} / ${targetH}`;
-    ctx = previewCanvas.getContext("2d"); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, targetW, targetH);
+    previewCanvas.style.aspectRatio = `${alignedW} / ${alignedH}`;
+    ctx = previewCanvas.getContext("2d"); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, alignedW, alignedH);
   }
   overlay.style.display = "flex";
+  
+  if (ctx && recorderRef && recorderRef._firstFrameBytes) {
+    try {
+      var tBlob = new Blob([recorderRef._firstFrameBytes], { type: "image/png" });
+      var tUrl = URL.createObjectURL(tBlob);
+      var tImg = new Image();
+      tImg.onload = function() {
+        ctx.drawImage(tImg, 0, 0, alignedW, alignedH);
+        URL.revokeObjectURL(tUrl);
+        recorderRef._firstFrameBytes = null;
+      };
+      tImg.src = tUrl;
+    } catch (err) {
+      console.error("[FFmpeg] Upstream first-frame preview generation failed:", err);
+    }
+  }
+  
   var oc = overlay.querySelector("div"); if (oc) { oc.style.maxWidth = "800px"; oc.style.padding = "32px"; oc.style.height = "auto"; oc.style.minHeight = "400px"; }
 
   const format = appState.exportFormat || "webm";
   const fps = appState.exportFPS || 60;
   const crf = String(appState.exportCRF || 18);
   const outputFile = "output." + (format === "mp4" ? "mp4" : "webm");
-  const alignedW = targetW;
-  const alignedH = targetH;
   var scaleFilter = "scale=" + alignedW + ":" + alignedH + ":flags=lanczos";
   var resolutionScale = (alignedW * alignedH) / (1280 * 720);
   var webmBitrate = Math.max(2, Math.round(2 * resolutionScale)) + "M";
@@ -218,7 +266,22 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
       let end = Math.min(loadIdx + CHUNK_SIZE, totalFrames);
       let ptr = 0;
       for (let i = loadIdx; i < end; i++) {
-        try { const file = await externalFrameFiles[i].handle.getFile(); const buffer = await file.arrayBuffer(); doubleBuffer[bufferIdx][ptr] = new Uint8Array(buffer); ptr++; } catch (e) {}
+        try {
+          const file = await externalFrameFiles[i].handle.getFile();
+          if (!file) {
+            console.warn(`[FFmpeg] getFile() returned null for frame ${i}`);
+            continue;
+          }
+          const buffer = await file.arrayBuffer();
+          if (!buffer) {
+            console.warn(`[FFmpeg] arrayBuffer() resolved to null/undefined for frame ${i}`);
+            continue;
+          }
+          doubleBuffer[bufferIdx][ptr] = new Uint8Array(buffer);
+          ptr++;
+        } catch (e) {
+          console.error(`[FFmpeg] Failed to preload frame ${i}:`, e);
+        }
       }
       doubleBufferLengths[bufferIdx] = ptr;
       loadIdx = end;
@@ -228,15 +291,33 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
     
     for (let c = 0; c < numChunks; c++) {
       let framesInThisChunk = doubleBufferLengths[activeBufferIdx];
-      for (let i = 0; i < framesInThisChunk; i++) {
-        await ffmpeg.writeFile("frame_" + String(i).padStart(6, "0") + ".png", doubleBuffer[activeBufferIdx][i]);
-        if (i % 10 === 0 && ctx) {
-          var tBlob = new Blob([doubleBuffer[activeBufferIdx][i]], { type: "image/png" });
-          var tUrl = URL.createObjectURL(tBlob);
-          var tImg = new Image();
-          tImg.onload = function() { ctx.drawImage(tImg, 0, 0, targetW, targetH); URL.revokeObjectURL(tUrl); };
-          tImg.src = tUrl;
+      
+      // Grab and draw the first frame of each batch/chunk of the double-buffer upstream
+      if (framesInThisChunk > 0 && ctx) {
+        var firstChunkFrame = doubleBuffer[activeBufferIdx][0];
+        if (firstChunkFrame) {
+          try {
+            var tBlob = new Blob([firstChunkFrame], { type: "image/png" });
+            var tUrl = URL.createObjectURL(tBlob);
+            var tImg = new Image();
+            tImg.onload = function() {
+              ctx.drawImage(tImg, 0, 0, alignedW, alignedH);
+              URL.revokeObjectURL(tUrl);
+            };
+            tImg.src = tUrl;
+          } catch (blobErr) {
+            console.error(`[FFmpeg] Preview first-of-batch generation failed:`, blobErr);
+          }
         }
+      }
+      
+      for (let i = 0; i < framesInThisChunk; i++) {
+        var frameData = doubleBuffer[activeBufferIdx][i];
+        if (!frameData) {
+          console.error(`[FFmpeg] Frame data is NULL/UNDEFINED in activeBufferIdx ${activeBufferIdx} at index ${i}. framesInThisChunk was ${framesInThisChunk}.`);
+          continue;
+        }
+        await ffmpeg.writeFile("frame_" + String(i).padStart(6, "0") + ".png", frameData);
       }
       
       let chunkName = "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm");
@@ -289,13 +370,21 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
         loadedCount++; _assemblyStats.verifiedFrames = loadedCount;
         if (i % 10 === 0 || i === totalFrames - 1) {
           _assemblyStats.encodeProgress = Math.round((i + 1) / totalFrames * 100);
-          if (ctx && checkData) { let blob = new Blob([checkData], { type: "image/png" }); let url = URL.createObjectURL(blob); let img = new Image(); img.onload = () => { ctx.drawImage(img, 0, 0, targetW, targetH); URL.revokeObjectURL(url); }; img.src = url; }
           _updateAssemblyUI();
         }
       } catch (e) { missingFrames.push({ index: i }); }
     }
     _assemblyStats.missingFrames = missingFrames.length;
-    if (missingFrames.length > totalFrames * 0.5) { console.error("Too many missing frames."); recorderRef.isAssembling = false; setTimeout(() => { overlay.style.display = "none"; }, 3000); return; }
+    if (missingFrames.length > totalFrames * 0.5) {
+      console.error("Too many missing frames.");
+      recorderRef.isAssembling = false;
+      if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
+        console.log("[FFmpeg] Returning canvas size back to normal viewing resolution on abort.");
+        recorderRef._restoreCanvasSize();
+      }
+      setTimeout(() => { overlay.style.display = "none"; }, 3000);
+      return;
+    }
 
     _assemblyStats.currentPhase = "Encoding video"; _assemblyStats.encodeProgress = 20;
     _assemblyStats.encodeStartTime = performance.now(); _updateAssemblyUI();
@@ -338,6 +427,10 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
 
   recorderRef.isAssembling = false;
   recorderRef._recordedFrames = [];
+  if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
+    console.log("[FFmpeg] Returning canvas size back to normal viewing resolution.");
+    recorderRef._restoreCanvasSize();
+  }
   if (document.getElementById("assembly-ready-actions")) document.getElementById("assembly-ready-actions").style.display = "flex";
   console.log("[FFmpeg] Assembly complete.");
   console.log("=== FINAL TELEMETRY ===");
