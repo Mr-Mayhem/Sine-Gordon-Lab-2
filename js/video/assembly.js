@@ -18,6 +18,36 @@ function resolveRecordingResolution() {
   };
 }
 
+function _drawUpstreamThumbnail(frameBytes, width, height) {
+  if (!frameBytes) return;
+  const previewCanvas = document.getElementById("preview-canvas");
+  if (previewCanvas) {
+    const targetW = width || resolveRecordingResolution().width;
+    const targetH = height || resolveRecordingResolution().height;
+    previewCanvas.width = targetW;
+    previewCanvas.height = targetH;
+    previewCanvas.style.width = "100%";
+    previewCanvas.style.height = "auto";
+    previewCanvas.style.aspectRatio = `${targetW} / ${targetH}`;
+    const ctx = previewCanvas.getContext("2d");
+    try {
+      var tBlob = new Blob([frameBytes], { type: "image/png" });
+      var tUrl = URL.createObjectURL(tBlob);
+      var tImg = new Image();
+      tImg.onload = function() {
+        if (ctx) {
+          ctx.drawImage(tImg, 0, 0, targetW, targetH);
+        }
+        URL.revokeObjectURL(tUrl);
+        console.log(`[Video Pipeline] Instantly drew first-frame thumbnail upstream prior to FFmpeg write. Size: ${targetW}x${targetH}`);
+      };
+      tImg.src = tUrl;
+    } catch (e) {
+      console.warn("[Video Pipeline] Upstream thumbnail generation failed:", e);
+    }
+  }
+}
+
 var _assemblyStats = null;
 
 function _updateAssemblyUI() {
@@ -28,6 +58,9 @@ function _updateAssemblyUI() {
   var fill = document.getElementById("progress-fill");
   if (statusEl) {
     var lines = [];
+    if (s.modeOfActivity) {
+      lines.push("Mode: " + s.modeOfActivity);
+    }
     lines.push("Phase: " + s.currentPhase);
     lines.push("Frames: " + s.verifiedFrames + " / " + s.totalFrames);
     if (s.missingFrames > 0) lines.push("Missing: " + s.missingFrames);
@@ -52,6 +85,13 @@ export async function assembleFromStorage(pipeline, recorderRef) {
   let frameFiles = [];
   
   if (pipeline === "zip") {
+    // Pause the animation and update UI buttons
+    appState.paused = true;
+    var btnPlay = document.getElementById("btn-play");
+    if (btnPlay) btnPlay.textContent = "▶ Run";
+    var btnSidePlay = document.getElementById("btn-side-play");
+    if (btnSidePlay) btnSidePlay.textContent = "▶";
+
     let zipBlob = null;
     if (window.showOpenFilePicker) {
       try { const [fh] = await window.showOpenFilePicker({ id: 'zip-export', types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }], multiple: false }); zipBlob = await fh.getFile(); } catch (e) { return; }
@@ -123,7 +163,17 @@ export async function assembleFromStorage(pipeline, recorderRef) {
   recorderRef._ffmpeg = ffmpeg;
   recorderRef._frameCount = frameFiles.length;
 
+  let modeOfActivity = "Assembling video from still elements";
+  if (pipeline === "zip") {
+    modeOfActivity = "Assembling video from stills in a ZIP file";
+  } else if (pipeline === "local") {
+    modeOfActivity = "Assembling video from stills in a local directory";
+  } else if (pipeline === "opfs") {
+    modeOfActivity = "Assembling video from stills in OPFS cache";
+  }
+
   if (frameFiles.length <= 150) {
+    _drawUpstreamThumbnail(firstBytes, recorderRef._recordingWidth, recorderRef._recordingHeight);
     for (var i = 0; i < frameFiles.length; i++) {
       var fname = "frame_" + String(i).padStart(6, "0") + ".png";
       var frameBytes;
@@ -136,35 +186,39 @@ export async function assembleFromStorage(pipeline, recorderRef) {
       }
       await ffmpeg.writeFile(fname, frameBytes.slice());
     }
-    await _assemble(null, frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight, ffmpeg, recorderRef);
+    await _assemble(null, frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight, ffmpeg, recorderRef, modeOfActivity);
   } else {
-    await _assemble(frameFiles, frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight, ffmpeg, recorderRef);
+    await _assemble(frameFiles, frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight, ffmpeg, recorderRef, modeOfActivity);
   }
 }
 
 export async function assemble(ffmpeg, frameCount, recordedFrames, recordingWidth, recordingHeight, recorderRef) {
   recorderRef.isAssembling = true;
+  let modeOfActivity = "Assembling video directly from the three.js animation on the canvas";
   
   if (frameCount <= 150) {
+    _drawUpstreamThumbnail(recordedFrames[0], recordingWidth, recordingHeight);
     for (let i = 0; i < recordedFrames.length; i++) {
       let fname = "frame_" + String(i).padStart(6, "0") + ".png";
       await ffmpeg.writeFile(fname, recordedFrames[i].slice());
     }
-    await _assemble(null, frameCount, recordingWidth, recordingHeight, ffmpeg, recorderRef);
+    await _assemble(null, frameCount, recordingWidth, recordingHeight, ffmpeg, recorderRef, modeOfActivity);
   } else {
     let externalFrameFiles = recordedFrames.map((bytes, index) => ({
       name: "frame_" + String(index).padStart(6, "0") + ".png",
       handle: { getFile: async () => ({ arrayBuffer: async () => bytes.buffer }) }
     }));
-    await _assemble(externalFrameFiles, frameCount, recordingWidth, recordingHeight, ffmpeg, recorderRef);
+    await _assemble(externalFrameFiles, frameCount, recordingWidth, recordingHeight, ffmpeg, recorderRef, modeOfActivity);
   }
 }
 
-async function _assemble(externalFrameFiles, totalFrames, recordingWidth, recordingHeight, ffmpeg, recorderRef) {
+async function _assemble(externalFrameFiles, totalFrames, recordingWidth, recordingHeight, ffmpeg, recorderRef, modeOfActivity) {
   if (totalFrames === 0) { console.error("No frames."); recorderRef.isAssembling = false; return; }
+  let mode = modeOfActivity || "Assembling video";
+  console.log(`[FFmpeg] Activity Mode: ${mode}`);
   console.log("Assembling", totalFrames, "frames...");
 
-  _assemblyStats = { totalFrames, verifiedFrames: 0, missingFrames: 0, encodeStartTime: 0, encodeElapsed: 0, encodeProgress: 0, framesEncoded: 0, currentPhase: "Initializing", outputSize: "" };
+  _assemblyStats = { totalFrames, verifiedFrames: 0, missingFrames: 0, encodeStartTime: 0, encodeElapsed: 0, encodeProgress: 0, framesEncoded: 0, currentPhase: "Initializing", outputSize: "", modeOfActivity: mode };
 
   const overlay = document.getElementById("processing-overlay");
   const readyActions = document.getElementById("assembly-ready-actions"); if (readyActions) readyActions.style.display = "none";
@@ -189,9 +243,15 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
   const fps = appState.exportFPS || 60;
   const crf = String(appState.exportCRF || 18);
   const outputFile = "output." + (format === "mp4" ? "mp4" : "webm");
-  const alignedW = targetW;
-  const alignedH = targetH;
+  // Verify pipeline parameters & check resolution macroblock/YUV alignment
+  const alignedW = Math.floor(targetW / 16) * 16;
+  const alignedH = Math.floor(targetH / 2) * 2;
+  console.log(`[Video Pipeline] Stage 1 - 1st Frame/Source Size: ${targetW}x${targetH}`);
+  console.log(`[Video Pipeline] Stage 2 - Alignment (Width to 16, Height to 2): ${alignedW}x${alignedH}`);
+
   var scaleFilter = "scale=" + alignedW + ":" + alignedH + ":flags=lanczos";
+  console.log(`[Video Pipeline] Stage 3 - CFG Scale Filter: "${scaleFilter}"`);
+
   var resolutionScale = (alignedW * alignedH) / (1280 * 720);
   var webmBitrate = Math.max(2, Math.round(2 * resolutionScale)) + "M";
   var webmDeadline = resolutionScale > 2.0 ? "good" : "realtime";
@@ -239,10 +299,8 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
           continue;
         }
 
-        // 1. Generate preview thumbnail BEFORE transferring/writing to FFmpeg.
-        // ffmpeg.writeFile may detach or neuter the underlying ArrayBuffer in some browsers (like Firefox),
-        // which makes creating a Blob from it afterwards throw NS_ERROR_ILLEGAL_VALUE.
-        if (i % 10 === 0 && ctx) {
+        // 1. Generate preview thumbnail BEFORE transferring/writing to FFmpeg. Only for the very first frame of this double-buffer chunk. Only grab upstream.
+        if (i === 0 && ctx) {
           try {
             var tBlob = new Blob([frameData], { type: "image/png" });
             var tUrl = URL.createObjectURL(tBlob);
@@ -250,6 +308,7 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
             tImg.onload = function() { 
               ctx.drawImage(tImg, 0, 0, targetW, targetH); 
               URL.revokeObjectURL(tUrl); 
+              console.log(`[Video Pipeline] Instantly drew double-buffer chunk first-frame thumbnail upstream. Size: ${targetW}x${targetH}`);
             };
             tImg.src = tUrl;
           } catch (blobErr) {
@@ -311,13 +370,20 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
         loadedCount++; _assemblyStats.verifiedFrames = loadedCount;
         if (i % 10 === 0 || i === totalFrames - 1) {
           _assemblyStats.encodeProgress = Math.round((i + 1) / totalFrames * 100);
-          if (ctx && checkData) { let blob = new Blob([checkData], { type: "image/png" }); let url = URL.createObjectURL(blob); let img = new Image(); img.onload = () => { ctx.drawImage(img, 0, 0, targetW, targetH); URL.revokeObjectURL(url); }; img.src = url; }
           _updateAssemblyUI();
         }
       } catch (e) { missingFrames.push({ index: i }); }
     }
     _assemblyStats.missingFrames = missingFrames.length;
-    if (missingFrames.length > totalFrames * 0.5) { console.error("Too many missing frames."); recorderRef.isAssembling = false; setTimeout(() => { overlay.style.display = "none"; }, 3000); return; }
+    if (missingFrames.length > totalFrames * 0.5) { 
+      console.error("Too many missing frames."); 
+      recorderRef.isAssembling = false; 
+      if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
+        recorderRef._restoreCanvasSize();
+      }
+      setTimeout(() => { overlay.style.display = "none"; }, 3000); 
+      return; 
+    }
 
     _assemblyStats.currentPhase = "Encoding video"; _assemblyStats.encodeProgress = 20;
     _assemblyStats.encodeStartTime = performance.now(); _updateAssemblyUI();
@@ -360,6 +426,9 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
 
   recorderRef.isAssembling = false;
   recorderRef._recordedFrames = [];
+  if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
+    recorderRef._restoreCanvasSize();
+  }
   if (document.getElementById("assembly-ready-actions")) document.getElementById("assembly-ready-actions").style.display = "flex";
   console.log("[FFmpeg] Assembly complete.");
   console.log("=== FINAL TELEMETRY ===");
