@@ -7,14 +7,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-import { sgState, loadExportSettings, saveExportSettings } from "./core/state.js";
-import PhysicsEngine from "./core/physics.js";
-import SceneRenderer from "./rendering/scene-renderer.js";
-import RecordingEngine from "./video/recording.js";
-import SnapshotEngine from "./video/snapshot.js";
-import UI from "./ui/ui-thumbs.js";
-import { bindEvents } from "./ui/events.js";
-import { animate, changeElementCount } from "./rendering/animation.js";
+import { sgState, loadExportSettings, saveExportSettings } from "./state.js";
+import PhysicsEngine from "./physics.js";
+import SceneRenderer from "./scene-renderer.js";
+import RecordingEngine from "./recording.js";
+import SnapshotEngine from "./snapshot.js";
+import UI from "./ui-thumbs.js";
+import { bindEvents } from "./events.js";
+import { animate, changeElementCount } from "./animation.js";
 
 // Local constants to avoid import ambiguity
 const PALETTE = [
