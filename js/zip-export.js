@@ -70,15 +70,12 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
     let saveHandle = null;
     if (window.showSaveFilePicker) {
         try {
-            const lastHandle = await getLastZipHandle();
             const pickerOpts = {
                 suggestedName: zipFilename,
-                id: 'zip-export-single',
+                id: 'zip-export',
+                startIn: 'downloads',
                 types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }]
             };
-            if (lastHandle) {
-                pickerOpts.startIn = lastHandle;
-            }
             saveHandle = await window.showSaveFilePicker(pickerOpts);
         } catch (e) {
             if (e.name !== "AbortError") {
@@ -367,15 +364,12 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
     }).then(async function(content) {
       if (window.showSaveFilePicker) {
         try {
-          const lastHandle = await getLastZipHandle();
           const pickerOpts = {
             suggestedName: "frames_" + Date.now() + ".zip",
             id: 'zip-export',
+            startIn: 'downloads',
             types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
           };
-          if (lastHandle) {
-            pickerOpts.startIn = lastHandle;
-          }
           const handle = await window.showSaveFilePicker(pickerOpts);
           const writable = await handle.createWritable();
           await writable.write(content);

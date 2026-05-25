@@ -58,15 +58,12 @@ export async function assembleFromStorage(pipeline, recorderRef) {
     let zipBlob = null;
     if (window.showOpenFilePicker) {
       try {
-        const lastHandle = await getLastZipHandle();
         const pickerOpts = {
           id: 'zip-export',
+          startIn: 'downloads',
           types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
           multiple: false
         };
-        if (lastHandle) {
-          pickerOpts.startIn = lastHandle;
-        }
         const [fh] = await window.showOpenFilePicker(pickerOpts);
         zipBlob = await fh.getFile();
         try { await setLastZipHandle(fh); } catch (_) {}

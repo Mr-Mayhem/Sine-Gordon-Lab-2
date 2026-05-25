@@ -227,19 +227,17 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
   2. **Zero-leak Lifetime Management**: When FFmpeg assembly completes or is aborted, the temporary directory is recursively deleted (`root.removeEntry(tempDir, { recursive: true })`) to completely eliminate storage waste.
   3. **High Single-Pass Limit**: Direct encoding handles sequences up to **1500 frames** in a single continuous `.exec()` thread, utilizing local slices (`bytes.slice()`) on file read to prevent memory detachment during browser background execution.
 
-### 4.5 Persistent Save/Open Directories (IndexedDB Directory Handles)
+### 4.5 Persistent Save/Open Directories (Chromium Native ID Association)
 * **The Pitfall**: In web apps with rich export and offline assembly workflows, every time a user triggers a ZIP save or wants to open/upload a zip file, standard browser fallbacks force the local system's directory dialogue to reset to the computer's generic default directory (such as `/Downloads` or `/Documents`). This breaks continuity during laboratory sessions where users export sequentially or load files from a designated project workspace.
-* **The Resolution (Symmetrical Serialized Handles and startIn Caching)**:
-  1. **IndexedDB Object Store Cache**: We implement a lightweight, zero-dependency storage system inside `sine_gordon_lab_db`'s custom object store `handles` to cache the chosen host `FileSystemFileHandle` from both `showSaveFilePicker` and `showOpenFilePicker`.
-  2. **In-Memory & Persistent Sync**: Store chosen handles in IndexedDB and sync to `window._lastZipHandle`. Symmetrically load them to seed the browser's directory dialogs on consecutive loops.
-  3. **Universal Host OS Alignment**: By feeding the serialized handle as the `startIn` configuration property (e.g., `pickerOpts.startIn = lastHandle`), the browser natively anchors the active file prompt (whether file-saving or file-reading) back into the user's exact host folder (e.g., standard Windows File Explorer or macOS Finder directories) from the previous action. This creates seamless offline continuity:
+* **The Resolution (Shared Native Browser Picker IDs)**:
+  1. **Strictly Shared Identifiers**: We assign the exact same `id: 'zip-export'` parameter across all invocations of `showSaveFilePicker` and `showOpenFilePicker`.
+  2. **Native Path Tracking**: Chromium-based browsers recognize matching IDs and natively anchor the active file prompts (whether saving or opening) back into the user's exact host folder (e.g., standard Windows File Explorer or macOS Finder directories) from the previous action. This guarantees elegant, zero-overhead offline continuity without complex security exceptions:
      ```js
-     const lastHandle = await getLastZipHandle();
      const pickerOpts = {
        id: 'zip-export',
        types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }]
      };
-     if (lastHandle) pickerOpts.startIn = lastHandle;
+     const handle = await window.showSaveFilePicker(pickerOpts);
      ```
 
 ### 4.6 Direct ZIP Assembly Layout Alignment (Jitter-Free Stacking)
