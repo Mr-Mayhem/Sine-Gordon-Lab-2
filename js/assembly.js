@@ -251,6 +251,7 @@ function _updateAssemblyUI() {
   var fill = document.getElementById("progress-fill");
   if (statusEl) {
     var lines = [];
+    lines.push("<strong>Project Version:</strong> v1.2.0-hybrid-ts");
     if (s.mode) {
       lines.push("<strong>Mode:</strong> " + s.mode);
     }
@@ -731,7 +732,7 @@ async function _assemble(
     );
     totalFrames = externalFrameFiles.length;
   }
-  console.log(`[FFmpeg] Activity Mode: ${mode}`);
+  console.log(`[Sine-Gordon Lab v1.2.0-hybrid-ts] [FFmpeg] Activity Mode: ${mode}`);
   console.log("Assembling", totalFrames, "frames...");
 
   _assemblyStats = {
@@ -920,6 +921,8 @@ async function _assemble(
           "frame_" + String(i).padStart(6, "0") + ".png",
           frameData,
         );
+        // Free this specific frame array immediately to reclaim memory!
+        doubleBuffer[activeBufferIdx][i] = null;
       }
 
       let chunkName = "chunk_" + c + (format === "mp4" ? ".ts" : ".webm");
@@ -929,6 +932,7 @@ async function _assemble(
         alignedW,
         alignedH,
         chunkName,
+        framesProcessed, // Continuous starting timestamp offset for sequential TS chunks
       );
 
       let nextBufferIdx = (activeBufferIdx + 1) % 2;
@@ -992,6 +996,10 @@ async function _assemble(
           await ffmpeg.writeFile("merged.ts", mergedBytes);
           console.log(`[FFmpeg] Binary concatenation of ${numChunks} chunks completed. Merged stream size: ${(mergedBytes.length / 1024 / 1024).toFixed(2)} MB`);
           
+          // Clean up large buffer references in JS environment immediately before heavy exec starts to protect RAM
+          chunkArrays = [];
+          mergedBytes = null;
+
           // Re-mux the clean merged transport stream into output.mp4, which automatically re-times stream zero offset and converts AnnexB to AVCC.
           await ffmpeg.exec([
             "-i",

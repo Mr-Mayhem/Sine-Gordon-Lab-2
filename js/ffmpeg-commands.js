@@ -73,11 +73,13 @@ export function buildChunkArgs(
   alignedW,
   alignedH,
   chunkName,
+  framesOffset = 0,
 ) {
   const params = getEncodingParams(alignedW, alignedH);
   let args = [];
 
   if (params.format === "mp4") {
+    const offsetSec = (framesOffset / params.fps).toFixed(6);
     args = [
       "-framerate",
       String(params.fps),
@@ -111,6 +113,8 @@ export function buildChunkArgs(
       String(params.fps),
       "-video_track_timescale",
       "90000",
+      "-output_ts_offset",
+      String(offsetSec),
     ];
   } else {
     args = [
