@@ -26,8 +26,12 @@ export function getEncodingParams(alignedW, alignedH) {
 
   var resolutionScale = (alignedW * alignedH) / (1280 * 720);
   var webmBitrate = Math.max(2, Math.round(2 * resolutionScale)) + "M";
-  var webmDeadline = resolutionScale > 2.0 ? "good" : "realtime";
-  var webmCpuUsed = resolutionScale > 2.0 ? "2" : "4";
+  // Always use standard realtime deadline and thread-friendly cpu-used settings to avoid WASM memory leaks / timeouts at high resolutions
+  var webmDeadline = "realtime";
+  var webmCpuUsed = resolutionScale > 2.0 ? "5" : "4";
+
+  // Use veryfast preset for high density resolutions to prevent OOM / processor lockups
+  var x264Preset = resolutionScale > 2.0 ? "veryfast" : "medium";
 
   return {
     format,
@@ -39,6 +43,7 @@ export function getEncodingParams(alignedW, alignedH) {
     webmBitrate,
     webmDeadline,
     webmCpuUsed,
+    x264Preset,
     targetRes
   };
 }
@@ -58,7 +63,7 @@ export function buildChunkArgs(framesInThisChunk, alignedW, alignedH, chunkName)
       "-i", "frame_%06d.png",
       "-vframes", String(framesInThisChunk),
       "-c:v", "libx264",
-      "-preset", "medium",
+      "-preset", params.x264Preset,
       "-crf", params.crf,
       "-pix_fmt", "yuv420p",
       "-bf", "0",
@@ -103,7 +108,7 @@ export function buildAssemblyArgs(alignedW, alignedH, outputFile) {
       "-start_number", "0",
       "-i", "frame_%06d.png",
       "-c:v", "libx264",
-      "-preset", "medium",
+      "-preset", params.x264Preset,
       "-crf", params.crf,
       "-pix_fmt", "yuv420p",
       "-bf", "0"

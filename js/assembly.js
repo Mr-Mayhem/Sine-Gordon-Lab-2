@@ -49,6 +49,20 @@ function _updateAssemblyUI() {
   if (fill) fill.style.width = s.encodeProgress + "%";
 }
 
+function shouldUseChunkedAssembly(frameCount, width, height) {
+  const pixels = (width || 1280) * (height || 720);
+  if (pixels >= 3840 * 2160) {
+    return frameCount > 30;   // 4K limit: use chunked if > 30 frames to bypass WASM heap limits
+  }
+  if (pixels >= 2560 * 1440) {
+    return frameCount > 60;   // 1440p limit: use chunked if > 60 frames
+  }
+  if (pixels >= 1920 * 1080) {
+    return frameCount > 120;  // 1080p limit: use chunked if > 120 frames
+  }
+  return frameCount > 1500;   // 720p and below
+}
+
 export async function assembleFromStorage(pipeline, recorderRef) {
   if (recorderRef.isAssembling) return;
   
@@ -150,7 +164,9 @@ export async function assembleFromStorage(pipeline, recorderRef) {
   recorderRef._ffmpeg = ffmpeg;
   recorderRef._frameCount = frameFiles.length;
 
-  if (frameFiles.length <= 1500) {
+  const useChunked = shouldUseChunkedAssembly(frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight);
+
+  if (!useChunked) {
     for (var i = 0; i < frameFiles.length; i++) {
       var fname = "frame_" + String(i).padStart(6, "0") + ".png";
       var frameBytes;
@@ -230,8 +246,10 @@ export async function assemble(ffmpeg, frameCount, recordedFrames, recordingWidt
   var finalW = detectedWidth || recordingWidth || resolveRecordingResolution().width;
   var finalH = detectedHeight || recordingHeight || resolveRecordingResolution().height;
 
+  const useChunked = shouldUseChunkedAssembly(frameCount, finalW, finalH);
+
   if (frameFiles && frameFiles.length > 0) {
-    if (frameCount <= 1500) {
+    if (!useChunked) {
       for (var i = 0; i < frameCount; i++) {
         var fname = "frame_" + String(i).padStart(6, "0") + ".png";
         var frameBytes;
@@ -249,7 +267,7 @@ export async function assemble(ffmpeg, frameCount, recordedFrames, recordingWidt
       await _assemble(frameFiles, frameCount, finalW, finalH, ffmpeg, recorderRef, "three.js canvas-to-video");
     }
   } else {
-    if (frameCount <= 1500) {
+    if (!useChunked) {
       if (recordedFrames) {
         if (recordedFrames.length < frameCount) {
           console.warn(`[FFmpeg] Mismatch in short buffer: frameCount is ${frameCount}, but recordedFrames.length is ${recordedFrames.length}. Adjusting.`);
@@ -339,7 +357,15 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
   }, 500);
 
   if (externalFrameFiles) {
-    const CHUNK_SIZE = 150;
+    let CHUNK_SIZE = 150;
+    const pixelsPerFrame = alignedW * alignedH;
+    if (pixelsPerFrame >= 3840 * 2160) {
+      CHUNK_SIZE = 40;   // 4K: keep WASM memory footprint exceptionally small
+    } else if (pixelsPerFrame >= 2560 * 1440) {
+      CHUNK_SIZE = 75;   // 1440p: medium-small chunk batches
+    } else if (pixelsPerFrame >= 1920 * 1080) {
+      CHUNK_SIZE = 100;  // 1080p: safe memory barrier chunks
+    }
     const numChunks = Math.ceil(totalFrames / CHUNK_SIZE);
     let concatList = "";
     var framesProcessed = 0;

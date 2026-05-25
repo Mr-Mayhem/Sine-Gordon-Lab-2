@@ -221,11 +221,21 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
 * **The Resolution**: Keep separate source and destination canvas buffers in GPU storage. Draw the active WebGL canvas raw frames onto a `_rawCanvas` (for pristine pixel capture with no interface scaling or thread blocking), and project it onto the destination context inversion matrix cleanly.
 
 ### 4.4 Multi-threaded FFmpeg.wasm Re-entry Crash & RAM Saturation (Unified OPFS Architecture)
-* **The Pitfall**: Capturing high-resolution canvas frames at 60fps easily saturates RAM inside the browser tab, leading to abrupt page crashes (OOM errors) or memory leaks. Furthermore, passing raw references of `Uint8Array` byte buffers directly to FFmpeg memory transfers can detach arrays or freeze multi-threaded background workers, crashing sequential assemblies.
-* **The Resolution (Unified Safe Stream)**:
+* **The Pitfall**: Capturing high-resolution canvas frames at 60fps easily saturates RAM inside the browser tab, leading to abrupt page crashes (OOM errors) or memory leaks. Furthermore, passing raw references of `Uint8Array` byte buffers directly to FFmpeg memory transfers can detach arrays or freeze multi-threaded background workers, crashing sequential assemblies. Additionally, writing hundreds of high-resolution (e.g. 1440p or 4K) raw uncompressed frames to MEMFS and running single-pass assembly easily exceeds the 2GB WebAssembly heap restriction, triggering instant VM crashes.
+* **The Resolution (Unified Safe Stream & Dynamic Bounds)**:
   1. **Unified OPFS Storage Loop**: Both the "direct" video-rendering (MP4/WebM) and standard "ZIP export" pipelines use the exact same file-streaming model. Rather than holding huge frame arrays in main RAM, frames are written immediately to a temporary sub-directory via the high-speed, sandboxed **Origin Private File System (OPFS)** (`navigator.storage.getDirectory()`).
   2. **Zero-leak Lifetime Management**: When FFmpeg assembly completes or is aborted, the temporary directory is recursively deleted (`root.removeEntry(tempDir, { recursive: true })`) to completely eliminate storage waste.
-  3. **High Single-Pass Limit**: Direct encoding handles sequences up to **1500 frames** in a single continuous `.exec()` thread, utilizing local slices (`bytes.slice()`) on file read to prevent memory detachment during browser background execution.
+  3. **Resolution-Aware Pipeline Router (`shouldUseChunkedAssembly`)**: Instead of a hardcoded 1500-frame threshold for all videos, the system evaluates the frame pixel overhead. If the resolution is extremely high, we route to the chunked memory-safe pipeline much sooner to protect the WASM heap:
+     - **4K (3840x2160)**: Chunked assembly is triggered if the recording exceeds **30 frames**.
+     - **1440p (2560x1440)**: Chunked assembly is triggered if the recording exceeds **60 frames**.
+     - **1080p (1920x1080)**: Chunked assembly is triggered if the recording exceeds **120 frames**.
+     - **720p and below**: Uses the default **1500 frames** threshold.
+  4. **Dynamic Chunk Size Boundaries**: In the chunked assembly phase, `CHUNK_SIZE` scales dynamically based on the rendering resolution to keep peak allocations under ~150MB of heap:
+     - **4K**: `CHUNK_SIZE = 40` frames
+     - **1440p**: `CHUNK_SIZE = 75` frames
+     - **1080p**: `CHUNK_SIZE = 100` frames
+     - **720p and below**: `CHUNK_SIZE = 150` frames
+  5. **Low-Weight Processing Profiles**: To avoid CPU bottlenecks that crash browser worker threads, WebM (VP8) videos are built with the high-speed `-deadline realtime` profile and `-cpu-used 4/5` flags. MP4 (H.264) videos rendered in high density (1440p/4K) automatically swap the heavy default preset for `-preset veryfast` to maintain pristine performance on a single-threaded WebAssembly execution.
 
 ### 4.5 Persistent Save/Open Directories (Chromium Native ID Association)
 * **The Pitfall**: In web apps with rich export and offline assembly workflows, every time a user triggers a ZIP save or wants to open/upload a zip file, standard browser fallbacks force the local system's directory dialogue to reset to the computer's generic default directory (such as `/Downloads` or `/Documents`). This breaks continuity during laboratory sessions where users export sequentially or load files from a designated project workspace.
