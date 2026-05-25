@@ -182,14 +182,13 @@ export default class RecordingEngine {
       } catch (e) { console.warn("OPFS failed, using memory buffer", e); this._zip = new window.JSZip(); }
     } else {
       try {
-        this._ffmpeg = await loadFFmpeg(typeof appState !== 'undefined' ? appState.exportFormat : "webm", this);
+        var root = await navigator.storage.getDirectory();
+        this._dirHandle = await root.getDirectoryHandle("sg_ffmpeg_tmp_" + Date.now(), { create: true });
+        console.log("Initialized OPFS temporary directory for FFmpeg pipeline:", this._dirHandle.name);
       } catch (e) {
-        console.error("FFmpeg load failed", e);
-        alert("FFmpeg could not load. Try ZIP export.");
-        this.isRecording = false; document.getElementById("recording-indicator").style.display = "none";
-        if (window.refreshUI) window.refreshUI(); return;
+        console.warn("OPFS failed for FFmpeg, using memory buffer", e);
+        this._recordedFrames = [];
       }
-      if (!this._ffmpeg) { this.isRecording = false; document.getElementById("recording-indicator").style.display = "none"; return; }
     }
 
     var sizeData = changeCanvasToRecordingResolution(this._canvas, this._renderer, window.camera);
@@ -219,7 +218,30 @@ export default class RecordingEngine {
     this.getTelemetry();
     this._restoreCanvasSize();
     if (this._pipeline === "ffmpeg") {
-      assemble(this._ffmpeg, this._frameCount, this._recordedFrames, this._recordingWidth, this._recordingHeight, this);
+      const overlay = document.getElementById("processing-overlay");
+      if (overlay) overlay.style.display = "flex";
+      
+      const statusEl = document.getElementById("assembly-status");
+      if (statusEl) statusEl.innerHTML = "<strong>Mode:</strong> video-render<br><strong>Phase:</strong> Loading FFmpeg...";
+      
+      try {
+        this._ffmpeg = await loadFFmpeg(typeof appState !== 'undefined' ? appState.exportFormat : "webm", this);
+      } catch (e) {
+        console.error("FFmpeg load failed", e);
+        alert("FFmpeg could not load. Try ZIP export.");
+        if (overlay) overlay.style.display = "none";
+        this.isAssembling = false;
+        if (window.refreshUI) window.refreshUI();
+        return;
+      }
+      if (!this._ffmpeg) {
+        if (overlay) overlay.style.display = "none";
+        this.isAssembling = false;
+        if (window.refreshUI) window.refreshUI();
+        return;
+      }
+      
+      await assemble(this._ffmpeg, this._frameCount, this._recordedFrames, this._recordingWidth, this._recordingHeight, this);
     } else if (this._pipeline === "zip") {
       exportToZip(this._dirHandle, this._zip, document.getElementById("btn-video"), window.refreshUI, this);
     } else {

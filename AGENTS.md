@@ -220,7 +220,14 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
 * **The Pitfall**: Reusing a single temporary canvas for both pixel reading and coordinate vertical inversion (y-flip) causes browser horizontal clipping or blank frame compilation.
 * **The Resolution**: Keep separate source and destination canvas buffers in GPU storage. Draw the active WebGL canvas raw frames onto a `_rawCanvas` (for pristine pixel capture with no interface scaling or thread blocking), and project it onto the destination context inversion matrix cleanly.
 
-### 4.4 Over-Engineering, Tech-Larping, & "AI-Slop"
+### 4.4 Multi-threaded FFmpeg.wasm Re-entry Crash & RAM Saturation (Unified OPFS Architecture)
+* **The Pitfall**: Capturing high-resolution canvas frames at 60fps easily saturates RAM inside the browser tab, leading to abrupt page crashes (OOM errors) or memory leaks. Furthermore, passing raw references of `Uint8Array` byte buffers directly to FFmpeg memory transfers can detach arrays or freeze multi-threaded background workers, crashing sequential assemblies.
+* **The Resolution (Unified Safe Stream)**:
+  1. **Unified OPFS Storage Loop**: Both the "direct" video-rendering (MP4/WebM) and standard "ZIP export" pipelines use the exact same file-streaming model. Rather than holding huge frame arrays in main RAM, frames are written immediately to a temporary sub-directory via the high-speed, sandboxed **Origin Private File System (OPFS)** (`navigator.storage.getDirectory()`).
+  2. **Zero-leak Lifetime Management**: When FFmpeg assembly completes or is aborted, the temporary directory is recursively deleted (`root.removeEntry(tempDir, { recursive: true })`) to completely eliminate storage waste.
+  3. **High Single-Pass Limit**: Direct encoding handles sequences up to **1500 frames** in a single continuous `.exec()` thread, utilizing local slices (`bytes.slice()`) on file read to prevent memory detachment during browser background execution.
+
+### 4.5 Over-Engineering, Tech-Larping, & "AI-Slop"
 * **The Pitfall**: Adding unrequested technical decorations (e.g., "CORE_NODE_ONLINE", "PORT: 3000", custom grid coordinates) to make the simulation look more "complex."
 * **The Resolution**: Keep labels literal, human, and modest. If the user asks for a simple mathematical control, implement ONLY that control cleanly, utilizing generous white space and high-contrast styling.
 

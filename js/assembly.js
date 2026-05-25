@@ -1,7 +1,7 @@
 // =============================================================================
 // sine-gordon-lab — js/assembly.js
 // Video assembly pipeline. FFmpeg loading delegated to ffmpeg-loader.js.
-// Recordings ≤150 frames use inline encoding (one exec, direct to output).
+// Recordings ≤1500 frames use inline encoding (one exec, direct to output).
 // Larger recordings use double-buffered chunked assembly.
 // Thumbnails updated every 10 frames in all paths.
 // =============================================================================
@@ -126,7 +126,7 @@ export async function assembleFromStorage(pipeline, recorderRef) {
   recorderRef._ffmpeg = ffmpeg;
   recorderRef._frameCount = frameFiles.length;
 
-  if (frameFiles.length <= 150) {
+  if (frameFiles.length <= 1500) {
     for (var i = 0; i < frameFiles.length; i++) {
       var fname = "frame_" + String(i).padStart(6, "0") + ".png";
       var frameBytes;
@@ -137,7 +137,7 @@ export async function assembleFromStorage(pipeline, recorderRef) {
         var ab = await file.arrayBuffer();
         frameBytes = new Uint8Array(ab);
       }
-      await ffmpeg.writeFile(fname, frameBytes);
+      await ffmpeg.writeFile(fname, frameBytes.slice());
     }
     await _assemble(null, frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight, ffmpeg, recorderRef, pipeline === "zip" ? "zip-to-video" : "stills-to-video");
   } else {
@@ -148,15 +148,45 @@ export async function assembleFromStorage(pipeline, recorderRef) {
 export async function assemble(ffmpeg, frameCount, recordedFrames, recordingWidth, recordingHeight, recorderRef) {
   recorderRef.isAssembling = true;
   
-  if (recordedFrames && recordedFrames.length > 0) {
-    recorderRef._firstFrameBytes = recordedFrames[0] ? recordedFrames[0].slice() : null;
+  let frameFiles = null;
+  
+  if (recorderRef && recorderRef._dirHandle) {
+    try {
+      frameFiles = [];
+      for await (const [name, handle] of recorderRef._dirHandle.entries()) {
+        if (handle.kind === "file" && name.startsWith("frame_") && name.endsWith(".png")) {
+          frameFiles.push({ name, handle });
+        }
+      }
+      frameFiles.sort((a,b) => a.name.localeCompare(b.name));
+      console.log(`[FFmpeg] Retrieved ${frameFiles.length} frames from OPFS temporary directory.`);
+      frameCount = frameFiles.length;
+    } catch (e) {
+      console.error("[FFmpeg] Error querying temp frames from OPFS:", e);
+    }
+  }
+  
+  var firstBytes = null;
+  if (frameFiles && frameFiles.length > 0) {
+    try {
+      var firstFile = await frameFiles[0].handle.getFile();
+      var firstAb = await firstFile.arrayBuffer();
+      firstBytes = new Uint8Array(firstAb);
+    } catch (e) {
+      console.error("[FFmpeg] Failed to read 1st frame from OPFS directory for preview:", e);
+    }
+  } else if (recordedFrames && recordedFrames.length > 0) {
+    firstBytes = recordedFrames[0];
+  }
+  
+  if (firstBytes) {
+    recorderRef._firstFrameBytes = firstBytes.slice();
   }
   
   var detectedWidth = null;
   var detectedHeight = null;
-  if (recordedFrames && recordedFrames.length > 0) {
+  if (firstBytes) {
     try {
-      var firstBytes = recordedFrames[0];
       var blob = new Blob([firstBytes], { type: "image/png" });
       var img = await new Promise((resolve, reject) => {
         var image = new Image();
@@ -167,33 +197,56 @@ export async function assemble(ffmpeg, frameCount, recordedFrames, recordingWidt
       detectedWidth = img.naturalWidth;
       detectedHeight = img.naturalHeight;
       URL.revokeObjectURL(img.src);
-      console.log("[FFmpeg] Detected RAM 1st frame resolution (1st frame size test):", detectedWidth + "x" + detectedHeight);
+      console.log("[FFmpeg] Detected 1st frame resolution:", detectedWidth + "x" + detectedHeight);
     } catch (e) {
-      console.warn("[FFmpeg] RAM 1st frame resolution detection failed- falling back:", e.message);
+      console.warn("[FFmpeg] 1st frame resolution detection failed- falling back:", e.message);
     }
   }
   
   var finalW = detectedWidth || recordingWidth || resolveRecordingResolution().width;
   var finalH = detectedHeight || recordingHeight || resolveRecordingResolution().height;
 
-  if (frameCount <= 150) {
-    if (recordedFrames) {
-      if (recordedFrames.length < frameCount) {
-        console.warn(`[FFmpeg] Mismatch in short buffer: frameCount is ${frameCount}, but recordedFrames.length is ${recordedFrames.length}. Adjusting.`);
-        frameCount = recordedFrames.length;
-      }
+  if (frameFiles && frameFiles.length > 0) {
+    if (frameCount <= 1500) {
       for (var i = 0; i < frameCount; i++) {
         var fname = "frame_" + String(i).padStart(6, "0") + ".png";
-        await ffmpeg.writeFile(fname, recordedFrames[i]);
+        var frameBytes;
+        if (i === 0) {
+          frameBytes = firstBytes;
+        } else {
+          var file = await frameFiles[i].handle.getFile();
+          var ab = await file.arrayBuffer();
+          frameBytes = new Uint8Array(ab);
+        }
+        await ffmpeg.writeFile(fname, frameBytes.slice());
       }
+      await _assemble(null, frameCount, finalW, finalH, ffmpeg, recorderRef, "three.js canvas-to-video");
+    } else {
+      await _assemble(frameFiles, frameCount, finalW, finalH, ffmpeg, recorderRef, "three.js canvas-to-video");
     }
-    await _assemble(null, frameCount, finalW, finalH, ffmpeg, recorderRef, "three.js canvas-to-video");
   } else {
-    let externalFrameFiles = recordedFrames.map((bytes, index) => ({
-      name: "frame_" + String(index).padStart(6, "0") + ".png",
-      handle: { getFile: async () => ({ arrayBuffer: async () => bytes.buffer }) }
-    }));
-    await _assemble(externalFrameFiles, frameCount, finalW, finalH, ffmpeg, recorderRef, "three.js canvas-to-video");
+    if (frameCount <= 1500) {
+      if (recordedFrames) {
+        if (recordedFrames.length < frameCount) {
+          console.warn(`[FFmpeg] Mismatch in short buffer: frameCount is ${frameCount}, but recordedFrames.length is ${recordedFrames.length}. Adjusting.`);
+          frameCount = recordedFrames.length;
+        }
+        for (var i = 0; i < frameCount; i++) {
+          var fname = "frame_" + String(i).padStart(6, "0") + ".png";
+          await ffmpeg.writeFile(fname, recordedFrames[i].slice());
+        }
+      }
+      await _assemble(null, frameCount, finalW, finalH, ffmpeg, recorderRef, "three.js canvas-to-video");
+    } else {
+      let externalFrameFiles = recordedFrames.map((bytes, index) => ({
+        name: "frame_" + String(index).padStart(6, "0") + ".png",
+        handle: { getFile: async () => {
+          let ab = bytes.slice().buffer;
+          return { arrayBuffer: async () => ab };
+        } }
+      }));
+      await _assemble(externalFrameFiles, frameCount, finalW, finalH, ffmpeg, recorderRef, "three.js canvas-to-video");
+    }
   }
 }
 
@@ -406,6 +459,15 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
         console.log("[FFmpeg] Returning canvas size back to normal viewing resolution on abort.");
         recorderRef._restoreCanvasSize();
       }
+      if (recorderRef && recorderRef._dirHandle) {
+        try {
+          const root = await navigator.storage.getDirectory();
+          await root.removeEntry(recorderRef._dirHandle.name, { recursive: true });
+          recorderRef._dirHandle = null;
+        } catch (e) {
+          console.error("[FFmpeg] Failed to delete temporary directory on abort:", e);
+        }
+      }
       setTimeout(() => { overlay.style.display = "none"; }, 3000);
       return;
     }
@@ -440,6 +502,17 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
 
   for (let i = 0; i < totalFrames; i++) { try { await ffmpeg.deleteFile("frame_" + String(i).padStart(6, "0") + ".png"); } catch (e) {} }
   try { await ffmpeg.deleteFile(outputFile); } catch (e) {}
+
+  if (recorderRef && recorderRef._dirHandle) {
+    try {
+      const root = await navigator.storage.getDirectory();
+      await root.removeEntry(recorderRef._dirHandle.name, { recursive: true });
+      console.log(`[FFmpeg] Deleted temporary OPFS directory after video output: ${recorderRef._dirHandle.name}`);
+      recorderRef._dirHandle = null;
+    } catch (e) {
+      console.warn("[FFmpeg] Failed to delete temporary directory:", e);
+    }
+  }
 
   recorderRef.isAssembling = false;
   recorderRef._recordedFrames = [];
