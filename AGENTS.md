@@ -227,22 +227,20 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
   2. **Zero-leak Lifetime Management**: When FFmpeg assembly completes or is aborted, the temporary directory is recursively deleted (`root.removeEntry(tempDir, { recursive: true })`) to completely eliminate storage waste.
   3. **High Single-Pass Limit**: Direct encoding handles sequences up to **1500 frames** in a single continuous `.exec()` thread, utilizing local slices (`bytes.slice()`) on file read to prevent memory detachment during browser background execution.
 
-### 4.5 Persistent Save Directories (IndexedDB Directory Handles)
-* **The Pitfall**: In web apps with rich export options, every time a user triggers a ZIP save (either manually or after full video assembly finishes), the standard browser fallback forces the file selection dialog to reset and default to the computer's generic `/Downloads` directory. This is tedious for laboratory sessions where users export sequentially to a designated local workspace.
-* **The Resolution (Serialized Handles and startIn Caching)**:
-  1. **IndexedDB Object Store Cache**: We implement a lightweight, zero-dependency storage system inside `sine_gordon_lab_db`'s custom object store `handles` to cache the chosen `FileSystemFileHandle` from `showSaveFilePicker`.
-  2. **In-Memory Tracking**: Keep a fast in-memory fallback on `window._lastZipHandle`.
-  3. **Standard startIn Injection**: Upon calling the save picker, retrieve any previously saved directory handle from IndexedDB and supply it via the `startIn` property:
+### 4.5 Persistent Save/Open Directories (IndexedDB Directory Handles)
+* **The Pitfall**: In web apps with rich export and offline assembly workflows, every time a user triggers a ZIP save or wants to open/upload a zip file, standard browser fallbacks force the local system's directory dialogue to reset to the computer's generic default directory (such as `/Downloads` or `/Documents`). This breaks continuity during laboratory sessions where users export sequentially or load files from a designated project workspace.
+* **The Resolution (Symmetrical Serialized Handles and startIn Caching)**:
+  1. **IndexedDB Object Store Cache**: We implement a lightweight, zero-dependency storage system inside `sine_gordon_lab_db`'s custom object store `handles` to cache the chosen host `FileSystemFileHandle` from both `showSaveFilePicker` and `showOpenFilePicker`.
+  2. **In-Memory & Persistent Sync**: Store chosen handles in IndexedDB and sync to `window._lastZipHandle`. Symmetrically load them to seed the browser's directory dialogs on consecutive loops.
+  3. **Universal Host OS Alignment**: By feeding the serialized handle as the `startIn` configuration property (e.g., `pickerOpts.startIn = lastHandle`), the browser natively anchors the active file prompt (whether file-saving or file-reading) back into the user's exact host folder (e.g., standard Windows File Explorer or macOS Finder directories) from the previous action. This creates seamless offline continuity:
      ```js
      const lastHandle = await getLastZipHandle();
      const pickerOpts = {
-       suggestedName: "frames_" + Date.now() + ".zip",
        id: 'zip-export',
        types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }]
      };
      if (lastHandle) pickerOpts.startIn = lastHandle;
      ```
-  This retains the directory path perfectly for consecutive save operations under chromium-based browsers.
 
 ### 4.6 Over-Engineering, Tech-Larping, & "AI-Slop"
 * **The Pitfall**: Adding unrequested technical decorations (e.g., "CORE_NODE_ONLINE", "PORT: 3000", custom grid coordinates) to make the simulation look more "complex."

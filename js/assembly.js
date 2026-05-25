@@ -15,6 +15,7 @@ import {
   buildAssemblyArgs,
   buildConcatArgs
 } from "./ffmpeg-commands.js";
+import { getLastZipHandle, setLastZipHandle } from "./zip-export.js";
 
 
 var _assemblyStats = null;
@@ -56,7 +57,20 @@ export async function assembleFromStorage(pipeline, recorderRef) {
   if (pipeline === "zip") {
     let zipBlob = null;
     if (window.showOpenFilePicker) {
-      try { const [fh] = await window.showOpenFilePicker({ id: 'zip-export', types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }], multiple: false }); zipBlob = await fh.getFile(); } catch (e) { return; }
+      try {
+        const lastHandle = await getLastZipHandle();
+        const pickerOpts = {
+          id: 'zip-export',
+          types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
+          multiple: false
+        };
+        if (lastHandle) {
+          pickerOpts.startIn = lastHandle;
+        }
+        const [fh] = await window.showOpenFilePicker(pickerOpts);
+        zipBlob = await fh.getFile();
+        try { await setLastZipHandle(fh); } catch (_) {}
+      } catch (e) { return; }
     } else {
       zipBlob = await new Promise((resolve) => { let i = document.createElement("input"); i.type = "file"; i.accept = ".zip"; i.onchange = (e) => resolve(e.target.files?.[0] || null); i.click(); });
     }

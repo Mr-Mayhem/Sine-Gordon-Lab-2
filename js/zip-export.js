@@ -6,7 +6,7 @@
 // vendor/file-saver/FileSaver.min.js (window.saveAs).
 // =============================================================================
 
-async function getLastZipHandle() {
+export async function getLastZipHandle() {
   if (window._lastZipHandle) return window._lastZipHandle;
   try {
     return await new Promise((resolve) => {
@@ -34,7 +34,7 @@ async function getLastZipHandle() {
   }
 }
 
-async function setLastZipHandle(handle) {
+export async function setLastZipHandle(handle) {
   window._lastZipHandle = handle;
   try {
     await new Promise((resolve) => {
