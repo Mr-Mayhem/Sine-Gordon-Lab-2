@@ -5,6 +5,61 @@
 // Uses vendor/jszip/jszip.min.js (window.JSZip) and
 // vendor/file-saver/FileSaver.min.js (window.saveAs).
 // =============================================================================
+
+async function getLastZipHandle() {
+  if (window._lastZipHandle) return window._lastZipHandle;
+  try {
+    return await new Promise((resolve) => {
+      const request = indexedDB.open("sine_gordon_lab_db", 1);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        db.createObjectStore("handles");
+      };
+      request.onsuccess = (e) => {
+        const db = e.target.result;
+        try {
+          const tx = db.transaction("handles", "readonly");
+          const store = tx.objectStore("handles");
+          const getReq = store.get("lastZipHandle");
+          getReq.onsuccess = () => {
+            resolve(getReq.result || null);
+          };
+          getReq.onerror = () => resolve(null);
+        } catch (_) { resolve(null); }
+      };
+      request.onerror = () => resolve(null);
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+async function setLastZipHandle(handle) {
+  window._lastZipHandle = handle;
+  try {
+    await new Promise((resolve) => {
+      const request = indexedDB.open("sine_gordon_lab_db", 1);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        db.createObjectStore("handles");
+      };
+      request.onsuccess = (e) => {
+        const db = e.target.result;
+        try {
+          const tx = db.transaction("handles", "readwrite");
+          const store = tx.objectStore("handles");
+          store.put(handle, "lastZipHandle");
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => resolve();
+        } catch (_) { resolve(); }
+      };
+      request.onerror = () => resolve();
+    });
+  } catch (e) {
+    // Ignore error
+  }
+}
+
 export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderRef) {
   if (dirHandle) {
     console.log("Generating ZIP file(s) from OPFS buffer...");
@@ -14,11 +69,16 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
     let saveHandle = null;
     if (window.showSaveFilePicker) {
         try {
-            saveHandle = await window.showSaveFilePicker({
+            const lastHandle = await getLastZipHandle();
+            const pickerOpts = {
                 suggestedName: zipFilename,
                 id: 'zip-export-single',
                 types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }]
-            });
+            };
+            if (lastHandle) {
+                pickerOpts.startIn = lastHandle;
+            }
+            saveHandle = await window.showSaveFilePicker(pickerOpts);
         } catch (e) {
             if (e.name !== "AbortError") {
                 console.warn("showSaveFilePicker failed early, will fallback to Blob download.", e);
@@ -168,6 +228,9 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
                           }
                           await writable.close();
                           console.log(`[ZIP Export] Complete: ${chunkCount} writes, ${(totalBytesWritten/1024/1024).toFixed(2)} MB total`);
+                          if (saveHandle) {
+                              try { await setLastZipHandle(saveHandle); } catch (eh) {}
+                          }
                           resolve();
                       } catch(e) { reject(e); }
                   })
@@ -300,14 +363,20 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
     }).then(async function(content) {
       if (window.showSaveFilePicker) {
         try {
-          const handle = await window.showSaveFilePicker({
+          const lastHandle = await getLastZipHandle();
+          const pickerOpts = {
             suggestedName: "frames_" + Date.now() + ".zip",
             id: 'zip-export',
             types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
-          });
+          };
+          if (lastHandle) {
+            pickerOpts.startIn = lastHandle;
+          }
+          const handle = await window.showSaveFilePicker(pickerOpts);
           const writable = await handle.createWritable();
           await writable.write(content);
           await writable.close();
+          try { await setLastZipHandle(handle); } catch (eh) {}
           console.log("ZIP saved with File System Access API.");
         } catch (e) {
           console.warn("Save file picker aborted/failed, falling back", e);
