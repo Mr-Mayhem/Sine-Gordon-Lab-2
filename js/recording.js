@@ -8,15 +8,12 @@ import { sgState as appState } from "./state.js";
 import { loadFFmpeg } from "./ffmpeg-loader.js";
 import { assemble, assembleFromStorage } from "./assembly.js";
 import { exportToZip } from "./zip-export.js";
+import {
+  resolveRecordingResolution,
+  changeCanvasToRecordingResolution,
+  restoreCanvasResolution
+} from "./video-filters.js";
 
-function resolveRecordingResolution() {
-  var w = (typeof appState !== 'undefined' ? appState.exportWidth : 1280) || 1280;
-  var h = (typeof appState !== 'undefined' ? appState.exportHeight : 720) || 720;
-  return {
-    width: Math.floor(w / 16) * 16,
-    height: h
-  };
-}
 
 export default class RecordingEngine {
   constructor() {
@@ -111,42 +108,47 @@ export default class RecordingEngine {
   }
 
   _restoreCanvasSize() {
-    if (!this._canvas) return;
-    var w, h;
-    if (this._preRecordingWidth && this._preRecordingHeight) {
-      w = this._preRecordingWidth; h = this._preRecordingHeight;
-    } else {
-      var viewport = document.getElementById("viewport");
-      if (!viewport) return;
-      w = Math.floor(viewport.clientWidth / 16) * 16;
-      h = Math.floor(viewport.clientHeight / 16) * 16;
-    }
-    console.log("Restoring canvas:", w + "x" + h);
-    if (this._renderer) {
-      this._renderer.setSize(w, h, true);
-      if (window.camera) { window.camera.aspect = w / h; window.camera.updateProjectionMatrix(); }
-    }
+    restoreCanvasResolution(this._canvas, this._renderer, window.camera, this._preRecordingWidth, this._preRecordingHeight);
     this._preRecordingWidth = null; this._preRecordingHeight = null;
   }
 
   _calculateCaptureInterval() { this._captureInterval = Math.max(1, Math.round(60 / (appState.exportFPS || 60))); }
 
-  _ensureTempCanvas(width, height) {
-    if (!this._tempCanvas || this._tempCanvas.width !== width || this._tempCanvas.height !== height) {
+  _ensureTempCanvas(rawW, rawH, tgtW, tgtH) {
+    if (!this._tempCanvas || this._tempCanvas.width !== tgtW || this._tempCanvas.height !== tgtH) {
       if (typeof OffscreenCanvas !== 'undefined') {
-        this._tempCanvas = new OffscreenCanvas(width, height);
+        this._tempCanvas = new OffscreenCanvas(tgtW, tgtH);
       } else {
         this._tempCanvas = document.createElement('canvas');
-        this._tempCanvas.width = width; this._tempCanvas.height = height;
+        this._tempCanvas.width = tgtW; this._tempCanvas.height = tgtH;
       }
       this._tempCtx = this._tempCanvas.getContext('2d');
+    }
+    if (!this._rawCanvas || this._rawCanvas.width !== rawW || this._rawCanvas.height !== rawH) {
+      if (typeof OffscreenCanvas !== 'undefined') {
+        this._rawCanvas = new OffscreenCanvas(rawW, rawH);
+      } else {
+        this._rawCanvas = document.createElement('canvas');
+        this._rawCanvas.width = rawW; this._rawCanvas.height = rawH;
+      }
+      this._rawCtx = this._rawCanvas.getContext('2d');
     }
   }
 
   async start() {
     this._frameCount = 0; this._recordedFrames = []; this._renderFrameCount = 0;
+    var txtRec = document.getElementById("txt-recording");
+    if (txtRec) { txtRec.textContent = "REC: 0"; }
     this._ffmpegReady = false; this.isRecording = true;
-    this._preRecordingWidth = this._canvas.width; this._preRecordingHeight = this._canvas.height;
+    var viewport = document.getElementById("viewport");
+    if (viewport) {
+      this._preRecordingWidth = Math.floor(viewport.clientWidth / 2) * 2;
+      this._preRecordingHeight = Math.floor(viewport.clientHeight / 2) * 2;
+    } else {
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      this._preRecordingWidth = Math.floor((this._canvas.width / dpr) / 2) * 2;
+      this._preRecordingHeight = Math.floor((this._canvas.height / dpr) / 2) * 2;
+    }
     this._pipeline = typeof appState !== 'undefined' ? appState.exportPipeline : "ffmpeg";
     if (!this._pipeline) this._pipeline = "ffmpeg";
     this._dirHandle = null;
@@ -190,28 +192,27 @@ export default class RecordingEngine {
       if (!this._ffmpeg) { this.isRecording = false; document.getElementById("recording-indicator").style.display = "none"; return; }
     }
 
-    var selRes = document.getElementById("sel-res");
-    if (selRes && selRes.value) {
-      var parts = selRes.value.split("x");
-      if (parts.length === 2) { appState.exportWidth = Number(parts[0]); appState.exportHeight = Number(parts[1]); }
-    }
-    var res = resolveRecordingResolution(); var aw = res.width; var ah = res.height;
-    this._recordingWidth = aw; this._recordingHeight = ah;
-    this._canvas.width = aw; this._canvas.height = ah;
-    this._renderer.setSize(aw, ah, false);
-    if (window.camera) { window.camera.aspect = aw / ah; window.camera.updateProjectionMatrix(); }
-    var width = this._canvas.width; var height = this._canvas.height;
-    console.log("Recording resolution:", width + "x" + height, "(was: " + this._preRecordingWidth + "x" + this._preRecordingHeight + ")");
-    this._pixelBuffer = new Uint8Array(width * height * 4);
-    this._ensureTempCanvas(width, height);
+    var sizeData = changeCanvasToRecordingResolution(this._canvas, this._renderer, window.camera);
+    var aw = sizeData.width;
+    var ah = sizeData.height;
+    this._recordingWidth = aw;
+    this._recordingHeight = ah;
+    this._preRecordingWidth = sizeData.preRecordingWidth;
+    this._preRecordingHeight = sizeData.preRecordingHeight;
+
+    console.log("Recording started. Physics Canvas physically resized to target format:", aw + "x" + ah);
+    this._pixelBuffer = new Uint8Array(aw * ah * 4);
+    this._ensureTempCanvas(aw, ah, aw, ah);
     this._calculateCaptureInterval();
     this._ffmpegReady = true;
-    console.log("Recording started. FPS:", appState.exportFPS, "Interval:", this._captureInterval);
+    console.log("Recording ready. FPS:", appState.exportFPS, "Interval:", this._captureInterval);
   }
 
   async stop() {
     this.isRecording = false; this._telemetry.stopTime = performance.now();
     document.getElementById("recording-indicator").style.display = "none";
+    var txtRec = document.getElementById("txt-recording");
+    if (txtRec) { txtRec.textContent = "REC: 0"; }
     appState.paused = true;
     var pb = document.getElementById("btn-play"); if (pb) pb.textContent = "▶ Run";
     console.log("Recording stopped. Frames:", this._frameCount);
@@ -258,16 +259,29 @@ export default class RecordingEngine {
     } catch (error) { this._telemetry.capturesErrored++; console.error("Capture error:", error); return false; }
   }
 
-  async _encodeAndWriteFrameSync(pixels, width, height, frameIndex) {
+  async _encodeAndWriteFrameSync(pixels, rawW, rawH, frameIndex) {
     var encStart = performance.now();
     this._telemetry.encodesStarted++;
+    
+    var tgtW = this._recordingWidth || rawW;
+    var tgtH = this._recordingHeight || rawH;
+
     try {
-      this._ensureTempCanvas(width, height);
+      this._ensureTempCanvas(rawW, rawH, tgtW, tgtH);
       var ctx = this._tempCtx;
+      var rawCtx = this._rawCtx;
+      
       var pixelCopy = new Uint8ClampedArray(pixels);
-      var imageData = new ImageData(pixelCopy, width, height);
-      ctx.putImageData(imageData, 0, 0);
-      ctx.save(); ctx.setTransform(1, 0, 0, -1, 0, height); ctx.drawImage(this._tempCanvas, 0, 0); ctx.restore();
+      var imageData = new ImageData(pixelCopy, rawW, rawH);
+      rawCtx.putImageData(imageData, 0, 0);
+      
+      ctx.clearRect(0, 0, tgtW, tgtH);
+      ctx.save();
+      
+      // Reflect y-axis for WebGL bottom-to-top frame layouts
+      ctx.setTransform(1, 0, 0, -1, 0, tgtH);
+      ctx.drawImage(this._rawCanvas, 0, 0, tgtW, tgtH);
+      ctx.restore();
       
       var blob;
       if (this._tempCanvas.convertToBlob) {
@@ -283,9 +297,9 @@ export default class RecordingEngine {
           var tImg = new Image();
           tImg.onload = function() {
             var tCtx = previewCanvas.getContext("2d");
-            previewCanvas.width = width;
-            previewCanvas.height = height;
-            tCtx.drawImage(tImg, 0, 0, width, height);
+            previewCanvas.width = tgtW;
+            previewCanvas.height = tgtH;
+            tCtx.drawImage(tImg, 0, 0, tgtW, tgtH);
           };
           tImg.src = URL.createObjectURL(blob);
         }

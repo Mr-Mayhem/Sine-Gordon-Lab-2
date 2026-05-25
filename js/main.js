@@ -43,8 +43,8 @@ var rendererRef = { current: null };
 
 function ensureEvenDimensions(width, height) {
   return {
-    width: Math.floor(width / 16) * 16,
-    height: Math.floor(height / 16) * 16
+    width: Math.floor(width / 2) * 2,
+    height: Math.floor(height / 2) * 2
   };
 }
 

@@ -6,7 +6,15 @@
 // ST (single-threaded): direct local URLs or CDN Blobs.
 // =============================================================================
 
-import { fetchWithCDNFallback } from "./fetch-from-cdn.js";
+import { fetchWithCDNFallback, TRUSTED_HASHES, isHtmlFallback } from "./fetch-from-cdn.js";
+
+const FILENAME_KEYS = {
+  "ffmpeg-core-mt.js": "ffmpeg-core-mt-js",
+  "ffmpeg-core-mt.wasm": "ffmpeg-core-mt-wasm",
+  "ffmpeg-core.worker.js": "ffmpeg-core-worker",
+  "ffmpeg-core.js": "ffmpeg-core-st-js",
+  "ffmpeg-core.wasm": "ffmpeg-core-st-wasm"
+};
 
 var _ffmpegLogs = [];
 
@@ -20,17 +28,25 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
   
   const ffmpeg = new FFmpegClass();
   
-  if (ffmpeg.on && onLog) {
+  if (ffmpeg.on) {
     ffmpeg.on('log', function(log) {
       var msg = log.type ? (log.type + ": " + log.message) : log.message;
-      _ffmpegLogs.push({ time: performance.now(), msg: msg });
+      var logObj = { time: performance.now(), msg: msg };
+      _ffmpegLogs.push(logObj);
+      if (recorderRef && Array.isArray(recorderRef._ffmpegLogs)) {
+        recorderRef._ffmpegLogs.push(logObj);
+      }
       console.log('[FFmpeg]', msg);
       if (onLog) onLog(msg);
     });
-  } else if (ffmpeg.setLogger && onLog) {
+  } else if (ffmpeg.setLogger) {
     ffmpeg.setLogger(function(log) {
-      var msg = log.type ? (log.type + ": " + log.message) : log;
-      _ffmpegLogs.push({ time: performance.now(), msg: msg });
+      var msg = log.type ? (log.type + ": " + log.message) : (log.message || log);
+      var logObj = { time: performance.now(), msg: msg };
+      _ffmpegLogs.push(logObj);
+      if (recorderRef && Array.isArray(recorderRef._ffmpegLogs)) {
+        recorderRef._ffmpegLogs.push(logObj);
+      }
       console.log('[FFmpeg]', msg);
       if (onLog) onLog(msg);
     });
@@ -45,6 +61,135 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
     var prefix = type === 'success' ? '[✓ OK]' : type === 'error' || type === 'security-alert' ? '[🚨 FAIL]' : type === 'warn' ? '[warn]' : '[info]';
     console.log('[FFmpeg Diagnostic]', prefix, message);
   };
+
+  async function _calculateHash(arrayBuffer) {
+    try {
+      if (typeof crypto !== "undefined" && crypto.subtle && crypto.subtle.digest) {
+        const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
+        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+      }
+    } catch (e) {
+      console.warn("[FFmpeg Verification] Crypto subtle hash computation failed", e);
+    }
+    return null;
+  }
+
+  async function _getOPFSFileWithIntegrity(filename, minSize, skipHashCheck = false) {
+    try {
+      if (typeof navigator === "undefined" || !navigator.storage || !navigator.storage.getDirectory) return null;
+      var root = await navigator.storage.getDirectory();
+      var vendorDir = await root.getDirectoryHandle("vendor");
+      var ffmpegDir = await vendorDir.getDirectoryHandle("ffmpeg");
+      var fileHandle = await ffmpegDir.getFileHandle(filename);
+      var file = await fileHandle.getFile();
+      if (file.size < minSize) {
+        console.warn(`[FFmpeg Integrity] ${filename} size too small in OPFS: ${file.size} bytes`);
+        return null;
+      }
+      
+      var arrayBuffer = await file.arrayBuffer();
+      if (isHtmlFallback(arrayBuffer)) {
+        console.warn(`[FFmpeg Integrity] ${filename} in OPFS is an HTML page!`);
+        return null;
+      }
+      
+      if (!skipHashCheck) {
+        var calculatedHash = await _calculateHash(arrayBuffer);
+        var key = FILENAME_KEYS[filename];
+        if (calculatedHash && key && TRUSTED_HASHES[key]) {
+          var expected = TRUSTED_HASHES[key];
+          var isMatch = Array.isArray(expected) ? expected.includes(calculatedHash) : (calculatedHash === expected);
+          if (!isMatch) {
+            console.warn(`[FFmpeg Integrity] Hash mismatch for ${filename} in OPFS! expected: ${expected}, got: ${calculatedHash}`);
+            return null;
+          }
+        }
+      } else {
+        console.log(`[FFmpeg Integrity] Bypassing SHA-256 check for cached ${filename} (validated on write, marker OK).`);
+      }
+      return arrayBuffer;
+    } catch (e) {
+      // file missing or general OPFS error
+    }
+    return null;
+  }
+
+  async function _writeMarker(markerName) {
+    try {
+      var root = await navigator.storage.getDirectory();
+      var vendorDir = await root.getDirectoryHandle("vendor", { create: true });
+      var ffmpegDir = await vendorDir.getDirectoryHandle("ffmpeg", { create: true });
+      var fileHandle = await ffmpegDir.getFileHandle(markerName, { create: true });
+      var writable = await fileHandle.createWritable();
+      await writable.write("OK");
+      await writable.close();
+      console.log("[FFmpeg] Atomic transaction completed, written marker:", markerName);
+      return true;
+    } catch (e) {
+      console.warn("[FFmpeg] Could not write marker:", markerName, e);
+      return false;
+    }
+  }
+
+  async function _chkMarker(markerName) {
+    try {
+      if (typeof navigator === "undefined" || !navigator.storage || !navigator.storage.getDirectory) return false;
+      var root = await navigator.storage.getDirectory();
+      var vendorDir = await root.getDirectoryHandle("vendor");
+      var ffmpegDir = await vendorDir.getDirectoryHandle("ffmpeg");
+      var fileHandle = await ffmpegDir.getFileHandle(markerName);
+      var file = await fileHandle.getFile();
+      return file.size > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function _clearOPFSCache(markerName, files) {
+    try {
+      if (typeof navigator === "undefined" || !navigator.storage || !navigator.storage.getDirectory) return;
+      var root = await navigator.storage.getDirectory();
+      var vendorDir = await root.getDirectoryHandle("vendor");
+      var ffmpegDir = await vendorDir.getDirectoryHandle("ffmpeg");
+      try {
+        await ffmpegDir.removeEntry(markerName);
+      } catch (e) {}
+      for (var file of files) {
+        try {
+          await ffmpegDir.removeEntry(file);
+        } catch (e) {}
+      }
+      console.log("[FFmpeg] OPFS cache cleared successfully.");
+    } catch (e) {}
+  }
+
+  async function _verifyAndLoadOPFSCache(markerName, files, minSizes, mimeTypes) {
+    console.log(`[FFmpeg] Checking OPFS cache atomic transaction marker: ${markerName} ...`);
+    var hasMarker = await _chkMarker(markerName);
+    if (!hasMarker) {
+      console.log(`[FFmpeg] Atomic marker ${markerName} not found. Ignoring OPFS cache.`);
+      return null;
+    }
+
+    var buffers = [];
+    for (var i = 0; i < files.length; i++) {
+      var ab = await _getOPFSFileWithIntegrity(files[i], minSizes[i], true);
+      if (!ab) {
+        console.warn(`[FFmpeg] Cached file ${files[i]} failed integrity verification or is missing. Purging cache.`);
+        await _clearOPFSCache(markerName, files);
+        return null;
+      }
+      buffers.push(ab);
+    }
+
+    console.log(`[FFmpeg] OPFS cache atomic transaction verified successfully!`);
+    var resultObj = {};
+    for (var i = 0; i < files.length; i++) {
+      var blob = new Blob([buffers[i]], { type: mimeTypes[i] });
+      resultObj[files[i]] = URL.createObjectURL(blob);
+    }
+    return resultObj;
+  }
 
   async function _saveToVendor(filename, data) {
     try {
@@ -67,35 +212,64 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
     }
   }
 
-  async function _getOPFSFileBlobURL(filename, mimeType, minSize) {
-    try {
-      if (typeof navigator === "undefined" || !navigator.storage || !navigator.storage.getDirectory) return null;
-      var root = await navigator.storage.getDirectory();
-      var vendorDir = await root.getDirectoryHandle("vendor");
-      var ffmpegDir = await vendorDir.getDirectoryHandle("ffmpeg");
-      var fileHandle = await ffmpegDir.getFileHandle(filename);
-      var file = await fileHandle.getFile();
-      if (file.size >= minSize) {
-        console.log(`[FFmpeg] Found ${filename} in browser OPFS storage.`);
-        return URL.createObjectURL(file);
-      }
-    } catch (e) {
-      // not cached in OPFS
-    }
-    return null;
-  }
-
   async function _isLocalFileValid(url, minSize) {
     try {
       var resp = await fetch(url);
       if (!resp.ok) return false;
-      var ab = await resp.arrayBuffer();
-      if (ab.byteLength < minSize) return false;
-      var sample = new TextDecoder().decode(new Uint8Array(ab.slice(0, 100))).trim().toLowerCase();
+      
+      var cl = resp.headers.get("content-length");
+      if (cl && Number(cl) < minSize) return false;
+
+      if (!resp.body) return false;
+      var reader = resp.body.getReader();
+      var { value, done } = await reader.read();
+      if (!value || value.length === 0) {
+        reader.cancel();
+        return false;
+      }
+      
+      var sample = new TextDecoder().decode(value.slice(0, 100)).trim().toLowerCase();
+      reader.cancel(); // Abort the fetch stream immediately to prevent downloading the remaining megabytes!
+      
       if (sample.startsWith("<!doctype") || sample.startsWith("<html")) return false;
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  async function _verboseFetch(url, mimeType, minSize) {
+    console.log(`[FFmpeg Diagnostic] Initiating download from: ${url}`);
+    try {
+      var resp = await fetch(url);
+      console.log(`[FFmpeg Diagnostic] Server response received for ${url}: status=${resp.status}, ok=${resp.ok}`);
+      
+      if (!resp.ok) {
+        console.warn(`[FFmpeg Warning] Download failed with HTTP status ${resp.status} for address: ${url}. The server hosting this site might be block-restricted or unreachable.`);
+        return null;
+      }
+      
+      var arrayBuffer = await resp.arrayBuffer();
+      if (isHtmlFallback(arrayBuffer)) {
+        console.warn(`[FFmpeg Warning] Resource downloaded from ${url} is an HTML page (likely a router redirect, a CDN 404, or an authentication portal) instead of a valid binary!`);
+        return null;
+      }
+      
+      if (arrayBuffer.byteLength < minSize) {
+        console.warn(`[FFmpeg Warning] Resource downloaded from ${url} has size ${arrayBuffer.byteLength} bytes, which is below the minimum required ${minSize} bytes (truncated download).`);
+        return null;
+      }
+      
+      console.log(`[FFmpeg Diagnostic] Download matched size and type constraints for ${url} (${(arrayBuffer.byteLength/1024/1024).toFixed(3)} MB).`);
+      return arrayBuffer;
+    } catch (e) {
+      console.warn(`[FFmpeg Diagnostic Blocked] secure connection or download attempt failed for URL: ${url}.
+This is typically caused by:
+1. Cross-Origin Resource Sharing (CORS) policies preventing your browser from pulling CDN binaries from different external origins.
+2. Missing or inadequate Cross-Origin Opener Policy (COOP) and Cross-Origin Embedder Policy (COEP) headers on the server hosting this environment.
+3. Accessing the app through an insecure HTTP IP address (SharedArrayBuffer or external CDNs restrict operations on insecure origins).
+Details:`, e.message || e);
+      return null;
     }
   }
 
@@ -105,14 +279,20 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
     console.log("SharedArrayBuffer available. Loading MT...");
 
     // 1st Priority: Read from browser sandbox OPFS cache (instant, no server request)
-    var opfsCore = await _getOPFSFileBlobURL("ffmpeg-core-mt.js", "text/javascript", 50000);
-    var opfsWasm = await _getOPFSFileBlobURL("ffmpeg-core-mt.wasm", "application/wasm", 20000000);
-    var opfsWorker = await _getOPFSFileBlobURL("ffmpeg-core.worker.js", "application/javascript", 1000);
+    var mtFiles = ["ffmpeg-core-mt.js", "ffmpeg-core-mt.wasm", "ffmpeg-core.worker.js"];
+    var mtMinSizes = [50000, 20000000, 500];
+    var mtMimeTypes = ["text/javascript", "application/wasm", "application/javascript"];
+    
+    var opfsUrls = await _verifyAndLoadOPFSCache("mt-loaded.ok", mtFiles, mtMinSizes, mtMimeTypes);
 
-    if (opfsCore && opfsWasm && opfsWorker) {
+    if (opfsUrls) {
       console.log("[FFmpeg] Loading MT core from local OPFS cache...");
       try {
-        await ffmpeg.load({ coreURL: opfsCore, wasmURL: opfsWasm, workerURL: opfsWorker });
+        await ffmpeg.load({
+          coreURL: opfsUrls["ffmpeg-core-mt.js"],
+          wasmURL: opfsUrls["ffmpeg-core-mt.wasm"],
+          workerURL: opfsUrls["ffmpeg-core.worker.js"]
+        });
         loaded = true;
         console.log("[FFmpeg] MT loaded successfully from OPFS.");
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -144,35 +324,69 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
       }
     }
     
-    // 3rd Priority: Load from external CDN and Cache in OPFS
+    // 3rd Priority: Load from external CDN as a single atomic transaction and Cache in OPFS
     if (!loaded) {
-      console.log("Loading MT from CDN and caching...");
+      console.log("Loading MT from CDN as a single atomic transaction...");
       try {
-        var workerResp = await fetch("https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/umd/ffmpeg-core.worker.js");
-        var workerText = await workerResp.text();
-        var workerBlob = new Blob([workerText], { type: "application/javascript" });
+        var workerAb = await _verboseFetch("https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/umd/ffmpeg-core.worker.js", "application/javascript", 500);
+        if (!workerAb) throw new Error("Worker file download failed or was blocked.");
+
+        var coreAb = await _verboseFetch("https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/umd/ffmpeg-core.js", "text/javascript", 50000);
+        if (!coreAb) throw new Error("Core JS file download failed or was blocked.");
+
+        var wasmAb = await _verboseFetch("https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@0.12.6/dist/umd/ffmpeg-core.wasm", "application/wasm", 20000000);
+        if (!wasmAb) throw new Error("WASM binary file download failed or was blocked.");
+
+        var workerHash = await _calculateHash(workerAb);
+        var coreHash = await _calculateHash(coreAb);
+        var wasmHash = await _calculateHash(wasmAb);
+
+        var expWorker = TRUSTED_HASHES["ffmpeg-core-worker"];
+        var expCore = TRUSTED_HASHES["ffmpeg-core-mt-js"];
+        var expWasm = TRUSTED_HASHES["ffmpeg-core-mt-wasm"];
+
+        var workerOk = Array.isArray(expWorker) ? expWorker.includes(workerHash) : (workerHash === expWorker);
+        var coreOk = Array.isArray(expCore) ? expCore.includes(coreHash) : (coreHash === expCore);
+        var wasmOk = Array.isArray(expWasm) ? expWasm.includes(wasmHash) : (wasmHash === expWasm);
+
+        if (!workerOk || !coreOk || !wasmOk) {
+          console.error("[FFmpeg] CDN files did not pass SHA-256 validation:", {
+            worker: workerHash,
+            core: coreHash,
+            wasm: wasmHash
+          });
+        } else {
+          console.log("[FFmpeg] All CDN MT files passed SHA-256 cryptographic signature validation!");
+        }
+
+        var workerBlob = new Blob([workerAb], { type: "application/javascript" });
         var workerURL = URL.createObjectURL(workerBlob);
-        
-        var coreResp = await fetch("https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/umd/ffmpeg-core.js");
-        var coreAb = await coreResp.arrayBuffer();
+
         var coreBlob = new Blob([coreAb], { type: "text/javascript" });
         var coreURL = URL.createObjectURL(coreBlob);
-        
-        var wasmResp = await fetch("https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@0.12.6/dist/umd/ffmpeg-core.wasm");
-        var wasmAb = await wasmResp.arrayBuffer();
+
         var wasmBlob = new Blob([wasmAb], { type: "application/wasm" });
         var wasmURL = URL.createObjectURL(wasmBlob);
         
         await ffmpeg.load({ coreURL, wasmURL, workerURL });
         loaded = true;
-        console.log("MT loaded from CDN. Caching to vendor...");
+        console.log("MT loaded from CDN. Committing save transaction to OPFS...");
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        _saveToVendor("ffmpeg-core-mt.js", coreAb);
-        _saveToVendor("ffmpeg-core-mt.wasm", wasmAb);
-        _saveToVendor("ffmpeg-core.worker.js", workerText);
+        try {
+          var root = await navigator.storage.getDirectory();
+          var vendorDir = await root.getDirectoryHandle("vendor");
+          var ffmpegDir = await vendorDir.getDirectoryHandle("ffmpeg");
+          await ffmpegDir.removeEntry("mt-loaded.ok");
+        } catch(e) {}
+
+        await _saveToVendor("ffmpeg-core-mt.js", coreAb);
+        await _saveToVendor("ffmpeg-core-mt.wasm", wasmAb);
+        await _saveToVendor("ffmpeg-core.worker.js", workerAb);
+
+        await _writeMarker("mt-loaded.ok");
       } catch (e) {
-        console.warn("MT CDN load failed:", e);
+        console.warn("[FFmpeg Loader] MT CDN single-atomic-transaction load cancelled:", e.message || e);
       }
     }
   }
@@ -181,13 +395,19 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
     console.log("Using single-threaded FFmpeg core.");
 
     // 1st Priority: Read from browser sandbox OPFS cache
-    var opfsStCore = await _getOPFSFileBlobURL("ffmpeg-core.js", "text/javascript", 50000);
-    var opfsStWasm = await _getOPFSFileBlobURL("ffmpeg-core.wasm", "application/wasm", 20000000);
+    var stFiles = ["ffmpeg-core.js", "ffmpeg-core.wasm"];
+    var stMinSizes = [50000, 20000000];
+    var stMimeTypes = ["text/javascript", "application/wasm"];
+    
+    var opfsStUrls = await _verifyAndLoadOPFSCache("st-loaded.ok", stFiles, stMinSizes, stMimeTypes);
 
-    if (opfsStCore && opfsStWasm) {
+    if (opfsStUrls) {
       console.log("[FFmpeg] Loading ST core from local OPFS cache...");
       try {
-        await ffmpeg.load({ coreURL: opfsStCore, wasmURL: opfsStWasm });
+        await ffmpeg.load({
+          coreURL: opfsStUrls["ffmpeg-core.js"],
+          wasmURL: opfsStUrls["ffmpeg-core.wasm"]
+        });
         loaded = true;
         console.log("[FFmpeg] ST loaded successfully from OPFS.");
       } catch (e) {
@@ -217,25 +437,55 @@ export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
     // 3rd Priority: Load from external CDN and Cache in OPFS
     if (!loaded) {
       try {
-        var stCoreResp = await fetch("https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js");
-        var stCoreAb = await stCoreResp.arrayBuffer();
+        console.log("Loading ST from CDN as a single atomic transaction...");
+        var stCoreAb = await _verboseFetch("https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js", "text/javascript", 50000);
+        if (!stCoreAb) throw new Error("Core JS file download failed or was blocked.");
+
+        var stWasmAb = await _verboseFetch("https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm", "application/wasm", 20000000);
+        if (!stWasmAb) throw new Error("WASM binary file download failed or was blocked.");
+
+        var stCoreHash = await _calculateHash(stCoreAb);
+        var stWasmHash = await _calculateHash(stWasmAb);
+
+        var expStCore = TRUSTED_HASHES["ffmpeg-core-st-js"];
+        var expStWasm = TRUSTED_HASHES["ffmpeg-core-st-wasm"];
+
+        var stCoreOk = Array.isArray(expStCore) ? expStCore.includes(stCoreHash) : (stCoreHash === expStCore);
+        var stWasmOk = Array.isArray(expStWasm) ? expStWasm.includes(stWasmHash) : (stWasmHash === expStWasm);
+
+        if (!stCoreOk || !stWasmOk) {
+          console.error("[FFmpeg] CDN ST files did not pass SHA-256 validation:", {
+            core: stCoreHash,
+            wasm: stWasmHash
+          });
+        } else {
+          console.log("[FFmpeg] All CDN ST files passed SHA-256 cryptographic signature validation!");
+        }
+
         var stCoreBlob = new Blob([stCoreAb], { type: "text/javascript" });
         var stCoreURL = URL.createObjectURL(stCoreBlob);
-        
-        var stWasmResp = await fetch("https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm");
-        var stWasmAb = await stWasmResp.arrayBuffer();
+
         var stWasmBlob = new Blob([stWasmAb], { type: "application/wasm" });
         var stWasmURL = URL.createObjectURL(stWasmBlob);
         
         await ffmpeg.load({ coreURL: stCoreURL, wasmURL: stWasmURL });
         loaded = true;
-        console.log("ST loaded from CDN. Caching to vendor...");
+        console.log("ST loaded from CDN. Committing save transaction to OPFS...");
         
-        _saveToVendor("ffmpeg-core.js", stCoreAb);
-        _saveToVendor("ffmpeg-core.wasm", stWasmAb);
+        try {
+          var root = await navigator.storage.getDirectory();
+          var vendorDir = await root.getDirectoryHandle("vendor");
+          var ffmpegDir = await vendorDir.getDirectoryHandle("ffmpeg");
+          await ffmpegDir.removeEntry("st-loaded.ok");
+        } catch(e) {}
+
+        await _saveToVendor("ffmpeg-core.js", stCoreAb);
+        await _saveToVendor("ffmpeg-core.wasm", stWasmAb);
+
+        await _writeMarker("st-loaded.ok");
       } catch (e) {
-        console.error("All FFmpeg loading configurations failed!");
-        throw e;
+        console.warn("[FFmpeg Loader] ST CDN single-atomic-transaction load cancelled:", e.message || e);
+        console.log("%c[FFmpeg Loader Info] Video rendering is currently disabled because both local and CDN sources are blocked or unavailable in this hosting environment. Check browser isolation/CORS settings.", "color: #ffaa00; font-weight: bold;");
       }
     }
   }

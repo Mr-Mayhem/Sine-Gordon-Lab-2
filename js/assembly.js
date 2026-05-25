@@ -8,15 +8,14 @@
 
 import { sgState as appState } from "./state.js";
 import { loadFFmpeg } from "./ffmpeg-loader.js";
+import { resolveRecordingResolution } from "./video-filters.js";
+import {
+  getEncodingParams,
+  buildChunkArgs,
+  buildAssemblyArgs,
+  buildConcatArgs
+} from "./ffmpeg-commands.js";
 
-function resolveRecordingResolution() {
-  var w = (typeof appState !== 'undefined' ? appState.exportWidth : 1280) || 1280;
-  var h = (typeof appState !== 'undefined' ? appState.exportHeight : 720) || 720;
-  return {
-    width: Math.floor(w / 16) * 16,
-    height: h
-  };
-}
 
 var _assemblyStats = null;
 
@@ -28,6 +27,9 @@ function _updateAssemblyUI() {
   var fill = document.getElementById("progress-fill");
   if (statusEl) {
     var lines = [];
+    if (s.mode) {
+      lines.push("<strong>Mode:</strong> " + s.mode);
+    }
     lines.push("Phase: " + s.currentPhase);
     lines.push("Frames: " + s.verifiedFrames + " / " + s.totalFrames);
     if (s.missingFrames > 0) lines.push("Missing: " + s.missingFrames);
@@ -116,7 +118,7 @@ export async function assembleFromStorage(pipeline, recorderRef) {
   
   recorderRef._recordingWidth = detectedWidth || (appState.exportWidth || 1280);
   recorderRef._recordingHeight = detectedHeight || (appState.exportHeight || 720);
-  recorderRef._firstFrameBytes = firstBytes;
+  recorderRef._firstFrameBytes = firstBytes ? firstBytes.slice() : null;
   
   const overlay = document.getElementById("processing-overlay"); overlay.style.display = "flex";
   const ffmpeg = await loadFFmpeg((typeof appState !== 'undefined' ? appState.exportFormat : null) || "webm", recorderRef, null);
@@ -137,9 +139,9 @@ export async function assembleFromStorage(pipeline, recorderRef) {
       }
       await ffmpeg.writeFile(fname, frameBytes);
     }
-    await _assemble(null, frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight, ffmpeg, recorderRef);
+    await _assemble(null, frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight, ffmpeg, recorderRef, pipeline === "zip" ? "zip-to-video" : "stills-to-video");
   } else {
-    await _assemble(frameFiles, frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight, ffmpeg, recorderRef);
+    await _assemble(frameFiles, frameFiles.length, recorderRef._recordingWidth, recorderRef._recordingHeight, ffmpeg, recorderRef, pipeline === "zip" ? "zip-to-video" : "stills-to-video");
   }
 }
 
@@ -147,7 +149,7 @@ export async function assemble(ffmpeg, frameCount, recordedFrames, recordingWidt
   recorderRef.isAssembling = true;
   
   if (recordedFrames && recordedFrames.length > 0) {
-    recorderRef._firstFrameBytes = recordedFrames[0];
+    recorderRef._firstFrameBytes = recordedFrames[0] ? recordedFrames[0].slice() : null;
   }
   
   var detectedWidth = null;
@@ -175,21 +177,36 @@ export async function assemble(ffmpeg, frameCount, recordedFrames, recordingWidt
   var finalH = detectedHeight || recordingHeight || resolveRecordingResolution().height;
 
   if (frameCount <= 150) {
-    await _assemble(null, frameCount, finalW, finalH, ffmpeg, recorderRef);
+    if (recordedFrames) {
+      if (recordedFrames.length < frameCount) {
+        console.warn(`[FFmpeg] Mismatch in short buffer: frameCount is ${frameCount}, but recordedFrames.length is ${recordedFrames.length}. Adjusting.`);
+        frameCount = recordedFrames.length;
+      }
+      for (var i = 0; i < frameCount; i++) {
+        var fname = "frame_" + String(i).padStart(6, "0") + ".png";
+        await ffmpeg.writeFile(fname, recordedFrames[i]);
+      }
+    }
+    await _assemble(null, frameCount, finalW, finalH, ffmpeg, recorderRef, "three.js canvas-to-video");
   } else {
     let externalFrameFiles = recordedFrames.map((bytes, index) => ({
       name: "frame_" + String(index).padStart(6, "0") + ".png",
       handle: { getFile: async () => ({ arrayBuffer: async () => bytes.buffer }) }
     }));
-    await _assemble(externalFrameFiles, frameCount, finalW, finalH, ffmpeg, recorderRef);
+    await _assemble(externalFrameFiles, frameCount, finalW, finalH, ffmpeg, recorderRef, "three.js canvas-to-video");
   }
 }
 
-async function _assemble(externalFrameFiles, totalFrames, recordingWidth, recordingHeight, ffmpeg, recorderRef) {
+async function _assemble(externalFrameFiles, totalFrames, recordingWidth, recordingHeight, ffmpeg, recorderRef, mode = "canvas-to-video") {
   if (totalFrames === 0) { console.error("No frames."); recorderRef.isAssembling = false; return; }
+  if (externalFrameFiles && externalFrameFiles.length < totalFrames) {
+    console.warn(`[FFmpeg] Parameter totalFrames is ${totalFrames} but externalFrameFiles.length is ${externalFrameFiles.length}. Clamping to match.`);
+    totalFrames = externalFrameFiles.length;
+  }
+  console.log(`[FFmpeg] Activity Mode: ${mode}`);
   console.log("Assembling", totalFrames, "frames...");
 
-  _assemblyStats = { totalFrames, verifiedFrames: 0, missingFrames: 0, encodeStartTime: 0, encodeElapsed: 0, encodeProgress: 0, framesEncoded: 0, currentPhase: "Initializing", outputSize: "" };
+  _assemblyStats = { mode, totalFrames, verifiedFrames: 0, missingFrames: 0, encodeStartTime: 0, encodeElapsed: 0, encodeProgress: 0, framesEncoded: 0, currentPhase: "Initializing", outputSize: "" };
 
   const overlay = document.getElementById("processing-overlay");
   const readyActions = document.getElementById("assembly-ready-actions"); if (readyActions) readyActions.style.display = "none";
@@ -213,7 +230,7 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
   }
   overlay.style.display = "flex";
   
-  if (ctx && recorderRef && recorderRef._firstFrameBytes) {
+  if (ctx && recorderRef && recorderRef._firstFrameBytes && recorderRef._firstFrameBytes.byteLength > 0) {
     try {
       var tBlob = new Blob([recorderRef._firstFrameBytes], { type: "image/png" });
       var tUrl = URL.createObjectURL(tBlob);
@@ -231,15 +248,10 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
   
   var oc = overlay.querySelector("div"); if (oc) { oc.style.maxWidth = "800px"; oc.style.padding = "32px"; oc.style.height = "auto"; oc.style.minHeight = "400px"; }
 
-  const format = appState.exportFormat || "webm";
-  const fps = appState.exportFPS || 60;
-  const crf = String(appState.exportCRF || 18);
-  const outputFile = "output." + (format === "mp4" ? "mp4" : "webm");
-  var scaleFilter = "scale=" + alignedW + ":" + alignedH + ":flags=lanczos";
-  var resolutionScale = (alignedW * alignedH) / (1280 * 720);
-  var webmBitrate = Math.max(2, Math.round(2 * resolutionScale)) + "M";
-  var webmDeadline = resolutionScale > 2.0 ? "good" : "realtime";
-  var webmCpuUsed = resolutionScale > 2.0 ? "2" : "4";
+  const params = getEncodingParams(alignedW, alignedH);
+  const format = params.format;
+  const fps = params.fps;
+  const outputFile = params.outputFile;
 
   _assemblyStats.currentPhase = externalFrameFiles ? "Importing frames" : "Verifying frames";
   _updateAssemblyUI();
@@ -267,6 +279,10 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
       let ptr = 0;
       for (let i = loadIdx; i < end; i++) {
         try {
+          if (!externalFrameFiles[i]) {
+            console.warn(`[FFmpeg] externalFrameFiles[${i}] is undefined (total length: ${externalFrameFiles.length})`);
+            continue;
+          }
           const file = await externalFrameFiles[i].handle.getFile();
           if (!file) {
             console.warn(`[FFmpeg] getFile() returned null for frame ${i}`);
@@ -322,15 +338,7 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
       
       let chunkName = "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm");
       concatList += "file '" + chunkName + "'\n";
-      let chunkArgs = format === "mp4" ? [
-        "-framerate", String(fps), "-start_number", "0", "-i", "frame_%06d.png", "-vframes", String(framesInThisChunk),
-        "-c:v", "libx264", "-preset", "medium", "-crf", crf, "-pix_fmt", "yuv420p",
-        "-bf", "0", "-g", String(fps), "-video_track_timescale", "90000", "-vf", scaleFilter, chunkName
-      ] : [
-        "-framerate", String(fps), "-start_number", "0", "-i", "frame_%06d.png", "-vframes", String(framesInThisChunk),
-        "-c:v", "libvpx", "-crf", crf, "-b:v", webmBitrate, "-deadline", webmDeadline,
-        "-cpu-used", webmCpuUsed, "-threads", "1", "-pix_fmt", "yuv420p", "-vf", scaleFilter, chunkName
-      ];
+      let chunkArgs = buildChunkArgs(framesInThisChunk, alignedW, alignedH, chunkName);
       
       let nextBufferIdx = (activeBufferIdx + 1) % 2;
       let preloadPromise = (c + 1 < numChunks) ? preloadChunk(nextBufferIdx) : null;
@@ -350,8 +358,8 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
       try { await ffmpeg.deleteFile(onlyChunk); } catch (e) {}
     } else {
       await ffmpeg.writeFile("mylist.txt", new TextEncoder().encode(concatList));
-      if (format === "mp4") await ffmpeg.exec(["-f", "concat", "-safe", "0", "-i", "mylist.txt", "-c", "copy", "-movflags", "+faststart", outputFile]);
-      else await ffmpeg.exec(["-f", "concat", "-safe", "0", "-i", "mylist.txt", "-c", "copy", outputFile]);
+      const concatArgs = buildConcatArgs("mylist.txt", format, outputFile);
+      await ffmpeg.exec(concatArgs);
       for (let c = 0; c < numChunks; c++) { try { await ffmpeg.deleteFile("chunk_" + c + (format === "mp4" ? ".mp4" : ".webm")); } catch (e) {} }
     }
     
@@ -368,6 +376,22 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
         var checkData = await ffmpeg.readFile(fname);
         if (!checkData || checkData.length === 0) throw new Error("empty");
         loadedCount++; _assemblyStats.verifiedFrames = loadedCount;
+        
+        if (i === 0 && ctx && checkData) {
+          try {
+            var tBlob = new Blob([checkData], { type: "image/png" });
+            var tUrl = URL.createObjectURL(tBlob);
+            var tImg = new Image();
+            tImg.onload = function() {
+              ctx.drawImage(tImg, 0, 0, alignedW, alignedH);
+              URL.revokeObjectURL(tUrl);
+            };
+            tImg.src = tUrl;
+          } catch (blobErr) {
+            console.error(`[FFmpeg] Short buffer first frame preview failed:`, blobErr);
+          }
+        }
+        
         if (i % 10 === 0 || i === totalFrames - 1) {
           _assemblyStats.encodeProgress = Math.round((i + 1) / totalFrames * 100);
           _updateAssemblyUI();
@@ -389,15 +413,7 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
     _assemblyStats.currentPhase = "Encoding video"; _assemblyStats.encodeProgress = 20;
     _assemblyStats.encodeStartTime = performance.now(); _updateAssemblyUI();
 
-    const args = format === "mp4" ? [
-      "-framerate", String(fps), "-start_number", "0", "-i", "frame_%06d.png",
-      "-c:v", "libx264", "-preset", "medium", "-crf", crf, "-pix_fmt", "yuv420p",
-      "-bf", "0", "-vf", scaleFilter, outputFile
-    ] : [
-      "-framerate", String(fps), "-start_number", "0", "-i", "frame_%06d.png",
-      "-c:v", "libvpx", "-crf", crf, "-b:v", webmBitrate, "-deadline", webmDeadline,
-      "-cpu-used", webmCpuUsed, "-threads", "1", "-pix_fmt", "yuv420p", "-vf", scaleFilter, outputFile
-    ];
+    const args = buildAssemblyArgs(alignedW, alignedH, outputFile);
     console.log("[FFmpeg] Assembly:", format.toUpperCase(), "Args:", args.join(" "));
     try { await Promise.race([ffmpeg.exec(args), new Promise((_,r) => setTimeout(() => r(new Error("Timeout")), 300000))]); } catch(e) { console.error("Encode failed:", e); }
     clearInterval(encodingInterval);

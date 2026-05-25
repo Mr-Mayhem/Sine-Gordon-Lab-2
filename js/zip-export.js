@@ -55,13 +55,14 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
       const overlay = document.getElementById("processing-overlay");
       if (overlay) overlay.style.display = "flex";
       const statusEl = document.getElementById("assembly-status");
-      if (statusEl) statusEl.textContent = "Packaging ZIP...";
+      if (statusEl) statusEl.innerHTML = "<strong>Mode:</strong> stills-to-zip<br><strong>Phase:</strong> Packaging ZIP...";
       const percentEl = document.getElementById("assembly-percent");
       const fill = document.getElementById("progress-fill");
       if (percentEl) percentEl.textContent = "0%";
       if (fill) fill.style.width = "0%";
       const previewCanvas = document.getElementById("preview-canvas");
 
+      console.log("[ZIP Export] Activity Mode: stills-to-zip (OPFS to ZIP)");
       if (btnVideo) btnVideo.textContent = `Zipping...`;
       let zip = new window.JSZip();
       Object.defineProperty(zip, "comment", { get: () => "Sine-Gordon Lab recording" });
@@ -233,13 +234,14 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
     const overlay = document.getElementById("processing-overlay");
     if (overlay) overlay.style.display = "flex";
     const statusEl = document.getElementById("assembly-status");
-    if (statusEl) statusEl.textContent = "Packaging memory ZIP...";
+    if (statusEl) statusEl.innerHTML = "<strong>Mode:</strong> stills-to-zip<br><strong>Phase:</strong> Packaging memory ZIP...";
     const percentEl = document.getElementById("assembly-percent");
     const fill = document.getElementById("progress-fill");
     if (percentEl) percentEl.textContent = "0%";
     if (fill) fill.style.width = "0%";
     const previewCanvas = document.getElementById("preview-canvas");
 
+    console.log("[ZIP Export] Activity Mode: stills-to-zip (RAM to ZIP)");
     if (btnVideo) {
       btnVideo.textContent = "Zipping... 0%";
     }
