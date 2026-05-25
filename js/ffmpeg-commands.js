@@ -33,6 +33,9 @@ export function getEncodingParams(alignedW, alignedH) {
   // Use veryfast preset for high density resolutions to prevent OOM / processor lockups
   var x264Preset = resolutionScale > 2.0 ? "veryfast" : "medium";
 
+  // For high-density scales at/above 1080p, restrict H.264 to 1 thread to avoid thread stack overhead and memory pressure.
+  var x264Threads = resolutionScale > 2.0 ? "1" : "2";
+
   return {
     format,
     fps,
@@ -44,6 +47,7 @@ export function getEncodingParams(alignedW, alignedH) {
     webmDeadline,
     webmCpuUsed,
     x264Preset,
+    x264Threads,
     targetRes
   };
 }
@@ -64,6 +68,8 @@ export function buildChunkArgs(framesInThisChunk, alignedW, alignedH, chunkName)
       "-vframes", String(framesInThisChunk),
       "-c:v", "libx264",
       "-preset", params.x264Preset,
+      "-threads", params.x264Threads,
+      "-rc-lookahead", params.resolutionScale > 2.0 ? "5" : "15",
       "-crf", params.crf,
       "-pix_fmt", "yuv420p",
       "-bf", "0",
@@ -109,6 +115,8 @@ export function buildAssemblyArgs(alignedW, alignedH, outputFile) {
       "-i", "frame_%06d.png",
       "-c:v", "libx264",
       "-preset", params.x264Preset,
+      "-threads", params.x264Threads,
+      "-rc-lookahead", params.resolutionScale > 2.0 ? "5" : "15",
       "-crf", params.crf,
       "-pix_fmt", "yuv420p",
       "-bf", "0"
