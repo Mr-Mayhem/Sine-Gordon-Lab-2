@@ -135,11 +135,41 @@ export default class RecordingEngine {
     }
   }
 
+  async _prepareStorageDirectory(pipeline) {
+    if (pipeline === "local") {
+      if (!window.showDirectoryPicker) throw new Error("DirPicker unsupported");
+      return await window.showDirectoryPicker({ id: "local-export", mode: "readwrite" });
+    }
+
+    try {
+      const root = await navigator.storage.getDirectory();
+      const folderName = (pipeline === "opfs" ? "sg_frames_" : pipeline === "zip" ? "sg_zip_tmp_" : "sg_ffmpeg_tmp_") + Date.now();
+      return await root.getDirectoryHandle(folderName, { create: true });
+    } catch (e) {
+      if (pipeline === "zip") {
+        console.warn("OPFS temporary storage unavailable. Fallback to in-memory JSZip initialized:", e.message);
+        this._zip = new window.JSZip();
+        return null;
+      } else if (pipeline === "opfs") {
+        throw new Error("OPFS Storage is disabled or inaccessible.");
+      } else {
+        console.warn("OPFS temporary storage unavailable for FFmpeg. Fallback to in-memory frame array buffer initialized:", e.message);
+        this._recordedFrames = [];
+        return null;
+      }
+    }
+  }
+
   async start() {
-    this._frameCount = 0; this._recordedFrames = []; this._renderFrameCount = 0;
-    var txtRec = document.getElementById("txt-recording");
+    this._frameCount = 0;
+    this._recordedFrames = [];
+    this._renderFrameCount = 0;
+    
+    const txtRec = document.getElementById("txt-recording");
     if (txtRec) { txtRec.textContent = "REC: 0"; }
-    this._ffmpegReady = false; this.isRecording = true;
+    this._ffmpegReady = false;
+    this.isRecording = true;
+
     var viewport = document.getElementById("viewport");
     if (viewport) {
       this._preRecordingWidth = Math.floor(viewport.clientWidth / 2) * 2;
@@ -149,46 +179,48 @@ export default class RecordingEngine {
       this._preRecordingWidth = Math.floor((this._canvas.width / dpr) / 2) * 2;
       this._preRecordingHeight = Math.floor((this._canvas.height / dpr) / 2) * 2;
     }
-    this._pipeline = typeof appState !== 'undefined' ? appState.exportPipeline : "ffmpeg";
+
+    this._pipeline = typeof appState !== "undefined" ? appState.exportPipeline : "ffmpeg";
     if (!this._pipeline) this._pipeline = "ffmpeg";
     this._dirHandle = null;
-    this._telemetry = { startTime: performance.now(), stopTime: 0, capturesAttempted: 0, capturesSucceeded: 0, capturesErrored: 0, encodesStarted: 0, encodesCompleted: 0, encodesErrored: 0, writesQueued: 0, writesCompleted: 0, writesErrored: 0, frameSizes: [], captureTimings: [], encodeTimings: [], writeTimings: [], firstFrameTime: 0, lastFrameTime: 0, sequenceGaps: [], lastWrittenIndex: -1, glErrors: [] };
+    
+    this._telemetry = {
+      startTime: performance.now(),
+      stopTime: 0,
+      capturesAttempted: 0,
+      capturesSucceeded: 0,
+      capturesErrored: 0,
+      encodesStarted: 0,
+      encodesCompleted: 0,
+      encodesErrored: 0,
+      writesQueued: 0,
+      writesCompleted: 0,
+      writesErrored: 0,
+      frameSizes: [],
+      captureTimings: [],
+      encodeTimings: [],
+      writeTimings: [],
+      firstFrameTime: 0,
+      lastFrameTime: 0,
+      sequenceGaps: [],
+      lastWrittenIndex: -1,
+      glErrors: []
+    };
+    
     document.getElementById("recording-indicator").style.display = "flex";
 
-    if (this._pipeline === "local") {
-      try {
-        if (!window.showDirectoryPicker) throw new Error("DirPicker unsupported");
-        this._dirHandle = await window.showDirectoryPicker({ id: 'local-export', mode: 'readwrite' });
-      } catch (e) {
-        console.error("Local disk access aborted", e);
-        alert(e.message === "DirPicker unsupported" ? "Local Disk access not supported." : "Directory selection aborted.");
-        this.isRecording = false; document.getElementById("recording-indicator").style.display = "none";
-        if (window.refreshUI) window.refreshUI(); return;
+    try {
+      this._dirHandle = await this._prepareStorageDirectory(this._pipeline);
+      if (this._dirHandle) {
+        console.log(`[Storage] Initialized temporary sandbox directory: ${this._dirHandle.name} for pipeline: ${this._pipeline}`);
       }
-    } else if (this._pipeline === "opfs") {
-      try {
-        var root = await navigator.storage.getDirectory();
-        this._dirHandle = await root.getDirectoryHandle("sg_frames_" + Date.now(), { create: true });
-      } catch (e) {
-        console.error("OPFS access failed", e);
-        alert("OPFS Storage disabled. Try FFmpeg option.");
-        this.isRecording = false; document.getElementById("recording-indicator").style.display = "none";
-        if (window.refreshUI) window.refreshUI(); return;
-      }
-    } else if (this._pipeline === "zip") {
-      try {
-        var root = await navigator.storage.getDirectory();
-        this._dirHandle = await root.getDirectoryHandle("sg_zip_tmp_" + Date.now(), { create: true });
-      } catch (e) { console.warn("OPFS failed, using memory buffer", e); this._zip = new window.JSZip(); }
-    } else {
-      try {
-        var root = await navigator.storage.getDirectory();
-        this._dirHandle = await root.getDirectoryHandle("sg_ffmpeg_tmp_" + Date.now(), { create: true });
-        console.log("Initialized OPFS temporary directory for FFmpeg pipeline:", this._dirHandle.name);
-      } catch (e) {
-        console.warn("OPFS failed for FFmpeg, using memory buffer", e);
-        this._recordedFrames = [];
-      }
+    } catch (err) {
+      console.error("[Storage] Failed to prepare storage directory:", err);
+      alert(err.message === "DirPicker unsupported" ? "Local Disk access not supported." : err.message);
+      this.isRecording = false;
+      document.getElementById("recording-indicator").style.display = "none";
+      if (window.refreshUI) window.refreshUI();
+      return;
     }
 
     var sizeData = changeCanvasToRecordingResolution(this._canvas, this._renderer, window.camera);
