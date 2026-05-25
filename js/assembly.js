@@ -58,16 +58,32 @@ export async function assembleFromStorage(pipeline, recorderRef) {
     let zipBlob = null;
     if (window.showOpenFilePicker) {
       try {
+        const lastHandle = await getLastZipHandle();
         const pickerOpts = {
-          id: 'zip-export',
-          startIn: 'downloads',
           types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
           multiple: false
         };
+        if (lastHandle) {
+          console.log("[ZIP Picker] Open file picker startIn handle named: " + lastHandle.name);
+          pickerOpts.startIn = lastHandle;
+        } else {
+          console.log("[ZIP Picker] Open file picker startIn fallback: downloads");
+          pickerOpts.startIn = 'downloads';
+        }
         const [fh] = await window.showOpenFilePicker(pickerOpts);
+        if (fh) {
+          console.log("[ZIP Picker] Chosen open file name: " + fh.name);
+        }
         zipBlob = await fh.getFile();
         try { await setLastZipHandle(fh); } catch (_) {}
-      } catch (e) { return; }
+      } catch (e) {
+        if (e.name === "AbortError") {
+          console.log("[ZIP Picker] Open file picker canceled by user.");
+        } else {
+          console.warn("[ZIP Picker] Open file picker failed:", e);
+        }
+        return;
+      }
     } else {
       zipBlob = await new Promise((resolve) => { let i = document.createElement("input"); i.type = "file"; i.accept = ".zip"; i.onchange = (e) => resolve(e.target.files?.[0] || null); i.click(); });
     }
