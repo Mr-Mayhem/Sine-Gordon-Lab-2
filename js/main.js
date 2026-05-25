@@ -171,6 +171,19 @@ function refreshUI() {
   
   document.getElementById("firing-solution-list").innerHTML = "A:" + Math.round(sgState.posA) + " B:" + Math.round(sgState.posB);
 
+  const pbContainer = document.getElementById("playback-controls-container");
+  if (pbContainer) {
+    pbContainer.style.display = sgState.hasFiredAtLeastOnce ? "flex" : "none";
+  }
+  const btnFire = document.getElementById("btn-fire");
+  if (btnFire) {
+    if (sgState.hasFiredAtLeastOnce) {
+      btnFire.classList.remove("animate-fire-onboarding");
+    } else {
+      btnFire.classList.add("animate-fire-onboarding");
+    }
+  }
+
   var uc = function(ch) {
     var isA = ch === "a", active = isA ? sgState.onA : sgState.onB;
     var idx = isA ? sgState.colA : sgState.colB, hex = PALETTE[idx].hex;

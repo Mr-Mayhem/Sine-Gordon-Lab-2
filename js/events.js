@@ -182,6 +182,8 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
       else if (sgState.modeB === "wind") physics.wind(sgState.dirB === "cw" ? 1 : -1);
     }
     sgState.paused = false;
+    sgState.hasFiredAtLeastOnce = true;
+    if (window.refreshUI) window.refreshUI();
     var l = sgState.paused ? "▶ Run" : "⏸ Pause";
     document.getElementById("btn-play").textContent = l;
     document.getElementById("btn-side-play").textContent = sgState.paused ? "▶" : "⏸";

@@ -18,6 +18,7 @@ const DEFAULT_PHYSICS = {
 export const sgState = {
   physics: { ...DEFAULT_PHYSICS },
   paused: true,
+  hasFiredAtLeastOnce: false,
   timeScale: 1.6,
   morph: 1,
   morphTarget: 1,

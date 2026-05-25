@@ -97,7 +97,43 @@ function _updateAssemblyUI() {
       }
     }
     if (s.outputSize) lines.push("Output: " + s.outputSize);
-    statusEl.innerHTML = lines.join("<br>");
+
+    const format =
+      (typeof appState !== "undefined" ? appState.exportFormat : "webm") ||
+      "webm";
+    const coopCoepSatisfied = typeof SharedArrayBuffer !== "undefined";
+    const needMultiThreaded = format === "mp4" && coopCoepSatisfied;
+
+    statusEl.innerHTML = `
+      <div class="flex flex-col gap-1 items-center w-full max-w-xs mx-auto">
+        <div class="text-center">${lines.join("<br>")}</div>
+        <div class="mt-4 pt-3 border-t border-white/10 w-full text-left font-mono" style="font-size: 10px; opacity: 0.7; line-height: 1.5;">
+          <div class="text-center font-bold tracking-wider uppercase text-[#00ffcc] mb-2" style="font-size: 9px; letter-spacing: 0.15em;">Diagnostic Report</div>
+          <div class="flex justify-between gap-4 py-0.5">
+            <span class="text-white/40">Format</span>
+            <span class="text-white font-medium">${format.toUpperCase() === "MP4" ? "MP4 (H.264)" : "WebM (VP8)"}</span>
+          </div>
+          <div class="flex justify-between gap-4 py-0.5">
+            <span class="text-white/40">Threading</span>
+            <span class="text-white font-medium">${needMultiThreaded ? "Multi-Threaded (MT)" : "Single-Threaded (ST)"}</span>
+          </div>
+          <div class="flex justify-between gap-4 py-0.5">
+            <span class="text-white/40">COOP/COEP</span>
+            <span class="${coopCoepSatisfied ? "text-emerald-400" : format === "mp4" ? "text-amber-400" : "text-white/60"} font-medium">
+              ${coopCoepSatisfied ? "Satisfied (SAB Enabled)" : format === "mp4" ? "Incomplete (ST Fallback)" : "Unrequired"}
+            </span>
+          </div>
+          ${
+            format.toUpperCase() === "MP4"
+              ? `<div class="flex justify-between gap-4 py-0.5">
+                  <span class="text-white/40">MP4 Headers</span>
+                  <span class="text-emerald-400 font-medium">FastStart (+faststart)</span>
+                </div>`
+              : ""
+          }
+        </div>
+      </div>
+    `;
   }
   if (percentEl) percentEl.textContent = s.encodeProgress + "%";
   if (fill) fill.style.width = s.encodeProgress + "%";

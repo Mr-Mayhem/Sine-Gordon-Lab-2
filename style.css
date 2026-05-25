@@ -312,6 +312,22 @@ html, body {
 /* ==========================================================================
    ANIMATIONS
    ========================================================================== */
+@keyframes fire-pulse-blink {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 4px rgba(0, 255, 204, 0.4);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 16px rgba(0, 255, 204, 0.9);
+    filter: brightness(1.25);
+  }
+}
+.animate-fire-onboarding {
+  animation: fire-pulse-blink 1.2s ease-in-out infinite;
+}
+
 @keyframes progress-breathe {
   0%, 100% { opacity: 0.8; filter: brightness(1); }
   50% { opacity: 1; filter: brightness(1.4); }
