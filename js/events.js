@@ -74,9 +74,19 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
       var btnV = document.getElementById("btn-video");
       if (selP && selA && btnV) {
         selP.value = sgState.exportPipeline;
-        selA.value = sgState.exportAction;
         
-        if (sgState.exportAction === "assemble") {
+        if (sgState.exportPipeline !== "zip") {
+          selA.style.visibility = "hidden";
+          selA.style.pointerEvents = "none";
+          sgState.exportAction = "record";
+          selA.value = "record";
+        } else {
+          selA.style.visibility = "visible";
+          selA.style.pointerEvents = "auto";
+          selA.value = sgState.exportAction;
+        }
+        
+        if (sgState.exportAction === "assemble" && sgState.exportPipeline === "zip") {
           btnV.textContent = "🛠 Assemble";
           btnV.style.borderColor = "var(--accent)";
           btnV.style.color = "var(--accent)";

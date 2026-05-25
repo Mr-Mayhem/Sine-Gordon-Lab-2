@@ -82,12 +82,12 @@ function updateRecordingUI(progress) {
       
     case 'complete':
       if (btnVideo) {
-        btnVideo.textContent = '⏺ Video';
         btnVideo.disabled = false;
       }
       if (indicator) {
         indicator.style.display = 'none';
       }
+      refreshUI();
       break;
   }
 }
@@ -119,7 +119,18 @@ function refreshUI() {
 
   if (tpl && taction && btnVideo) {
     tpl.value = sgState.exportPipeline || "ffmpeg";
-    taction.value = sgState.exportAction || "record";
+    
+    // Hide/show action dropdown (Assemble/Record) with visibility rather than display to prevent layout jump
+    if (tpl.value !== "zip") {
+      taction.style.visibility = "hidden";
+      taction.style.pointerEvents = "none";
+      sgState.exportAction = "record";
+      taction.value = "record";
+    } else {
+      taction.style.visibility = "visible";
+      taction.style.pointerEvents = "auto";
+      taction.value = sgState.exportAction || "record";
+    }
     
     var localOp = tpl.querySelector('option[value="local"]');
     if (localOp && !window.showDirectoryPicker) {
@@ -131,14 +142,30 @@ function refreshUI() {
       }
     }
 
-    if (taction.value === "assemble") {
-      btnVideo.textContent = "🛠 Assemble";
+    if (recorder && recorder.isAssembling) {
+      btnVideo.textContent = "⏳ Assembly...";
       btnVideo.style.borderColor = "var(--accent)";
       btnVideo.style.color = "var(--accent)";
+      btnVideo.disabled = true;
+      btnVideo.classList.remove("btn-warn");
+    } else if (recorder && recorder.isRecording) {
+      btnVideo.textContent = "⏹ Stop";
+      btnVideo.style.borderColor = "#ef4444";
+      btnVideo.style.color = "#ef4444";
+      btnVideo.disabled = false;
+      btnVideo.classList.add("btn-warn");
     } else {
-      btnVideo.textContent = "⏺ Record";
-      btnVideo.style.borderColor = "";
-      btnVideo.style.color = "";
+      btnVideo.disabled = false;
+      btnVideo.classList.remove("btn-warn");
+      if (sgState.exportAction === "assemble" && tpl.value === "zip") {
+        btnVideo.textContent = "🛠 Assemble";
+        btnVideo.style.borderColor = "var(--accent)";
+        btnVideo.style.color = "var(--accent)";
+      } else {
+        btnVideo.textContent = "⏺ Record";
+        btnVideo.style.borderColor = "";
+        btnVideo.style.color = "";
+      }
     }
   }
   

@@ -242,7 +242,14 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
      if (lastHandle) pickerOpts.startIn = lastHandle;
      ```
 
-### 4.6 Over-Engineering, Tech-Larping, & "AI-Slop"
+### 4.6 Direct ZIP Assembly Layout Alignment (Jitter-Free Stacking)
+* **The Pitfall**: Coupling export, record, and offline assembly actions specifically to the `zip` pipeline selection option can cause layout shifting, dropdown misalignment, or sudden element jumps if the action dropdown is toggled with aggressive display layout changes.
+* **The Resolution (Jitter-Free Visibility & Stacked Alignment Control)**:
+  1. **Clean Stacked Hierarchy**: In the UI, structure the main export pipeline format dropdown (FFmpeg, OPFS, ZIP) directly on top, and place the Record/Assemble action dropdown directly below it.
+  2. **Jitter-Free State Toggles**: Symmetrically manage the action select dropdown state with `visibility: hidden; pointer-events: none` when non-zip pipelines are active. This retains the exact spatial dimensions and prevents components from jumping or popping vertically.
+  3. **Secure Action Binding**: Symmetrically disable user controls and update state indicators (`isAssembling: true`) when assembly or extraction pipelines are busy, locking potential state conflicts.
+
+### 4.7 Over-Engineering, Tech-Larping, & "AI-Slop"
 * **The Pitfall**: Adding unrequested technical decorations (e.g., "CORE_NODE_ONLINE", "PORT: 3000", custom grid coordinates) to make the simulation look more "complex."
 * **The Resolution**: Keep labels literal, human, and modest. If the user asks for a simple mathematical control, implement ONLY that control cleanly, utilizing generous white space and high-contrast styling.
 
