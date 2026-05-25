@@ -5,7 +5,10 @@
 // =============================================================================
 
 import { sgState as appState } from "./state.js";
-import { resolveRecordingResolution, getVideoFilterString } from "./video-filters.js";
+import {
+  resolveRecordingResolution,
+  getVideoFilterString,
+} from "./video-filters.js";
 
 /**
  * Derives and bundles all standard synthesis parameters from current state and active configurations.
@@ -22,7 +25,12 @@ export function getEncodingParams(alignedW, alignedH) {
   const outputFile = "output." + (format === "mp4" ? "mp4" : "webm");
 
   var targetRes = resolveRecordingResolution();
-  var scaleFilter = getVideoFilterString(alignedW, alignedH, targetRes.width, targetRes.height);
+  var scaleFilter = getVideoFilterString(
+    alignedW,
+    alignedH,
+    targetRes.width,
+    targetRes.height,
+  );
 
   var resolutionScale = (alignedW * alignedH) / (1280 * 720);
   var webmBitrate = Math.max(2, Math.round(2 * resolutionScale)) + "M";
@@ -36,6 +44,9 @@ export function getEncodingParams(alignedW, alignedH) {
   // For high-density scales at/above 1080p, restrict H.264 to 1 thread to avoid thread stack overhead and memory pressure.
   var x264Threads = resolutionScale > 2.0 ? "1" : "2";
 
+  // For high-density scales at/above 1080p, elevate level limit dynamically to 5.2 to avoid MB rate overflow artifacts
+  var x264Level = resolutionScale > 2.0 ? "5.2" : "5.1";
+
   return {
     format,
     fps,
@@ -48,7 +59,8 @@ export function getEncodingParams(alignedW, alignedH) {
     webmCpuUsed,
     x264Preset,
     x264Threads,
-    targetRes
+    x264Level,
+    targetRes,
   };
 }
 
@@ -56,41 +68,76 @@ export function getEncodingParams(alignedW, alignedH) {
  * Prepares the chunk encoding FFmpeg arguments array.
  * Double-buffered block encoding feeds here to create intermediate video segments.
  */
-export function buildChunkArgs(framesInThisChunk, alignedW, alignedH, chunkName) {
+export function buildChunkArgs(
+  framesInThisChunk,
+  alignedW,
+  alignedH,
+  chunkName,
+) {
   const params = getEncodingParams(alignedW, alignedH);
   let args = [];
 
   if (params.format === "mp4") {
     args = [
-      "-framerate", String(params.fps),
-      "-start_number", "0",
-      "-i", "frame_%06d.png",
-      "-vframes", String(framesInThisChunk),
-      "-c:v", "libx264",
-      "-preset", params.x264Preset,
-      "-threads", params.x264Threads,
-      "-rc-lookahead", params.resolutionScale > 2.0 ? "5" : "15",
-      "-crf", params.crf,
-      "-pix_fmt", "yuv420p",
-      "-profile:v", "high",
-      "-level:v", "5.1",
-      "-bf", "0",
-      "-g", String(params.fps),
-      "-video_track_timescale", "90000"
+      "-framerate",
+      String(params.fps),
+      "-start_number",
+      "0",
+      "-i",
+      "frame_%06d.png",
+      "-r",
+      String(params.fps),
+      "-vframes",
+      String(framesInThisChunk),
+      "-c:v",
+      "libx264",
+      "-preset",
+      params.x264Preset,
+      "-threads",
+      params.x264Threads,
+      "-rc-lookahead",
+      params.resolutionScale > 2.0 ? "5" : "15",
+      "-crf",
+      params.crf,
+      "-pix_fmt",
+      "yuv420p",
+      "-profile:v",
+      "high",
+      "-level:v",
+      params.x264Level,
+      "-bf",
+      "0",
+      "-g",
+      String(params.fps),
+      "-video_track_timescale",
+      "90000",
     ];
   } else {
     args = [
-      "-framerate", String(params.fps),
-      "-start_number", "0",
-      "-i", "frame_%06d.png",
-      "-vframes", String(framesInThisChunk),
-      "-c:v", "libvpx",
-      "-crf", params.crf,
-      "-b:v", params.webmBitrate,
-      "-deadline", params.webmDeadline,
-      "-cpu-used", params.webmCpuUsed,
-      "-threads", "1",
-      "-pix_fmt", "yuv420p"
+      "-framerate",
+      String(params.fps),
+      "-start_number",
+      "0",
+      "-i",
+      "frame_%06d.png",
+      "-r",
+      String(params.fps),
+      "-vframes",
+      String(framesInThisChunk),
+      "-c:v",
+      "libvpx",
+      "-crf",
+      params.crf,
+      "-b:v",
+      params.webmBitrate,
+      "-deadline",
+      params.webmDeadline,
+      "-cpu-used",
+      params.webmCpuUsed,
+      "-threads",
+      "1",
+      "-pix_fmt",
+      "yuv420p",
     ];
   }
 
@@ -112,31 +159,57 @@ export function buildAssemblyArgs(alignedW, alignedH, outputFile) {
 
   if (params.format === "mp4") {
     args = [
-      "-framerate", String(params.fps),
-      "-start_number", "0",
-      "-i", "frame_%06d.png",
-      "-c:v", "libx264",
-      "-preset", params.x264Preset,
-      "-threads", params.x264Threads,
-      "-rc-lookahead", params.resolutionScale > 2.0 ? "5" : "15",
-      "-crf", params.crf,
-      "-pix_fmt", "yuv420p",
-      "-profile:v", "high",
-      "-level:v", "5.1",
-      "-bf", "0"
+      "-framerate",
+      String(params.fps),
+      "-start_number",
+      "0",
+      "-i",
+      "frame_%06d.png",
+      "-r",
+      String(params.fps),
+      "-c:v",
+      "libx264",
+      "-preset",
+      params.x264Preset,
+      "-threads",
+      params.x264Threads,
+      "-rc-lookahead",
+      params.resolutionScale > 2.0 ? "5" : "15",
+      "-crf",
+      params.crf,
+      "-pix_fmt",
+      "yuv420p",
+      "-profile:v",
+      "high",
+      "-level:v",
+      params.x264Level,
+      "-bf",
+      "0",
     ];
   } else {
     args = [
-      "-framerate", String(params.fps),
-      "-start_number", "0",
-      "-i", "frame_%06d.png",
-      "-c:v", "libvpx",
-      "-crf", params.crf,
-      "-b:v", params.webmBitrate,
-      "-deadline", params.webmDeadline,
-      "-cpu-used", params.webmCpuUsed,
-      "-threads", "1",
-      "-pix_fmt", "yuv420p"
+      "-framerate",
+      String(params.fps),
+      "-start_number",
+      "0",
+      "-i",
+      "frame_%06d.png",
+      "-r",
+      String(params.fps),
+      "-c:v",
+      "libvpx",
+      "-crf",
+      params.crf,
+      "-b:v",
+      params.webmBitrate,
+      "-deadline",
+      params.webmDeadline,
+      "-cpu-used",
+      params.webmCpuUsed,
+      "-threads",
+      "1",
+      "-pix_fmt",
+      "yuv420p",
     ];
   }
 
@@ -155,20 +228,33 @@ export function buildAssemblyArgs(alignedW, alignedH, outputFile) {
 export function buildConcatArgs(listFile, format, outputFile) {
   if (format === "mp4") {
     return [
-      "-f", "concat",
-      "-safe", "0",
-      "-i", listFile,
-      "-c", "copy",
-      "-movflags", "+faststart",
-      outputFile
+      "-fflags",
+      "+genpts",
+      "-f",
+      "concat",
+      "-safe",
+      "0",
+      "-i",
+      listFile,
+      "-c",
+      "copy",
+      "-movflags",
+      "+faststart",
+      outputFile,
     ];
   } else {
     return [
-      "-f", "concat",
-      "-safe", "0",
-      "-i", listFile,
-      "-c", "copy",
-      outputFile
+      "-fflags",
+      "+genpts",
+      "-f",
+      "concat",
+      "-safe",
+      "0",
+      "-i",
+      listFile,
+      "-c",
+      "copy",
+      outputFile,
     ];
   }
 }

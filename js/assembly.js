@@ -74,9 +74,13 @@ export function appendAssemblyLog(msg) {
 
     row.textContent = `[${t}] ${cleanMsg}`;
     el.appendChild(row);
+    el.scrollTop = el.scrollHeight;
     setTimeout(function () {
       el.scrollTop = el.scrollHeight;
-    }, 4);
+    }, 0);
+    setTimeout(function () {
+      el.scrollTop = el.scrollHeight;
+    }, 50);
   }
 
   const countEl = document.getElementById("assembly-log-count");
@@ -317,6 +321,7 @@ export async function assembleFromStorage(pipeline, recorderRef) {
   let frameFiles = [];
 
   if (pipeline === "zip") {
+    recorderRef._dirHandle = null; // Clean stale directory reference since ZIP imports frames in-memory
     let zipBlob = null;
     if (window.showOpenFilePicker) {
       try {

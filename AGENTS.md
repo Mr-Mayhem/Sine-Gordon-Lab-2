@@ -273,7 +273,7 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
 * **The Resolution**:
   1. **Single-Thread Bottleneck Management**: Limit `-threads 1` for H.264 encoding when the resolution scale exceeds modern 1080p thresholds to keep heap usage extremely low.
   2. **Lookahead Optimization**: Reduce encoder buffer complexity dynamically using `-rc-lookahead 5` (down from standard `15`) for high density scales.
-  3. **Standard Level Enforcement**: Apply `-profile:v high -level:v 5.1` constraints, and use format-compliant MPEG-Transport streams (`.ts`) for chunk-level compilation instead of sub-nested `.mp4` containers. Raw `.ts` envelopes concatenate instantaneously without structural parses, preventing thread crashes on final containerization.
+  3. **Standard Level Enforcement**: Apply dynamic level constraints (auto-scaling to `-level:v 5.2` above 1080p, and `-level:v 5.1` for standard density streams) to comply with H.264 macroblock rate caps. Strictly enforce constant frame rates (`-r`) on all chunks and inject `-fflags +genpts` during concat stages to bypass keyframe artifacts, timing stutters, and visual shifts. Use format-compliant MPEG-Transport streams (`.ts`) for chunk-level compilation instead of sub-nested `.mp4` containers. Raw `.ts` envelopes concatenate instantaneously without structural parses, preventing thread crashes on final containerization.
   4. **Dynamic Atom Repositioning**: Append `-movflags +faststart` during single-chunk optimization, placing the index metadata (`moov` atom) at the head of the output stream instantly.
 
 ### 4.10 Over-Engineering, Tech-Larping, & "AI-Slop"
@@ -292,7 +292,7 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
 * **The Resolution (Inline Log Window)**:
   1. **Console Interception**: Inject lightweight custom hooks overriding standard browser `console.log`, `console.warn`, and `console.error` methods, safely feeding stringified arguments into an active state-array.
   2. **Scrolling HUD Box**: Embed a dedicated terminal console box (`#assembly-log-container`) centered directly below the preview thumbnail inside the processing overlay modal window.
-  3. **Visual Message Tracking**: Filter incoming logs dynamically, highlighting warnings in light amber, fatal compilation aborts in red, system state handshakes in muted gray, and successful assembly steps in emerald green. Automatically pin scroll heights to bottom positions on update.
+  3. **Visual Message Tracking**: Filter incoming logs dynamically, highlighting warnings in light amber, fatal compilation aborts in red, system state handshakes in muted gray, and successful assembly steps in emerald green. Employ a robust cascading scroll-pinning routine (synchronous element bottom scrolling followed by dual asynchronous backup macro-tasks at 0ms and 50ms) to ensure the HUD container is securely anchored to the newest log output regardless of render scheduling delays.
 
 ### 4.13 Integrated Diagnostics Clipboard Copy
 * **The Pitfall**: Sharing assembly errors or pipeline details for troubleshooting requires selecting and copying formatted browser outputs, which is tricky inside overlay containers.
