@@ -75,11 +75,20 @@ export function appendAssemblyLog(msg) {
     row.textContent = `[${t}] ${cleanMsg}`;
     el.appendChild(row);
     el.scrollTop = el.scrollHeight;
+    try {
+      row.scrollIntoView({ block: "nearest" });
+    } catch (e) {}
     setTimeout(function () {
       el.scrollTop = el.scrollHeight;
+      try {
+        row.scrollIntoView({ block: "nearest" });
+      } catch (e) {}
     }, 0);
     setTimeout(function () {
       el.scrollTop = el.scrollHeight;
+      try {
+        row.scrollIntoView({ block: "nearest" });
+      } catch (e) {}
     }, 50);
   }
 
