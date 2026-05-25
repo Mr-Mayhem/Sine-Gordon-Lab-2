@@ -6,73 +6,6 @@
 // vendor/file-saver/FileSaver.min.js (window.saveAs).
 // =============================================================================
 
-export async function getLastZipHandle() {
-  if (window._lastZipHandle) {
-    console.log("[ZIP Cache] Retrieved window._lastZipHandle in-memory: " + window._lastZipHandle.name);
-    return window._lastZipHandle;
-  }
-  try {
-    const handle = await new Promise((resolve) => {
-      const request = indexedDB.open("sine_gordon_lab_db", 1);
-      request.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        db.createObjectStore("handles");
-      };
-      request.onsuccess = (e) => {
-        const db = e.target.result;
-        try {
-          const tx = db.transaction("handles", "readonly");
-          const store = tx.objectStore("handles");
-          const getReq = store.get("lastZipHandle");
-          getReq.onsuccess = () => {
-            resolve(getReq.result || null);
-          };
-          getReq.onerror = () => resolve(null);
-        } catch (_) { resolve(null); }
-      };
-      request.onerror = () => resolve(null);
-    });
-    if (handle) {
-      console.log("[ZIP Cache] Retrieved handle from IndexedDB: " + handle.name);
-    } else {
-      console.log("[ZIP Cache] No handle stored in IndexedDB yet.");
-    }
-    return handle;
-  } catch (e) {
-    console.warn("[ZIP Cache] Failed to load handle from IndexedDB:", e);
-    return null;
-  }
-}
-
-export async function setLastZipHandle(handle) {
-  window._lastZipHandle = handle;
-  if (handle) {
-    console.log("[ZIP Cache] Saving last ZIP handle to memory/DB: " + handle.name);
-  }
-  try {
-    await new Promise((resolve) => {
-      const request = indexedDB.open("sine_gordon_lab_db", 1);
-      request.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        db.createObjectStore("handles");
-      };
-      request.onsuccess = (e) => {
-        const db = e.target.result;
-        try {
-          const tx = db.transaction("handles", "readwrite");
-          const store = tx.objectStore("handles");
-          store.put(handle, "lastZipHandle");
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => resolve();
-        } catch (_) { resolve(); }
-      };
-      request.onerror = () => resolve();
-    });
-  } catch (e) {
-    console.warn("[ZIP Cache] Failed to save handle to IndexedDB:", e);
-  }
-}
-
 export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderRef) {
   if (recorderRef) recorderRef.isAssembling = true;
   if (dirHandle) {
@@ -85,21 +18,16 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
         try {
             const pickerOpts = {
                 id: 'zip-export',
-                startIn: 'downloads',
                 suggestedName: zipFilename,
                 types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }]
             };
-            console.log("[ZIP Picker] Direct save dialog requested with id='zip-export' and startIn='downloads'. Browser's native folder memory will handle path recall.");
+            console.log("[ZIP Picker] Direct save dialog requested with id='zip-export'. Browser's native profile folder memory will handle path recall.");
             saveHandle = await window.showSaveFilePicker(pickerOpts);
             if (saveHandle) {
-                console.log("[ZIP Picker] Save path confirmed by user! File Name: " + saveHandle.name);
-                console.log("[ZIP Picker] Note: Standard web sandboxes do not reveal the absolute OS drive path for security, but the browser maps this file handle internally.");
-                try { await setLastZipHandle(saveHandle); } catch (_) {}
+                console.log("[ZIP Picker] Success! Save path and filename confirmed by user! Target File: " + saveHandle.name);
             }
         } catch (e) {
-            if (e.name !== "AbortError") {
-                console.warn("showSaveFilePicker failed early, will fallback to Blob download.", e);
-            } else {
+            if (e.name === "AbortError") {
                 console.log("[ZIP Picker] Save file picker canceled by user.");
                 if (btnVideo) btnVideo.textContent = "Canceled";
                 if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
@@ -111,6 +39,8 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
                 if (overlay) overlay.style.display = "none";
                 setTimeout(function() { if (refreshUI) refreshUI(); }, 2000);
                 return;
+            } else {
+                console.warn("[ZIP Picker] Save file picker failed. Falling back to traditional Blob download.", e);
             }
         }
     }
@@ -387,28 +317,25 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
         try {
           const pickerOpts = {
             id: 'zip-export',
-            startIn: 'downloads',
             suggestedName: "frames_" + Date.now() + ".zip",
             types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
           };
-          console.log("[ZIP Picker] Memory ZIP save dialog requested with id='zip-export' and startIn='downloads'. Browser's native folder memory will handle path recall.");
+          console.log("[ZIP Picker] Memory ZIP save dialog requested with id='zip-export'. Browser's native profile folder memory will handle path recall.");
           const handle = await window.showSaveFilePicker(pickerOpts);
           if (handle) {
-            console.log("[ZIP Picker] Save path confirmed by user! File Name: " + handle.name + " (" + (content.size/1024/1024).toFixed(2) + " MB)");
-            console.log("[ZIP Picker] Note: Standard web sandboxes do not reveal the absolute OS drive path for security, but the browser maps this file handle internally.");
+            console.log("[ZIP Picker] Success! Save path and filename confirmed by user! Target File: " + handle.name + " (" + (content.size/1024/1024).toFixed(2) + " MB)");
+            const writable = await handle.createWritable();
+            await writable.write(content);
+            await writable.close();
+            console.log("ZIP saved with File System Access API.");
           }
-          const writable = await handle.createWritable();
-          await writable.write(content);
-          await writable.close();
-          try { await setLastZipHandle(handle); } catch (eh) {}
-          console.log("ZIP saved with File System Access API.");
         } catch (e) {
           if (e.name === "AbortError") {
             console.log("[ZIP Picker] Save file picker canceled by user.");
           } else {
-            console.warn("Save file picker aborted/failed, falling back", e);
+            console.warn("[ZIP Picker] Save file picker failed. Falling back to traditional Blob download.", e);
+            window.saveAs(content, "frames_" + Date.now() + ".zip");
           }
-          window.saveAs(content, "frames_" + Date.now() + ".zip");
         }
       } else {
         window.saveAs(content, "frames_" + Date.now() + ".zip");

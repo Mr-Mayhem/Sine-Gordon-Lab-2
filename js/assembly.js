@@ -15,7 +15,7 @@ import {
   buildAssemblyArgs,
   buildConcatArgs
 } from "./ffmpeg-commands.js";
-import { getLastZipHandle, setLastZipHandle } from "./zip-export.js";
+// No imports needed from zip-export.js since we rely strictly on browser-native directory memory by id.
 
 
 var _assemblyStats = null;
@@ -60,21 +60,19 @@ export async function assembleFromStorage(pipeline, recorderRef) {
       try {
         const pickerOpts = {
           id: 'zip-export',
-          startIn: 'downloads',
           types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
           multiple: false
         };
-        console.log("[ZIP Picker] Open file picker requested (Assemble) with id='zip-export' and startIn='downloads'. Browser's native folder memory will handle path recall.");
-        const [fh] = await window.showOpenFilePicker(pickerOpts);
+        console.log("[ZIP Picker] Open file picker requested (Assemble) with id='zip-export'. Browser's native profile folder memory will handle path recall.");
+        const fileHandles = await window.showOpenFilePicker(pickerOpts);
+        const fh = fileHandles[0];
         if (fh) {
-          console.log("[ZIP Picker] File chosen for import! File Name: " + fh.name);
-          console.log("[ZIP Picker] Note: Standard web sandboxes do not reveal the absolute OS drive path (e.g. C:\\Users\\...\\Downloads) for security, but the browser maps this file handle internally.");
+          console.log("[ZIP Picker] Success! File chosen for import under user-selected path! Target File: " + fh.name);
+          zipBlob = await fh.getFile();
+          if (zipBlob) {
+            console.log("[ZIP Picker] Loaded file stream: Size = " + (zipBlob.size/1024/1024).toFixed(2) + " MB");
+          }
         }
-        zipBlob = await fh.getFile();
-        if (zipBlob) {
-          console.log("[ZIP Picker] Loaded file stream: Size = " + (zipBlob.size/1024/1024).toFixed(2) + " MB");
-        }
-        try { await setLastZipHandle(fh); } catch (_) {}
       } catch (e) {
         if (e.name === "AbortError") {
           console.log("[ZIP Picker] Open file picker canceled by user.");
