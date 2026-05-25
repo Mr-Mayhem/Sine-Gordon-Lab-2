@@ -72,6 +72,8 @@ export function buildChunkArgs(framesInThisChunk, alignedW, alignedH, chunkName)
       "-rc-lookahead", params.resolutionScale > 2.0 ? "5" : "15",
       "-crf", params.crf,
       "-pix_fmt", "yuv420p",
+      "-profile:v", "high",
+      "-level:v", "5.1",
       "-bf", "0",
       "-g", String(params.fps),
       "-video_track_timescale", "90000"
@@ -119,6 +121,8 @@ export function buildAssemblyArgs(alignedW, alignedH, outputFile) {
       "-rc-lookahead", params.resolutionScale > 2.0 ? "5" : "15",
       "-crf", params.crf,
       "-pix_fmt", "yuv420p",
+      "-profile:v", "high",
+      "-level:v", "5.1",
       "-bf", "0"
     ];
   } else {

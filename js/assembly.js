@@ -154,6 +154,35 @@ export async function assembleFromStorage(pipeline, recorderRef) {
     console.warn("[FFmpeg] Could not detect frame resolution, falling back to dropdown:", e.message);
   }
   
+  if (detectedWidth && detectedHeight) {
+    appState.exportWidth = detectedWidth;
+    appState.exportHeight = detectedHeight;
+    console.log("[FFmpeg] Synced global export resolution from imported frame:", detectedWidth + "x" + detectedHeight);
+
+    // Sync the UI dropdown, enabling it programmatically if disabled by screen boundaries
+    const selRes = document.getElementById("sel-res");
+    if (selRes) {
+      const resVal = detectedWidth + "x" + detectedHeight;
+      let optExists = false;
+      for (let i = 0; i < selRes.options.length; i++) {
+        const option = selRes.options[i];
+        if (option.value === resVal) {
+          option.disabled = false;
+          selRes.selectedIndex = i;
+          optExists = true;
+          break;
+        }
+      }
+      if (!optExists) {
+        const option = document.createElement("option");
+        option.value = resVal;
+        option.textContent = resVal + " (Detected from Import)";
+        selRes.appendChild(option);
+        selRes.value = resVal;
+      }
+    }
+  }
+
   recorderRef._recordingWidth = detectedWidth || (appState.exportWidth || 1280);
   recorderRef._recordingHeight = detectedHeight || (appState.exportHeight || 720);
   recorderRef._firstFrameBytes = firstBytes ? firstBytes.slice() : null;
@@ -439,7 +468,7 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
         await ffmpeg.writeFile("frame_" + String(i).padStart(6, "0") + ".png", frameData);
       }
       
-      let chunkName = "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm");
+      let chunkName = "chunk_" + c + (format === "mp4" ? ".ts" : ".webm");
       concatList += "file '" + chunkName + "'\n";
       let chunkArgs = buildChunkArgs(framesInThisChunk, alignedW, alignedH, chunkName);
       
@@ -454,8 +483,14 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
     }
     
     if (numChunks === 1) {
-      var onlyChunk = "chunk_0." + (format === "mp4" ? "mp4" : "webm");
-      try { await ffmpeg.exec(["-i", onlyChunk, "-c", "copy", outputFile]); } catch(e) {
+      var onlyChunk = "chunk_0." + (format === "mp4" ? "ts" : "webm");
+      try {
+        if (format === "mp4") {
+          await ffmpeg.exec(["-i", onlyChunk, "-c", "copy", "-movflags", "+faststart", outputFile]);
+        } else {
+          await ffmpeg.exec(["-i", onlyChunk, "-c", "copy", outputFile]);
+        }
+      } catch(e) {
         console.warn("[FFmpeg] Copy failed, using chunk directly:", e.message);
       }
       try { await ffmpeg.deleteFile(onlyChunk); } catch (e) {}
@@ -463,7 +498,7 @@ async function _assemble(externalFrameFiles, totalFrames, recordingWidth, record
       await ffmpeg.writeFile("mylist.txt", new TextEncoder().encode(concatList));
       const concatArgs = buildConcatArgs("mylist.txt", format, outputFile);
       await ffmpeg.exec(concatArgs);
-      for (let c = 0; c < numChunks; c++) { try { await ffmpeg.deleteFile("chunk_" + c + (format === "mp4" ? ".mp4" : ".webm")); } catch (e) {} }
+      for (let c = 0; c < numChunks; c++) { try { await ffmpeg.deleteFile("chunk_" + c + (format === "mp4" ? ".ts" : ".webm")); } catch (e) {} }
     }
     
     _assemblyStats.encodeProgress = 100; if (percentEl) percentEl.textContent = "100%"; if (fill) fill.style.width = "100%";
