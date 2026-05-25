@@ -291,7 +291,7 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
 * **The Pitfall**: WebAssembly video compilation and raw file extraction workflows run in nested asynchronous worker targets. If a task fails, developers and users have to open browser inspector panels to understand the error context.
 * **The Resolution (Inline Log Window)**:
   1. **Console Interception**: Inject lightweight custom hooks overriding standard browser `console.log`, `console.warn`, and `console.error` methods, safely feeding stringified arguments into an active state-array.
-  2. **Scrolling HUD Box**: Embed a dedicated terminal console box (`#assembly-log-container`) centered directly below the preview thumbnail inside the processing overlay modal window.
+  2. **Scrolling HUD Box**: Embed an expanded 380px high dedicated terminal console container (`#assembly-log-container`) positioned below the high-density aspect-ratio preview block. Position header titles and reactive status badges side-by-side in a horizontal row at the very top of the window, immediately pulling up the preview canvas.
   3. **Visual Message Tracking**: Filter incoming logs dynamically, highlighting warnings in light amber, fatal compilation aborts in red, system state handshakes in muted gray, and successful assembly steps in emerald green. Employ a robust cascading scroll-pinning routine (synchronous element bottom scrolling followed by dual asynchronous backup macro-tasks at 0ms and 50ms) to ensure the HUD container is securely anchored to the newest log output regardless of render scheduling delays.
 
 ### 4.13 Integrated Diagnostics Clipboard Copy

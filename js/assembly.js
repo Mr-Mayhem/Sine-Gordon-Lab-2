@@ -922,7 +922,7 @@ async function _assemble(
         );
       }
 
-      let chunkName = "chunk_" + c + (format === "mp4" ? ".ts" : ".webm");
+      let chunkName = "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm");
       concatList += "file '" + chunkName + "'\n";
       let chunkArgs = buildChunkArgs(
         framesInThisChunk,
@@ -949,7 +949,7 @@ async function _assemble(
     }
 
     if (numChunks === 1) {
-      var onlyChunk = "chunk_0." + (format === "mp4" ? "ts" : "webm");
+      var onlyChunk = "chunk_0." + (format === "mp4" ? "mp4" : "webm");
       try {
         if (format === "mp4") {
           await ffmpeg.exec([
@@ -980,7 +980,7 @@ async function _assemble(
       for (let c = 0; c < numChunks; c++) {
         try {
           await ffmpeg.deleteFile(
-            "chunk_" + c + (format === "mp4" ? ".ts" : ".webm"),
+            "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm"),
           );
         } catch (e) {}
       }

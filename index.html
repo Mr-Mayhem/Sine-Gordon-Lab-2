@@ -221,18 +221,18 @@
 
       <button id="btn-close-processing" class="btn-icon w-8 h-8 rounded-full" style="position:absolute; top:20px; right:20px; z-index:10; background:rgba(255,255,255,0.1); border:none; color:white; font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Close">✕</button>
 
-      <div class="flex flex-col items-center gap-1">
+      <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-1 w-full max-w-[720px] mx-auto">
         <span style="font-size:10px; font-weight:900; color:#00ffcc; letter-spacing:0.4em; text-transform:uppercase;">Assembly Engine</span>
         <span id="assembly-status" style="font-size:12px; color:rgba(255,255,255,0.4); font-family:var(--font-mono);">Ready</span>
       </div>
 
       <!-- Preview Canvas -->
-      <div id="assembly-preview" class="w-full max-w-[720px] aspect-video bg-[#000] rounded-[16px] overflow-hidden border border-white/10 relative shadow-inner mx-auto">
+      <div id="assembly-preview" class="w-full max-w-[720px] aspect-video bg-[#000] rounded-[16px] overflow-hidden border border-white/10 relative shadow-inner mx-auto mt-0">
         <canvas id="preview-canvas" class="w-full h-full object-contain"></canvas>
       </div>
 
       <!-- Scrolling log window -->
-      <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[12px] bg-black/40 p-3 flex flex-col gap-1 overflow-hidden mx-auto" style="height: 200px;">
+      <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[12px] bg-black/40 p-3 flex flex-col gap-1 overflow-hidden mx-auto" style="height: 380px;">
         <div class="flex justify-between items-center text-[9px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1">
           <span>Assembly Logs & Standard Output</span>
           <div class="flex items-center gap-2">
@@ -240,7 +240,7 @@
             <button id="btn-copy-logs" class="hover:text-white transition-colors cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded text-[8px] font-mono font-bold text-[#00ffcc] uppercase" title="Copy Assembly Logs to Clipboard">Copy Logs</button>
           </div>
         </div>
-        <div id="assembly-log-scroll" class="w-full flex-1 min-h-0 overflow-y-auto font-mono text-[10px] text-[#00ffcc]/85 space-y-0.5 text-left select-text scrollbar-thin" style="height: 150px; max-height: 150px;">
+        <div id="assembly-log-scroll" class="w-full flex-1 min-h-0 overflow-y-auto font-mono text-[10px] text-[#00ffcc]/85 space-y-0.5 text-left select-text scrollbar-thin" style="height: 330px; max-height: 330px;">
           <div class="text-white/30">[System] Initializing Assembly Logger...</div>
         </div>
       </div>
