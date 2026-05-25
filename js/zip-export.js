@@ -83,21 +83,17 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
     let saveHandle = null;
     if (window.showSaveFilePicker) {
         try {
-            const lastHandle = await getLastZipHandle();
             const pickerOpts = {
+                id: 'zip-export',
+                startIn: 'downloads',
                 suggestedName: zipFilename,
                 types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }]
             };
-            if (lastHandle) {
-                console.log("[ZIP Picker] Direct save startIn handle named: " + lastHandle.name);
-                pickerOpts.startIn = lastHandle;
-            } else {
-                console.log("[ZIP Picker] Direct save startIn fallback: downloads");
-                pickerOpts.startIn = 'downloads';
-            }
+            console.log("[ZIP Picker] Direct save dialog requested with id='zip-export' and startIn='downloads'. Browser's native folder memory will handle path recall.");
             saveHandle = await window.showSaveFilePicker(pickerOpts);
             if (saveHandle) {
-                console.log("[ZIP Picker] Chosen file name: " + saveHandle.name);
+                console.log("[ZIP Picker] Save path confirmed by user! File Name: " + saveHandle.name);
+                console.log("[ZIP Picker] Note: Standard web sandboxes do not reveal the absolute OS drive path for security, but the browser maps this file handle internally.");
                 try { await setLastZipHandle(saveHandle); } catch (_) {}
             }
         } catch (e) {
@@ -251,6 +247,7 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
                           }
                           await writable.close();
                           console.log(`[ZIP Export] Complete: ${chunkCount} writes, ${(totalBytesWritten/1024/1024).toFixed(2)} MB total`);
+                          console.log(`[ZIP Export] File successfully written and saved to chosen location! File Name: ${saveHandle ? saveHandle.name : zipFilename}`);
                           if (saveHandle) {
                               try { await setLastZipHandle(saveHandle); } catch (eh) {}
                           }
@@ -388,21 +385,17 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
     }).then(async function(content) {
       if (window.showSaveFilePicker) {
         try {
-          const lastHandle = await getLastZipHandle();
           const pickerOpts = {
+            id: 'zip-export',
+            startIn: 'downloads',
             suggestedName: "frames_" + Date.now() + ".zip",
             types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
           };
-          if (lastHandle) {
-            console.log("[ZIP Picker] Memory ZIP save startIn handle named: " + lastHandle.name);
-            pickerOpts.startIn = lastHandle;
-          } else {
-            console.log("[ZIP Picker] Memory ZIP save startIn fallback: downloads");
-            pickerOpts.startIn = 'downloads';
-          }
+          console.log("[ZIP Picker] Memory ZIP save dialog requested with id='zip-export' and startIn='downloads'. Browser's native folder memory will handle path recall.");
           const handle = await window.showSaveFilePicker(pickerOpts);
           if (handle) {
-            console.log("[ZIP Picker] Chosen file name: " + handle.name);
+            console.log("[ZIP Picker] Save path confirmed by user! File Name: " + handle.name + " (" + (content.size/1024/1024).toFixed(2) + " MB)");
+            console.log("[ZIP Picker] Note: Standard web sandboxes do not reveal the absolute OS drive path for security, but the browser maps this file handle internally.");
           }
           const writable = await handle.createWritable();
           await writable.write(content);

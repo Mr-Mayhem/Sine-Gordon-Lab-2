@@ -58,23 +58,22 @@ export async function assembleFromStorage(pipeline, recorderRef) {
     let zipBlob = null;
     if (window.showOpenFilePicker) {
       try {
-        const lastHandle = await getLastZipHandle();
         const pickerOpts = {
+          id: 'zip-export',
+          startIn: 'downloads',
           types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
           multiple: false
         };
-        if (lastHandle) {
-          console.log("[ZIP Picker] Open file picker startIn handle named: " + lastHandle.name);
-          pickerOpts.startIn = lastHandle;
-        } else {
-          console.log("[ZIP Picker] Open file picker startIn fallback: downloads");
-          pickerOpts.startIn = 'downloads';
-        }
+        console.log("[ZIP Picker] Open file picker requested (Assemble) with id='zip-export' and startIn='downloads'. Browser's native folder memory will handle path recall.");
         const [fh] = await window.showOpenFilePicker(pickerOpts);
         if (fh) {
-          console.log("[ZIP Picker] Chosen open file name: " + fh.name);
+          console.log("[ZIP Picker] File chosen for import! File Name: " + fh.name);
+          console.log("[ZIP Picker] Note: Standard web sandboxes do not reveal the absolute OS drive path (e.g. C:\\Users\\...\\Downloads) for security, but the browser maps this file handle internally.");
         }
         zipBlob = await fh.getFile();
+        if (zipBlob) {
+          console.log("[ZIP Picker] Loaded file stream: Size = " + (zipBlob.size/1024/1024).toFixed(2) + " MB");
+        }
         try { await setLastZipHandle(fh); } catch (_) {}
       } catch (e) {
         if (e.name === "AbortError") {
