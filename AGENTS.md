@@ -301,6 +301,12 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
   2. **Dual-Tier Copy Pipeline**: Attempt modern secure `navigator.clipboard.writeText` writing, with an immediate fallback to a temporary hidden `<textarea>` node selector under older context configurations or iframe nesting barriers.
   3. **Instant Micro-Feedback**: Swap the copy label text dynamically upon clicks, flashing a cyan `"COPIED!"` banner or red `"EMPTY"` notification to acknowledge state resolution before reverting back gracefully.
 
+### 4.14 Auto-Dismissal of Assembly Overlay on Import Errors
+* **The Pitfall**: When opening/loading a corrupted ZIP archive or importing raw files containing empty frames, the system triggers alert notifications. If active display layouts (the processing/assembly overlays) are initialized synchronously or asynchronously beforehand, leaving them displayed over the laboratory canvas leads to visual freezing or confusion.
+* **The Resolution (Close-on-Alert Hook)**:
+  1. **Dynamic Cleanup Paths**: Upon encountering empty directories (`frameFiles.length === 0`), invalid zip structure exceptions, or file validation failures, dismiss standard parent layouts immediately.
+  2. **Secure Synchronous Chaining**: Call `.style.display = "none"` on active modal screens (`#processing-overlay`) directly inside the synchronous early-return handler blocks immediately following standard warning alerts. This returns the application seamlessly to interactive laboratory contexts as soon as standard browser popup alerts are confirmed and closed.
+
 ---
 
 ## 5. VERIFICATION WORKFLOW

@@ -455,6 +455,8 @@ export async function assembleFromStorage(pipeline, recorderRef) {
 
   if (frameFiles.length === 0) {
     alert("No frames found.");
+    const overlay = document.getElementById("processing-overlay");
+    if (overlay) overlay.style.display = "none";
     return;
   }
   frameFiles.sort((a, b) => a.name.localeCompare(b.name));
