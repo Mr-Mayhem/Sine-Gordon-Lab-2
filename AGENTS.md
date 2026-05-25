@@ -280,6 +280,27 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
 * **The Pitfall**: Adding unrequested technical decorations (e.g., "CORE_NODE_ONLINE", "PORT: 3000", custom grid coordinates) to make the simulation look more "complex."
 * **The Resolution**: Keep labels literal, human, and modest. If the user asks for a simple mathematical control, implement ONLY that control cleanly, utilizing generous white space and high-contrast styling.
 
+### 4.11 Onboarding Gate ("First Fire")
+* **The Pitfall**: Users launching the lab with a passive stable vacuum state are often confused about how to initiate solitons. Without clear direction, running or pausing an unperturbed system appears static.
+* **The Resolution (First-Fire Hook)**:
+  1. **Control Gating**: Hide the primary playback controls container (`#playback-controls-container` containing Play, Step, and Reset buttons) entirely behind state flags (`sgState.hasFiredAtLeastOnce`) on startup.
+  2. **Interactive Onboarding Blink**: Attach a modern attention-grabbing keyframe animation (`animate-fire-onboarding`) to the **FIRE** button (`#btn-fire`) on load to coach the user to inject their first wave packet.
+  3. **Auto-Unlocking**: Upon the very first trigger of the Fire button, permanently unlock playback controls, dismiss the blinking stylesheet classes, and update UI state uniformly.
+
+### 4.12 Embedded Scrolling Log Console
+* **The Pitfall**: WebAssembly video compilation and raw file extraction workflows run in nested asynchronous worker targets. If a task fails, developers and users have to open browser inspector panels to understand the error context.
+* **The Resolution (Inline Log Window)**:
+  1. **Console Interception**: Inject lightweight custom hooks overriding standard browser `console.log`, `console.warn`, and `console.error` methods, safely feeding stringified arguments into an active state-array.
+  2. **Scrolling HUD Box**: Embed a dedicated terminal console box (`#assembly-log-container`) centered directly below the preview thumbnail inside the processing overlay modal window.
+  3. **Visual Message Tracking**: Filter incoming logs dynamically, highlighting warnings in light amber, fatal compilation aborts in red, system state handshakes in muted gray, and successful assembly steps in emerald green. Automatically pin scroll heights to bottom positions on update.
+
+### 4.13 Integrated Diagnostics Clipboard Copy
+* **The Pitfall**: Sharing assembly errors or pipeline details for troubleshooting requires selecting and copying formatted browser outputs, which is tricky inside overlay containers.
+* **The Resolution (Diagnostic Utility)**:
+  1. **Dedicated Clipboard Action**: Place an uppercase diagnostic click button (`#btn-copy-logs`) directly adjacent to the running message tracking header in the log panel.
+  2. **Dual-Tier Copy Pipeline**: Attempt modern secure `navigator.clipboard.writeText` writing, with an immediate fallback to a temporary hidden `<textarea>` node selector under older context configurations or iframe nesting barriers.
+  3. **Instant Micro-Feedback**: Swap the copy label text dynamically upon clicks, flashing a cyan `"COPIED!"` banner or red `"EMPTY"` notification to acknowledge state resolution before reverting back gracefully.
+
 ---
 
 ## 5. VERIFICATION WORKFLOW
