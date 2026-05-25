@@ -179,7 +179,7 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
                           console.log(`[ZIP Export] Complete: ${chunkCount} writes, ${(totalBytesWritten/1024/1024).toFixed(2)} MB total`);
                           console.log(`[ZIP Export] File successfully written and saved to chosen location! File Name: ${saveHandle ? saveHandle.name : zipFilename}`);
                           if (saveHandle) {
-                              try { await setLastZipHandle(saveHandle); } catch (eh) {}
+                              // Handled natively by browser ID association
                           }
                           resolve();
                       } catch(e) { reject(e); }
