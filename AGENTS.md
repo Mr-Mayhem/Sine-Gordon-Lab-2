@@ -235,7 +235,7 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
      - **1440p**: `CHUNK_SIZE = 75` frames
      - **1080p**: `CHUNK_SIZE = 100` frames
      - **720p and below**: `CHUNK_SIZE = 150` frames
-  5. **Low-Weight Processing Profiles**: To avoid CPU bottlenecks that crash browser worker threads, WebM (VP8) videos are built with the high-speed `-deadline realtime` profile and `-cpu-used 4/5` flags. MP4 (H.264) videos rendered in high density (1440p/4K) automatically swap the heavy default preset for `-preset veryfast` to maintain pristine performance on a single-threaded WebAssembly execution.
+  5. **Low-Weight Processing Profiles**: To avoid CPU bottlenecks that crash browser worker thresholds, WebM (VP8) videos are built with the high-speed `-deadline realtime` profile and `-cpu-used 4/5` flags. MP4 (H.264) videos rendered in high density (1440p/4K) automatically swap the heavy default preset for `-preset veryfast` to maintain pristine performance on a single-threaded WebAssembly execution.
 
 ### 4.5 Persistent Save/Open Directories (Chromium Native ID Association)
 * **The Pitfall**: In web apps with rich export and offline assembly workflows, every time a user triggers a ZIP save or wants to open/upload a zip file, standard browser fallbacks force the local system's directory dialogue to reset to the computer's generic default directory (such as `/Downloads` or `/Documents`). This breaks continuity during laboratory sessions where users export sequentially or load files from a designated project workspace.
@@ -257,7 +257,26 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
   2. **Jitter-Free State Toggles**: Symmetrically manage the action select dropdown state with `visibility: hidden; pointer-events: none` when non-zip pipelines are active. This retains the exact spatial dimensions and prevents components from jumping or popping vertically.
   3. **Secure Action Binding**: Symmetrically disable user controls and update state indicators (`isAssembling: true`) when assembly or extraction pipelines are busy, locking potential state conflicts.
 
-### 4.7 Over-Engineering, Tech-Larping, & "AI-Slop"
+### 4.7 Resolution-Aware Frame Discovery & UI Synchronization
+* **The Pitfall**: Direct Assembly or Offline ZIP extraction pipelines must parse arbitrary, unpredictable custom resolutions of stored frames. If the assembler blindly operates on default dropdown dimensions, high-resolution imported archives (e.g. 1440p or 4K PNG frames) will be distorted, cropped, stretched, or generate invalid MP4 streams.
+* **The Resolution**:
+  1. **Binary Metadata Reading**: When opening an archive or loading from OPFS, the system extracts the first frame PNG bytes and uses standard binary chunk analysis to parse its exact physical dimensions (`width` and `height`) directly from the IHDR chunk.
+  2. **State & UI Back-Syncing**: Once parsed, the simulation's state (`appState`) updates its target output dimensions automatically to match.
+  3. **Programmatic Dropdown Insertion**: Symmetrically sync the resolution selector (`#sel-res`) dropdown. If the imported resolution does not match any current options, a placeholder is dynamically generated, injected, and selected (e.g., `"3840x2160 (Detected from Import)"`), guaranteeing pixel-perfect scaling alignment without manual intervention.
+
+### 4.8 Unified Filename Consistency Across Pipelines
+* **The Pitfall**: Unaligned file-saving and zip-packaging pipelines lead to mismatched export nomenclature (`frames_[Date].zip` vs `output.mp4`), hindering workspace cohesion and tracking.
+* **The Resolution**: Symmetrically override all naming utilities to output consistent, recognizable filenames starting with the specific simulation laboratory prefix: `sg_lab_render_${Date.now()}`. This applies uniformly to direct MP4 compilations, WebM videos, and structured ZIP file downloads.
+
+### 4.9 High-Density Thread & Stream Tuning for H.264 WebAssembly
+* **The Pitfall**: Standard Web Assembly decoders crash (VM Abort / OOM) under large resolution frames during intermediate containerization tasks. For instance, concatenating raw sub-sequences of high-density streams at 4K resolution using standard macroblock boundaries leaks heap metadata if processed standard threads overlap.
+* **The Resolution**:
+  1. **Single-Thread Bottleneck Management**: Limit `-threads 1` for H.264 encoding when the resolution scale exceeds modern 1080p thresholds to keep heap usage extremely low.
+  2. **Lookahead Optimization**: Reduce encoder buffer complexity dynamically using `-rc-lookahead 5` (down from standard `15`) for high density scales.
+  3. **Standard Level Enforcement**: Apply `-profile:v high -level:v 5.1` constraints, and use format-compliant MPEG-Transport streams (`.ts`) for chunk-level compilation instead of sub-nested `.mp4` containers. Raw `.ts` envelopes concatenate instantaneously without structural parses, preventing thread crashes on final containerization.
+  4. **Dynamic Atom Repositioning**: Append `-movflags +faststart` during single-chunk optimization, placing the index metadata (`moov` atom) at the head of the output stream instantly.
+
+### 4.10 Over-Engineering, Tech-Larping, & "AI-Slop"
 * **The Pitfall**: Adding unrequested technical decorations (e.g., "CORE_NODE_ONLINE", "PORT: 3000", custom grid coordinates) to make the simulation look more "complex."
 * **The Resolution**: Keep labels literal, human, and modest. If the user asks for a simple mathematical control, implement ONLY that control cleanly, utilizing generous white space and high-contrast styling.
 

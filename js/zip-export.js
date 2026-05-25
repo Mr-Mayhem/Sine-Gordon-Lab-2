@@ -12,7 +12,7 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
     console.log("Generating ZIP file(s) from OPFS buffer...");
     if (btnVideo) btnVideo.textContent = "Zipping... 0%";
     
-    let zipFilename = `frames_${Date.now()}.zip`;
+    let zipFilename = `sg_lab_render_${Date.now()}.zip`;
     let saveHandle = null;
     if (window.showSaveFilePicker) {
         try {
@@ -317,7 +317,7 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
         try {
           const pickerOpts = {
             id: 'zip-export',
-            suggestedName: "frames_" + Date.now() + ".zip",
+            suggestedName: "sg_lab_render_" + Date.now() + ".zip",
             types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
           };
           console.log("[ZIP Picker] Memory ZIP save dialog requested with id='zip-export'. Browser's native profile folder memory will handle path recall.");
@@ -334,11 +334,11 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
             console.log("[ZIP Picker] Save file picker canceled by user.");
           } else {
             console.warn("[ZIP Picker] Save file picker failed. Falling back to traditional Blob download.", e);
-            window.saveAs(content, "frames_" + Date.now() + ".zip");
+            window.saveAs(content, "sg_lab_render_" + Date.now() + ".zip");
           }
         }
       } else {
-        window.saveAs(content, "frames_" + Date.now() + ".zip");
+        window.saveAs(content, "sg_lab_render_" + Date.now() + ".zip");
         console.log("ZIP downloaded.");
       }
       if (btnVideo) {
