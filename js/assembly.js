@@ -74,7 +74,9 @@ export function appendAssemblyLog(msg) {
 
     row.textContent = `[${t}] ${cleanMsg}`;
     el.appendChild(row);
-    el.scrollTop = el.scrollHeight;
+    setTimeout(function () {
+      el.scrollTop = el.scrollHeight;
+    }, 4);
   }
 
   const countEl = document.getElementById("assembly-log-count");

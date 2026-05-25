@@ -210,16 +210,16 @@
     <div style="background:rgba(23,23,23,0.95);
                 border:1px solid rgba(255,255,255,0.1);
                 border-radius:24px;
-                padding:20px;
-                max-width:44rem;
+                padding:24px;
+                max-width:52rem;
                 width:100%;
                 display:flex;
                 flex-direction:column;
-                gap:16px;
+                gap:20px;
                 position:relative;
                 box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
 
-      <button id="btn-close-processing" class="btn-icon w-8 h-8 rounded-full" style="position:absolute; top:16px; right:16px; z-index:10; background:rgba(255,255,255,0.1); border:none; color:white; font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Close">✕</button>
+      <button id="btn-close-processing" class="btn-icon w-8 h-8 rounded-full" style="position:absolute; top:20px; right:20px; z-index:10; background:rgba(255,255,255,0.1); border:none; color:white; font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Close">✕</button>
 
       <div class="flex flex-col items-center gap-1">
         <span style="font-size:10px; font-weight:900; color:#00ffcc; letter-spacing:0.4em; text-transform:uppercase;">Assembly Engine</span>
@@ -227,12 +227,12 @@
       </div>
 
       <!-- Preview Canvas -->
-      <div id="assembly-preview" class="w-full max-w-[560px] aspect-video bg-[#000] rounded-[16px] overflow-hidden border border-white/10 relative shadow-inner mx-auto">
+      <div id="assembly-preview" class="w-full max-w-[720px] aspect-video bg-[#000] rounded-[16px] overflow-hidden border border-white/10 relative shadow-inner mx-auto">
         <canvas id="preview-canvas" class="w-full h-full object-contain"></canvas>
       </div>
 
       <!-- Scrolling log window -->
-      <div id="assembly-log-container" class="w-full max-w-[560px] border border-white/10 rounded-[12px] bg-black/40 p-3 flex flex-col gap-1 overflow-hidden mx-auto" style="height: 120px;">
+      <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[12px] bg-black/40 p-3 flex flex-col gap-1 overflow-hidden mx-auto" style="height: 200px;">
         <div class="flex justify-between items-center text-[9px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1">
           <span>Assembly Logs & Standard Output</span>
           <div class="flex items-center gap-2">
@@ -245,7 +245,7 @@
         </div>
       </div>
 
-      <div style="width:100%; max-w-[560px];" class="flex flex-col gap-2 mx-auto">
+      <div style="width:100%; max-w-[720px];" class="flex flex-col gap-2 mx-auto">
         <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden;">
           <div id="progress-fill" style="height:100%; background:linear-gradient(90deg, #00ffcc, #00aaff); width:0%; transition:none;"></div>
         </div>
@@ -255,7 +255,7 @@
         </div>
       </div>
 
-      <div id="assembly-ready-actions" style="display:none; width:100%; max-w-[560px]; justify-content:center;" class="flex gap-2 mx-auto">
+      <div id="assembly-ready-actions" style="display:none; width:100%; max-w-[720px]; justify-content:center;" class="flex gap-2 mx-auto">
       </div>
 
     </div>
