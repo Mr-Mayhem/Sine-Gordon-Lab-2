@@ -922,7 +922,7 @@ async function _assemble(
         );
       }
 
-      let chunkName = "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm");
+      let chunkName = "chunk_" + c + (format === "mp4" ? ".ts" : ".webm");
       concatList += "file '" + chunkName + "'\n";
       let chunkArgs = buildChunkArgs(
         framesInThisChunk,
@@ -949,7 +949,7 @@ async function _assemble(
     }
 
     if (numChunks === 1) {
-      var onlyChunk = "chunk_0." + (format === "mp4" ? "mp4" : "webm");
+      var onlyChunk = "chunk_0." + (format === "mp4" ? "ts" : "webm");
       try {
         if (format === "mp4") {
           await ffmpeg.exec([
@@ -971,16 +971,62 @@ async function _assemble(
         await ffmpeg.deleteFile(onlyChunk);
       } catch (e) {}
     } else {
-      await ffmpeg.writeFile(
-        "mylist.txt",
-        new TextEncoder().encode(concatList),
-      );
-      const concatArgs = buildConcatArgs("mylist.txt", format, outputFile);
-      await ffmpeg.exec(concatArgs);
+      if (format === "mp4") {
+        // [FFmpeg TS copy patch] Read all TS chunk files and concatenate their bytes in Javascript 
+        // to bypass the concat demuxer timestamp gaps and black-screen playback issues.
+        try {
+          console.log("[FFmpeg] Concatenating MPEG-TS chunks via binary merge in JS to bypass timing and black screen issues...");
+          let chunkArrays = [];
+          for (let c = 0; c < numChunks; c++) {
+            let chunkName = "chunk_" + c + ".ts";
+            let cdata = await ffmpeg.readFile(chunkName);
+            chunkArrays.push(cdata);
+          }
+          let totalLength = chunkArrays.reduce((sum, arr) => sum + arr.length, 0);
+          let mergedBytes = new Uint8Array(totalLength);
+          let offset = 0;
+          for (let arr of chunkArrays) {
+            mergedBytes.set(arr, offset);
+            offset += arr.length;
+          }
+          await ffmpeg.writeFile("merged.ts", mergedBytes);
+          console.log(`[FFmpeg] Binary concatenation of ${numChunks} chunks completed. Merged stream size: ${(mergedBytes.length / 1024 / 1024).toFixed(2)} MB`);
+          
+          // Re-mux the clean merged transport stream into output.mp4, which automatically re-times stream zero offset and converts AnnexB to AVCC.
+          await ffmpeg.exec([
+            "-i",
+            "merged.ts",
+            "-c",
+            "copy",
+            "-movflags",
+            "+faststart",
+            outputFile,
+          ]);
+          try {
+            await ffmpeg.deleteFile("merged.ts");
+          } catch (e) {}
+        } catch (err) {
+          console.error("[FFmpeg] Binary TS concatenation and remux failed, falling back to concat demuxer:", err);
+          await ffmpeg.writeFile(
+            "mylist.txt",
+            new TextEncoder().encode(concatList),
+          );
+          const concatArgs = buildConcatArgs("mylist.txt", format, outputFile);
+          await ffmpeg.exec(concatArgs);
+        }
+      } else {
+        // Standard WebM concat list remains unchanged
+        await ffmpeg.writeFile(
+          "mylist.txt",
+          new TextEncoder().encode(concatList),
+        );
+        const concatArgs = buildConcatArgs("mylist.txt", format, outputFile);
+        await ffmpeg.exec(concatArgs);
+      }
       for (let c = 0; c < numChunks; c++) {
         try {
           await ffmpeg.deleteFile(
-            "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm"),
+            "chunk_" + c + (format === "mp4" ? ".ts" : ".webm"),
           );
         } catch (e) {}
       }
