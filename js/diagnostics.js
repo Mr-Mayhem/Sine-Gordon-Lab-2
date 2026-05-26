@@ -179,7 +179,7 @@ export class DiagnosticsManager {
           <div class="flex-1 col-span-1 min-w-0">
             <div class="flex items-center gap-2">
               <input type="checkbox" id="chk-test-${test.id}" class="w-3.5 h-3.5 accent-[#00ffcc] cursor-pointer" ${checkedAttr}>
-              <span class="text-xs font-semibold text-white/95">${test.name}</span>
+              <span id="test-title-${test.id}" class="text-xs font-semibold text-white/95 transition-colors">${test.name}</span>
               <span class="text-[8.5px] bg-[#00ffcc]/10 hover:bg-[#00ffcc]/20 text-[#00ffcc] border border-[#00ffcc]/25 px-1.5 py-0.2 rounded font-mono font-bold select-none flex-frames-badge" data-testid="${test.id}">${test.frames} FMR</span>
             </div>
             <p class="text-[10.5px] text-white/45 mt-0.5 pl-5.5 select-none leading-relaxed">${test.description}</p>
@@ -293,7 +293,7 @@ export class DiagnosticsManager {
           <span>Engine Output Console</span>
           <span id="txt-diagnostics-phase-val" class="font-bold text-yellow-400">IDLE</span>
         </div>
-        <div id="diagnostics-logs-scrollbar" class="flex-1 overflow-y-auto pr-1 space-y-0.5 text-left text-[#00ffcc]/80 scrollbar-thin select-text">
+        <div id="diagnostics-logs-scrollbar" class="flex-1 overflow-y-auto pr-1 space-y-0.5 text-left text-white/60 scrollbar-thin select-text">
           <div class="text-white/20">[Suite] Welcome to the Sine-Gordon Lab Pipeline Diagnostics Center. Select tests and run pipeline benchmark assertions.</div>
         </div>
         <div class="mt-1" id="box-diagnostics-progress-outer" style="display:none;">
@@ -538,18 +538,32 @@ export class DiagnosticsManager {
     badge.textContent = status;
     badge.className = "text-[9px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border transition-all";
 
+    const titleEl = document.getElementById(`test-title-${testId}`);
+
     if (status === "PENDING") {
       badge.classList.add("text-yellow-400", "border-yellow-500/20", "bg-yellow-500/5");
       badge.style.display = "none";
+      if (titleEl) {
+        titleEl.className = "text-xs font-semibold text-white/95 transition-colors";
+      }
     } else {
       badge.style.display = "inline-block";
       if (status === "PASS") {
         badge.classList.add("text-green-400", "border-green-500/30", "bg-green-500/5");
+        if (titleEl) {
+          titleEl.className = "text-xs font-semibold text-green-400 transition-colors";
+        }
       } else if (status === "FAIL") {
         badge.classList.add("text-red-500", "border-red-500/30", "bg-red-500/5");
+        if (titleEl) {
+          titleEl.className = "text-xs font-semibold text-red-500 transition-colors";
+        }
       } else {
         // Anything else in yellow
         badge.classList.add("text-yellow-400", "border-yellow-500/30", "bg-yellow-500/5");
+        if (titleEl) {
+          titleEl.className = "text-xs font-semibold text-yellow-400 transition-colors";
+        }
         if (status === "RUNNING") {
           badge.classList.add("animate-pulse");
         }
@@ -704,7 +718,7 @@ export class DiagnosticsManager {
     document.getElementById("txt-diagnostics-phase-val").textContent = "RUNNING TESTS";
     document.getElementById("txt-diagnostics-phase-val").className = "font-bold text-amber-400 animate-pulse";
 
-    this.log(`🚀 Starting Diagnostic Pipeline Suite (${tests.length} test configurations)...`, "text-[#00ffcc] font-bold");
+    this.log(`🚀 Starting Diagnostic Pipeline Suite (${tests.length} test configurations)...`, "text-green-400 font-bold");
 
     const hasSAB = typeof SharedArrayBuffer !== "undefined";
     this.log(`[Env Diagnostics] SharedArrayBuffer: ${hasSAB ? "AVAILABLE (COOP/COEP headers present. Native Multi-Threading Enabled)" : "UNAVAILABLE (COOP/COEP headers absent or browser restricted. Single-Threaded Fallbacks Active)"}`, hasSAB ? "text-emerald-400 font-medium" : "text-amber-400 font-medium");
@@ -868,7 +882,7 @@ export class DiagnosticsManager {
               // Assert standard PNG magic bytes: 137, 80, 78, 71, 13, 10, 26, 10
               const isPngSignatureOk = uint8[0] === 137 && uint8[1] === 80 && uint8[2] === 78 && uint8[3] === 71;
               if (isPngSignatureOk) {
-                this.log(`[Audit Prereq] PNG binary signature assertion: PASSED`, "text-[#00ffcc]");
+                this.log(`[Audit Prereq] PNG binary signature assertion: PASSED`, "text-green-400");
               } else {
                 auditSuccess = false;
                 auditMessage = "frame_000000.png has invalid PNG signature.";
@@ -885,7 +899,7 @@ export class DiagnosticsManager {
                 auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target raw PNG expected matches ${expectedW}x${expectedH} (Simulation target logic limits active: ${t.width}x${t.height})`;
                 this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
               } else {
-                this.log(`[Audit Prereq] PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-[#00ffcc]");
+                this.log(`[Audit Prereq] PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-green-400");
               }
             } else {
               auditSuccess = false;
@@ -909,7 +923,7 @@ export class DiagnosticsManager {
                 const uint8 = await fileObj.async("uint8array");
                 const isPngSignatureOk = uint8[0] === 137 && uint8[1] === 80 && uint8[2] === 78 && uint8[3] === 71;
                 if (isPngSignatureOk) {
-                  this.log(`[Audit Prereq] PNG binary signature assertion: PASSED`, "text-[#00ffcc]");
+                  this.log(`[Audit Prereq] PNG binary signature assertion: PASSED`, "text-green-400");
                 } else {
                   auditSuccess = false;
                   auditMessage = "frame_000000.png has invalid PNG signature.";
@@ -926,7 +940,7 @@ export class DiagnosticsManager {
                   auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target raw PNG expected matches ${expectedW}x${expectedH} (Simulation target logic limits active: ${t.width}x${t.height})`;
                   this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
                 } else {
-                  this.log(`[Audit Prereq] PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-[#00ffcc]");
+                  this.log(`[Audit Prereq] PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-green-400");
                 }
               } else {
                 auditSuccess = false;
@@ -943,7 +957,7 @@ export class DiagnosticsManager {
             const frameBytes = window.recorder._recordedFrames[0];
             const isPngSignatureOk = frameBytes[0] === 137 && frameBytes[1] === 80 && frameBytes[2] === 78 && frameBytes[3] === 71;
             if (isPngSignatureOk) {
-              this.log(`[Audit Prereq] In-memory PNG signature assertion: PASSED`, "text-[#00ffcc]");
+              this.log(`[Audit Prereq] In-memory PNG signature assertion: PASSED`, "text-green-400");
             } else {
               auditSuccess = false;
               auditMessage = "In-memory frame 0 has invalid PNG signature.";
@@ -959,7 +973,7 @@ export class DiagnosticsManager {
               auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target raw PNG expected matches ${expectedW}x${expectedH} (Simulation target logic limits active: ${t.width}x${t.height})`;
               this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
             } else {
-              this.log(`[Audit Prereq] In-memory PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-[#00ffcc]");
+              this.log(`[Audit Prereq] In-memory PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-green-400");
             }
           }
 
@@ -1030,7 +1044,7 @@ export class DiagnosticsManager {
                 cleanErr.name = "CleanupError";
                 throw cleanErr;
               } else {
-                this.log(`[Cleanup Probe] OPFS Sandbox Cleanup: PASSED (Temporary frames directory successfully deleted)`, "text-[#00ffcc]");
+                this.log(`[Cleanup Probe] OPFS Sandbox Cleanup: PASSED (Temporary frames directory successfully deleted)`, "text-green-400");
               }
             } catch (cleanCheckErr) {
               this.log(`⚠️ Cleanup verify caution: ${cleanCheckErr.message}`);
@@ -1041,14 +1055,14 @@ export class DiagnosticsManager {
           // 7. Verify result blob structure
           if (finalOutputBlob && finalOutputBlob.size > 0) {
             const blobSizeKB = (finalOutputBlob.size / 1024).toFixed(1);
-            this.log(`🎉 SUCCESS: Compiled Blob generated! Payload: ${blobSizeKB} KB. (MIME: ${finalOutputBlob.type})`, "text-[#00ffcc] font-semibold");
+            this.log(`🎉 SUCCESS: Compiled Blob generated! Payload: ${blobSizeKB} KB. (MIME: ${finalOutputBlob.type})`, "text-green-400 font-semibold");
             
             // Let's run structural probes to ensure compatibility
             if (t.pipeline === "ffmpeg") {
               if (enableProbing) {
                 this.log(`[Probe] Attempting standard HTML5 direct-to-video decode...`);
                 const probeResult = await this.probeVideoBlob(finalOutputBlob);
-                this.log(`[Probe] Decode validation successful! Tracks: ${probeResult.width}x${probeResult.height}, Length: ${probeResult.duration.toFixed(2)}s`, "text-[#00ffcc]");
+                this.log(`[Probe] Decode validation successful! Tracks: ${probeResult.width}x${probeResult.height}, Length: ${probeResult.duration.toFixed(2)}s`, "text-green-400");
                 
                 // 7.1 Perform Dynamic Aspect Ratio and Letterbox Intrusion Audit
                 const srcAspect = (t.width / t.height);
@@ -1059,18 +1073,18 @@ export class DiagnosticsManager {
                 this.log(`[Probe] Aspect Ratio Evaluation: Target Config: ${srcAspect.toFixed(3)}, Decoded Track: ${videoAspect.toFixed(3)}`);
                 if (isWebM) {
                   if (diffAttr < 0.02) {
-                    this.log(`[Aspect Audit] WebM Letterbox Minimization: SUCCESS (Flawless snug fit. No extraneous padding detected)`, "text-[#00ffcc]");
+                    this.log(`[Aspect Audit] WebM Letterbox Minimization: SUCCESS (Flawless snug fit. No extraneous padding detected)`, "text-green-400");
                   } else {
                     const isLetterboxNecessary = (t.width === 1920 && t.height === 1080) || (t.width === 1280 && t.height === 720);
                     if (isLetterboxNecessary) {
-                      this.log(`[Aspect Audit] WebM Letterbox Minimization: Intrusions only used for standard 16:9 compliance (${t.width}x${t.height})`, "text-[#00ffcc]/80");
+                      this.log(`[Aspect Audit] WebM Letterbox Minimization: Intrusions only used for standard 16:9 compliance (${t.width}x${t.height})`, "text-green-400/80");
                     } else {
                       this.log(`⚠️ [Aspect Audit] WebM Aspect Notice: Mismatch detected (${(diffAttr * 100).toFixed(1)}%). Recommend strict crop-to-fit sizing to clip borders.`, "text-amber-400 font-medium");
                     }
                   }
                 } else {
                   if (diffAttr < 0.02) {
-                    this.log(`[Aspect Audit] Aspect Compliance: PERFECT fit.`, "text-[#00ffcc]");
+                    this.log(`[Aspect Audit] Aspect Compliance: PERFECT fit.`, "text-green-400");
                   } else {
                     this.log(`[Aspect Audit] Aspect Compliance: Letterboxing configured to adapt mismatch.`, "text-white/40");
                   }
@@ -1095,7 +1109,7 @@ export class DiagnosticsManager {
                   this.log(`[Probe] Decompressing sandboxed ZIP stream...`);
                   const zipObj = await new window.JSZip().loadAsync(finalOutputBlob);
                   const countOfFiles = Object.keys(zipObj.files).length;
-                  this.log(`[Probe] Valid zip found. Holds ${countOfFiles} frame entries!`, "text-[#00ffcc]");
+                  this.log(`[Probe] Valid zip found. Holds ${countOfFiles} frame entries!`, "text-green-400");
                   
                   // Assert ZIP count matches frames scheduled
                   if (countOfFiles !== actualFrames) {
@@ -1115,7 +1129,7 @@ export class DiagnosticsManager {
                       mmErr.name = "ZipDimensionError";
                       throw mmErr;
                     } else {
-                      this.log(`[Probe] ZIP frame extraction size verification: PASSED`, "text-[#00ffcc]");
+                      this.log(`[Probe] ZIP frame extraction size verification: PASSED`, "text-green-400");
                     }
                   } else {
                     const findErr = new Error("Could not find frame_000000.png inside the ZIP archive.");
@@ -1141,7 +1155,7 @@ export class DiagnosticsManager {
 
         } catch (testErr) {
           // Failure handling!
-          this.log(`❌ TEST FAILED: ${testErr.message || testErr}`, "text-red-400 font-bold");
+          this.log(`❌ TEST FAILED: ${testErr.message || testErr}`, "text-red-500 font-bold");
           
           const errDetails = this.parseErrorDetails(testErr);
           this.testResults[t.id] = {
@@ -1239,7 +1253,7 @@ export class DiagnosticsManager {
       const btnCopyBottom = document.getElementById("btn-copy-test-report-bottom");
       if (btnCopyBottom) btnCopyBottom.style.display = "inline-block";
       document.getElementById("txt-diagnostics-phase-val").textContent = this.isAborted ? "ABORTED" : "FINISHED";
-      document.getElementById("txt-diagnostics-phase-val").className = this.isAborted ? "font-bold text-red-400" : "font-bold text-[#00ffcc]";
+      document.getElementById("txt-diagnostics-phase-val").className = this.isAborted ? "font-bold text-red-400" : "font-bold text-green-400";
       this.log(`🏁 Suite completed sequence.`, "text-white/60 font-medium");
     }
   }
@@ -1300,7 +1314,7 @@ export class DiagnosticsManager {
       document.execCommand("copy");
       document.body.removeChild(textArea);
 
-      this.log("🎉 SUCCESS: Compliance Test Report copied to clipboard!", "text-[#00ffcc] font-bold");
+      this.log("🎉 SUCCESS: Compliance Test Report copied to clipboard!", "text-green-400 font-bold");
 
       [
         document.getElementById("btn-copy-test-report"),
