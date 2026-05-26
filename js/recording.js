@@ -19,6 +19,7 @@ export default class RecordingEngine {
   constructor() {
     this.isRecording = false;
     this.isAssembling = false;
+    this.isTesting = false;
     this._canvas = null;
     this._renderer = null;
     this._gl = null;
@@ -103,7 +104,7 @@ export default class RecordingEngine {
       console.warn("SharedArrayBuffer not available. MP4 will fall back to WebM.");
       if (appState.exportFormat === "mp4") appState.exportFormat = "webm";
       var mo = document.querySelector('#sel-format option[value="mp4"]');
-      if (mo) mo.textContent = "MP4 (Not Supported)";
+      if (mo) mo.textContent = "MP4 (N/A)";
     }
   }
 
@@ -112,7 +113,13 @@ export default class RecordingEngine {
     this._preRecordingWidth = null; this._preRecordingHeight = null;
   }
 
-  _calculateCaptureInterval() { this._captureInterval = Math.max(1, Math.round(60 / (appState.exportFPS || 60))); }
+  _calculateCaptureInterval() {
+    if (this.isTesting) {
+      this._captureInterval = 1;
+    } else {
+      this._captureInterval = Math.max(1, Math.round(60 / (appState.exportFPS || 60)));
+    }
+  }
 
   _ensureTempCanvas(rawW, rawH, tgtW, tgtH) {
     if (!this._tempCanvas || this._tempCanvas.width !== tgtW || this._tempCanvas.height !== tgtH) {
@@ -183,6 +190,7 @@ export default class RecordingEngine {
     this._pipeline = typeof appState !== "undefined" ? appState.exportPipeline : "ffmpeg";
     if (!this._pipeline) this._pipeline = "ffmpeg";
     this._dirHandle = null;
+    this._zip = null;
     
     this._telemetry = {
       startTime: performance.now(),
@@ -274,7 +282,7 @@ export default class RecordingEngine {
       }
       
       await assemble(this._ffmpeg, this._frameCount, this._recordedFrames, this._recordingWidth, this._recordingHeight, this);
-    } else if (this._pipeline === "zip") {
+    } else if (this._pipeline === "zip" || this._pipeline === "local") {
       exportToZip(this._dirHandle, this._zip, document.getElementById("btn-video"), window.refreshUI, this);
     } else {
       console.log("Frames saved to", this._pipeline);
@@ -354,6 +362,10 @@ export default class RecordingEngine {
       ctx.setTransform(1, 0, 0, -1, 0, tgtH);
       ctx.drawImage(this._rawCanvas, 0, 0, tgtW, tgtH);
       ctx.restore();
+
+      if (this.isTesting || (window.recorder && window.recorder.isTesting)) {
+        this._drawDiagnosticsOverlay(ctx, tgtW, tgtH, frameIndex);
+      }
       
       var blob;
       if (this._tempCanvas.convertToBlob) {
@@ -393,5 +405,99 @@ export default class RecordingEngine {
       this._telemetry.writesCompleted++; this._telemetry.writesQueued++; this._telemetry.encodesCompleted++;
       if (frameIndex % 10 === 0) this._telemetry.writeTimings.push(performance.now() - encStart);
     } catch (error) { this._telemetry.encodesErrored++; console.error("Encode error:", error); throw error; }
+  }
+
+  _drawDiagnosticsOverlay(ctx, w, h, frameIndex) {
+    // 1. Semi-transparent black HUD background matching professional Glassmorphic laboratory themes
+    ctx.fillStyle = "rgba(10, 10, 15, 0.82)";
+    ctx.fillRect(0, 0, w, 45); // top HUD bar
+    ctx.fillRect(0, h - 35, w, 35); // bottom HUD bar
+
+    // Dark border accents for high-precision scientific visualization boundaries
+    ctx.strokeStyle = "rgba(0, 255, 204, 0.4)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, 45); ctx.lineTo(w, 45);
+    ctx.moveTo(0, h - 35); ctx.lineTo(w, h - 35);
+    ctx.stroke();
+
+    // 2. High-contrast typography pairing
+    const monoFont = "bold 9px 'JetBrains Mono', Courier, monospace";
+    const titleFont = "900 11px Arial, sans-serif";
+
+    // Draw tech-corners (crosshairs) that verify if frames are cropped or scaled incorrectly
+    ctx.strokeStyle = "#ff0077";
+    ctx.lineWidth = 2;
+    const len = 12;
+    // Top-Left corner crosshair
+    ctx.beginPath();
+    ctx.moveTo(10, 10 + len); ctx.lineTo(10, 10); ctx.lineTo(10 + len, 10);
+    // Bottom-Left corner crosshair
+    ctx.moveTo(10, h - 10 - len); ctx.lineTo(10, h - 10); ctx.lineTo(10 + len, h - 10);
+    // Top-Right corner crosshair
+    ctx.moveTo(w - 10, 10 + len); ctx.lineTo(w - 10, 10); ctx.lineTo(w - 10 - len, 10);
+    // Bottom-Right corner crosshair
+    ctx.moveTo(w - 10, h - 10 - len); ctx.lineTo(w - 10, h - 10); ctx.lineTo(w - 10 - len, h - 10);
+    ctx.stroke();
+
+    // 3. Render Top HUD Text information
+    ctx.fillStyle = "#ffffff";
+    ctx.font = titleFont;
+    ctx.fillText("🧪 SINE-GORDON LABORATORY PIPELINE DIAGNOSTICS", 20, 26);
+
+    ctx.fillStyle = "#00ffcc";
+    ctx.font = monoFont;
+    ctx.fillText(`RESOLVED FRAME: #${String(frameIndex + 1).padStart(4, '0')}`, w - 165, 25);
+
+    // 4. Bottom HUD parameters list
+    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.font = monoFont;
+    ctx.fillText(`SCALE: ${w}x${h}`, 20, h - 15);
+    ctx.fillText(`PIPELINE: ${this._pipeline.toUpperCase()}`, 110, h - 15);
+    ctx.fillText(`FPS: ${appState.exportFPS || 30}`, 220, h - 15);
+    ctx.fillText(`CLOCK: ${new Date().toISOString().substring(11, 23)}`, 280, h - 15);
+
+    // 5. Draw Sweeping Telemetry Needle (Radar Dial)
+    // Helps us visually search for missing/skipped frames or temporal stutters in a video loop!
+    const dialX = w - 45;
+    const dialY = h - 17;
+    const dialRadius = 11;
+
+    // Draw concentric dial outline
+    ctx.strokeStyle = "rgba(0, 255, 204, 0.6)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(dialX, dialY, dialRadius, 0, Math.PI * 2);
+    ctx.arc(dialX, dialY, dialRadius - 3, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Small tick lines
+    ctx.strokeStyle = "rgba(0, 255, 204, 0.3)";
+    ctx.beginPath();
+    ctx.moveTo(dialX - dialRadius, dialY); ctx.lineTo(dialX + dialRadius, dialY);
+    ctx.moveTo(dialX, dialY - dialRadius); ctx.lineTo(dialX, dialY + dialRadius);
+    ctx.stroke();
+
+    // Sweeping hand (Full 360-degree cycle every 30 frames)
+    const angle = (frameIndex * (360 / 30) - 90) * Math.PI / 180;
+    const handLength = dialRadius - 2;
+    ctx.strokeStyle = "#ff0077";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(dialX, dialY);
+    ctx.lineTo(dialX + Math.cos(angle) * handLength, dialY + Math.sin(angle) * handLength);
+    ctx.stroke();
+
+    // 6. Color Bar Calibration Steps
+    // Helps evaluate color gamma translation of WebGL frames post-encodings
+    const barWidth = 8;
+    const colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#00ffff", "#ff00ff", "#ffffff"];
+    const barStartX = w - 110;
+    const barY = h - 22;
+    const barH = 10;
+    for (let c = 0; c < colors.length; c++) {
+      ctx.fillStyle = colors[c];
+      ctx.fillRect(barStartX - (c * barWidth), barY, barWidth, barH);
+    }
   }
 }

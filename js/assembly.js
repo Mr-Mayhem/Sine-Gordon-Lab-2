@@ -899,6 +899,10 @@ async function _assemble(
   );
 
   var ctx = null;
+  const pbPrev = document.getElementById("assembly-preview");
+  if (pbPrev) {
+    pbPrev.style.aspectRatio = `${alignedW} / ${alignedH}`;
+  }
   if (previewCanvas) {
     previewCanvas.width = alignedW;
     previewCanvas.height = alignedH;
@@ -1364,13 +1368,22 @@ async function _assemble(
     const blob = new Blob([data], {
       type: format === "mp4" ? "video/mp4" : "video/webm",
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download =
-      "sg_lab_render_" + Date.now() + "." + (format === "mp4" ? "mp4" : "webm");
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+    if (recorderRef && recorderRef.isTesting) {
+      console.log("[FFmpeg Test] Intercepted video compilation in automated test mode!");
+      if (window.onTestVideoBlobGenerated) {
+        window.onTestVideoBlobGenerated(blob);
+      }
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        "Sine-Gordon-Render_" + Date.now() + "." + (format === "mp4" ? "mp4" : "webm");
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
     _assemblyStats.outputSize =
       (data.byteLength / 1024 / 1024).toFixed(2) + " MB";
     _assemblyStats.currentPhase = "Download ready";

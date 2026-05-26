@@ -10,6 +10,15 @@ var UI = {
   template: function(id, label, layout, valueId, withFine, withReset) {
     layout = layout || "h";
     var vid = valueId || "val-" + id;
+    if (layout === "h-compact") {
+      var labelHtmlCompact = '<span class="label-micro text-white/50 select-none uppercase" style="font-size: 8px; letter-spacing: 0.05em; margin-right: 2px;">' + label + '</span>';
+      var controlHtmlCompact = '<div class="flex items-center gap-1 bg-white/5 border border-white/10 rounded h-[28px] px-1.5">' +
+        '<button id="btn-' + id + '-m" class="w-5 h-5 flex items-center justify-center font-bold text-[11px] text-white/60 hover:text-white hover:bg-white/10 rounded transition-all select-none">−</button>' +
+        '<span id="' + vid + '" class="font-mono font-bold text-[10px] text-[var(--accent)] min-w-[24px] text-center select-none">--</span>' +
+        '<button id="btn-' + id + '-p" class="w-5 h-5 flex items-center justify-center font-bold text-[11px] text-white/60 hover:text-white hover:bg-white/10 rounded transition-all select-none">+</button>' +
+        '</div>';
+      return '<div class="flex items-center gap-1.5 ml-1">' + labelHtmlCompact + controlHtmlCompact + '</div>';
+    }
     var fm = withFine ? '<button id="btn-' + id + '-mm" class="btn-thumb" style="font-size:13px;opacity:0.5">−−</button>' : "";
     var fp = withFine ? '<button id="btn-' + id + '-pp" class="btn-thumb" style="font-size:13px;opacity:0.5">++</button>' : "";
     var rb = withReset ? '<button id="btn-' + id + '-reset" class="btn-thumb-reset">↺</button>' : "";

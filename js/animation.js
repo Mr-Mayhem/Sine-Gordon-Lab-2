@@ -130,7 +130,7 @@ export function animate(time, rendererRef, renderer, controls, physics, recorder
   // This is the gear meshing point between renderer and recorder.
   // No frames are dropped. No pushing. Pure patient handshaking.
   // ========================================================================
-  if (recorder && recorder.isRecording) {
+  if (recorder && recorder.isRecording && !recorder.isTesting) {
     try {
       // Await the full capture pipeline (GPU → Encode → Write)
       // The next animation frame will not start until this completes

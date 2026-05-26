@@ -107,7 +107,7 @@ export default class SnapshotEngine {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "sine_gordon_snap_" + Date.now() + ".png";
+      a.download = "Sine-Gordon-Snapshot_" + Date.now() + ".png";
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
   

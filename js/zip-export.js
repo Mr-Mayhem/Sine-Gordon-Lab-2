@@ -8,13 +8,83 @@
 
 export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderRef) {
   if (recorderRef) recorderRef.isAssembling = true;
+
+  if (recorderRef && recorderRef.isTesting) {
+    console.log("[ZIP Test] Intercepted ZIP generation in automated test mode!");
+    try {
+      let content;
+      if (zip) {
+        // If we have an in-memory JSZip fallback, it is already populated with the captured frames!
+        content = await zip.generateAsync({ type: "blob" });
+      } else {
+        let frameFiles = [];
+        if (dirHandle) {
+          for await (const [name, handle] of dirHandle.entries()) {
+            if (handle.kind === "file" && name.startsWith("frame_") && name.endsWith(".png")) {
+              frameFiles.push({ name, handle });
+            }
+          }
+        }
+        frameFiles.sort((a,b) => a.name.localeCompare(b.name));
+        let zipObj = new window.JSZip();
+        for (let f of frameFiles) {
+          let file = await f.handle.getFile();
+          zipObj.file(f.name, file);
+        }
+        content = await zipObj.generateAsync({ type: "blob" });
+      }
+
+      if (window.onTestZipBlobGenerated) {
+        window.onTestZipBlobGenerated(content);
+      }
+      if (recorderRef._pipeline === "local") {
+        if (dirHandle) {
+          for (let f of frameFiles) {
+            try { await dirHandle.removeEntry(f.name); } catch(e){}
+          }
+        }
+      } else {
+        try {
+          if (dirHandle) {
+            const root = await navigator.storage.getDirectory();
+            await root.removeEntry(dirHandle.name, { recursive: true });
+          }
+        } catch(e){}
+      }
+      recorderRef.isAssembling = false;
+      if (btnVideo) {
+        btnVideo.textContent = "✓ Test OK";
+        setTimeout(function() { if (refreshUI) refreshUI(); }, 1500);
+      }
+    } catch(err) {
+      console.error("[ZIP Test] Automated test zip creation failed:", err);
+      if (window.onTestZipBlobGenerated) window.onTestZipBlobGenerated(null, err);
+      recorderRef.isAssembling = false;
+      if (btnVideo) btnVideo.textContent = "Error!";
+    }
+    return;
+  }
+
   if (dirHandle) {
-    console.log("Generating ZIP file(s) from OPFS buffer...");
+    const isLocal = recorderRef && recorderRef._pipeline === "local";
+    console.log(isLocal ? "Generating ZIP file directly inside local folder..." : "Generating ZIP file(s) from OPFS buffer...");
     if (btnVideo) btnVideo.textContent = "Zipping... 0%";
     
-    let zipFilename = `sg_lab_render_${Date.now()}.zip`;
+    let zipFilename = `Sine-Gordon-Render_${Date.now()}.zip`;
     let saveHandle = null;
-    if (window.showSaveFilePicker) {
+    if (isLocal) {
+        try {
+            console.log("[ZIP Local] Writing ZIP file directly to chosen local directory, bypassing picker popup!");
+            saveHandle = await dirHandle.getFileHandle(zipFilename, { create: true });
+            if (saveHandle) {
+                console.log("[ZIP Local] Success! Created local file handle: " + saveHandle.name);
+            }
+        } catch (e) {
+            console.warn("[ZIP Local] Direct writing failed, falling back to file picker dialog...", e);
+        }
+    }
+    
+    if (!saveHandle && window.showSaveFilePicker) {
         try {
             const pickerOpts = {
                 id: 'zip-export',
@@ -230,10 +300,21 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
           window.saveAs(content, zipFilename);
       }
       
-      try {
-         const root = await navigator.storage.getDirectory();
-         await root.removeEntry(dirHandle.name, { recursive: true });
-      } catch(e) {}
+      if (recorderRef && recorderRef._pipeline === "local") {
+          console.log("[ZIP Local] Purging loose individual frame PNG files from local directory...");
+          for (let f of frameFiles) {
+              try {
+                  await dirHandle.removeEntry(f.name);
+              } catch (delErr) {
+                  console.warn(`[ZIP Local] Failed to delete temporary frame ${f.name} from local directory:`, delErr);
+              }
+          }
+      } else {
+          try {
+             const root = await navigator.storage.getDirectory();
+             await root.removeEntry(dirHandle.name, { recursive: true });
+          } catch(e) {}
+      }
       
       if (recorderRef) recorderRef.isAssembling = false;
       if (btnVideo) {
@@ -355,7 +436,7 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
         try {
           const pickerOpts = {
             id: 'zip-export',
-            suggestedName: "sg_lab_render_" + Date.now() + ".zip",
+            suggestedName: "Sine-Gordon-Render_" + Date.now() + ".zip",
             types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }],
           };
           console.log("[ZIP Picker] Memory ZIP save dialog requested with id='zip-export'. Browser's native profile folder memory will handle path recall.");
@@ -372,11 +453,11 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
             console.log("[ZIP Picker] Save file picker canceled by user.");
           } else {
             console.warn("[ZIP Picker] Save file picker failed. Falling back to traditional Blob download.", e);
-            window.saveAs(content, "sg_lab_render_" + Date.now() + ".zip");
+            window.saveAs(content, "Sine-Gordon-Render_" + Date.now() + ".zip");
           }
         }
       } else {
-        window.saveAs(content, "sg_lab_render_" + Date.now() + ".zip");
+        window.saveAs(content, "Sine-Gordon-Render_" + Date.now() + ".zip");
         console.log("ZIP downloaded.");
       }
       if (btnVideo) {

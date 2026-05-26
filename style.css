@@ -630,7 +630,8 @@ html, body {
   color: #fff;
 }
 
-.thumb-select option {
+.thumb-select option,
+#sel-test-frames-selector option {
   background: #1a1a1a;
   color: #ccc;
   font-size: 11px;

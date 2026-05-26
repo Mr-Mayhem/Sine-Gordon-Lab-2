@@ -108,10 +108,44 @@ function refreshUI() {
   document.getElementById("val-nodes").textContent = sgState.physics.N;
   document.getElementById("sel-format").value = sgState.exportFormat;
   var mo = document.querySelector('#sel-format option[value="mp4"]');
-  if (mo && typeof SharedArrayBuffer === "undefined") mo.textContent = "MP4 (Not Supported)";
+  if (mo && typeof SharedArrayBuffer === "undefined") mo.textContent = "MP4 (N/A)";
   document.getElementById("sel-fps").value = sgState.exportFPS;
   if (document.getElementById("sel-crf")) document.getElementById("sel-crf").value = sgState.exportCRF;
   if (document.getElementById("sel-limit")) document.getElementById("sel-limit").value = sgState.exportLimit;
+
+  // Sync resolution dropdown to the current state dimensions programmatically
+  const pbPrev = document.getElementById("assembly-preview");
+  const selResolution = document.getElementById("sel-res");
+  if (selResolution) {
+    const tgtVal = `${sgState.exportWidth}x${sgState.exportHeight}`;
+    let optionExists = false;
+    for (let i = 0; i < selResolution.options.length; i++) {
+      if (selResolution.options[i].value === tgtVal) {
+        selResolution.selectedIndex = i;
+        optionExists = true;
+        break;
+      }
+    }
+    if (!optionExists) {
+      const opt = document.createElement("option");
+      opt.value = tgtVal;
+      opt.textContent = tgtVal + " (Custom)";
+      selResolution.appendChild(opt);
+      selResolution.value = tgtVal;
+    }
+  }
+
+  // Adapt aspect ratio dynamically to match selected resolution in refreshUI
+  if (pbPrev && selResolution && selResolution.value) {
+    const parts = selResolution.value.split("x");
+    if (parts.length === 2) {
+      const w = parseInt(parts[0], 10);
+      const h = parseInt(parts[1], 10);
+      if (w && h) {
+        pbPrev.style.aspectRatio = `${w}/${h}`;
+      }
+    }
+  }
   
   var tpl = document.getElementById("sel-pipeline");
   var taction = document.getElementById("sel-action");
@@ -233,6 +267,10 @@ function refreshUI() {
   var elGimbalDamp = document.getElementById("gimbal-damping-column");
   if (elGimbalDamp) {
     elGimbalDamp.style.display = sgState.gimbalRingActive ? "flex" : "none";
+  }
+
+  if (window.updateDiskSpaceUI) {
+    window.updateDiskSpaceUI();
   }
 }
 
@@ -374,6 +412,10 @@ function init() {
 
   physics = new PhysicsEngine(sgState.physics);
   physics.stateRef = sgState;
+  window.physics = physics;
+  window.recorder = recorder;
+  window.sgState = sgState;
+  window.controls = controls;
   rendererRef.current = new SceneRenderer(scene, 720, sgState.morph);
   rendererRef.current.N = sgState.physics.N;
   rendererRef.current.build(sgState, undefined, sgState.morph);
@@ -432,7 +474,7 @@ function init() {
         UI.template("gimbal-damping", "G-Damp", "h", "val-gimbal-damping") +
       '</div>' +
     '</div>';
-  document.getElementById("thumb-nodes-container").innerHTML = UI.template("nodes", "ELEMENTS", "v", "val-nodes");
+  document.getElementById("thumb-nodes-container").innerHTML = UI.template("nodes", "ELEMENTS", "h-compact", "val-nodes");
 
   UI.setup("pos-a", "posA", 0, sgState.physics.N, 1, true, refreshUI, 10, function() { sgState.posA = Math.floor(sgState.physics.N * 0.75); });
   UI.setup("pos-b", "posB", 0, sgState.physics.N, 1, true, refreshUI, 10, function() { sgState.posB = Math.floor(sgState.physics.N * 0.25); });

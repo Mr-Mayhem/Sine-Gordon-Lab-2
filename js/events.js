@@ -7,6 +7,7 @@
 import { sgState } from "./state.js";
 import { generateTelemetry } from "./telemetry.js";
 import { processFrame } from "./pipeline.js";
+import { DiscSpaceEstimator } from "./disc-space-estimator.js";
 
 export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   // Local constants to avoid import ambiguity
@@ -334,17 +335,12 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
                 height = Number(parts[1]);
               }
             }
-            let pixels = width * height;
-            // Realistic average PNG compression size, ranging from ~100KB at 720p to ~1MB at 4K
-            let sizePerFrame = (pixels * 0.15) + 30000;
-
-            let quotaTarget = isConstrained ? 0.15 : 0.4;
-            let targetFrames = Math.floor((avail * quotaTarget) / sizePerFrame);
-
-            let ceilingFrames = isConstrained ? 5 * 60 * fps : 10 * 60 * fps;
-
-            limit = Math.min(targetFrames, ceilingFrames);
-            if (limit < 60) limit = 60;
+            
+            const pipeline = sgState.exportPipeline || "ffmpeg";
+            const format = sgState.exportFormat || "webm";
+            const selCrf = document.getElementById("sel-crf");
+            const crf = selCrf ? Number(selCrf.value) : (sgState.exportCRF || 18);
+            limit = DiscSpaceEstimator.estimateMaxFrames(pipeline, avail, width, height, fps, format, crf, isConstrained);
           } catch (estErr) {
             console.error("Failed to estimate storage for limit:", estErr);
             limit = isConstrained ? 30 * fps : 60 * fps;
@@ -491,6 +487,19 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     };
   }
 
+  var btnRunTests = document.getElementById("btn-run-tests");
+  if (btnRunTests) {
+    btnRunTests.onclick = async function () {
+      try {
+        console.log("[Test Suite] Dynamically importing laboratory-tester.js...");
+        const { runLaboratoryDiagnostics } = await import("./laboratory-tester.js");
+        runLaboratoryDiagnostics();
+      } catch (err) {
+        console.error("[Test Suite] Failed to load laboratory-tester.js dynamic module:", err);
+      }
+    };
+  }
+
   var btnCopyLogs = document.getElementById("btn-copy-logs");
   if (btnCopyLogs) {
     btnCopyLogs.onclick = function () {
@@ -516,6 +525,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   };
   document.getElementById("sel-format").onchange = function () {
     sgState.exportFormat = this.value;
+    updateDiskSpaceUI();
   };
   var selL = document.getElementById("sel-limit");
   if (selL)
@@ -526,6 +536,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   if (selC)
     selC.onchange = function () {
       sgState.exportCRF = parseInt(this.value);
+      updateDiskSpaceUI();
     };
   var selPipeline = document.getElementById("sel-pipeline");
   var selAction = document.getElementById("sel-action");
@@ -535,11 +546,13 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     selPipeline.onchange = function () {
       sgState.exportPipeline = this.value;
       if (window.refreshUI) window.refreshUI();
+      updateDiskSpaceUI();
     };
 
     selAction.onchange = function () {
       sgState.exportAction = this.value;
       if (window.refreshUI) window.refreshUI();
+      updateDiskSpaceUI();
     };
   }
 
@@ -548,6 +561,18 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   if (selRes) {
     selRes.onchange = function () {
       updateDiskSpaceUI();
+      
+      const pbPrev = document.getElementById("assembly-preview");
+      if (pbPrev && this.value) {
+        const parts = this.value.split("x");
+        if (parts.length === 2) {
+          const w = parseInt(parts[0], 10);
+          const h = parseInt(parts[1], 10);
+          if (w && h) {
+            pbPrev.style.aspectRatio = `${w}/${h}`;
+          }
+        }
+      }
     };
   }
 
@@ -556,17 +581,22 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     updateDiskSpaceUI();
   };
 
-  if (document.getElementById("sel-crf"))
-    document.getElementById("sel-crf").onchange = function () {
-      sgState.exportCRF = this.value;
-    };
-
   // Theory
   document.getElementById("btn-theory").onclick = function () {
     document.getElementById("theory-overlay").style.display = "block";
   };
   document.getElementById("btn-close-theory").onclick = function () {
     document.getElementById("theory-overlay").style.display = "none";
+  };
+
+  // Diagnostics
+  document.getElementById("btn-diagnostics").onclick = async function () {
+    try {
+      const { getDiagnosticsManager } = await import("./diagnostics.js");
+      getDiagnosticsManager().show();
+    } catch (err) {
+      console.error("[Diagnostics Loader] Failed to load diagnostics module:", err);
+    }
   };
 
   // Mode & Direction
@@ -653,36 +683,62 @@ export async function updateDiskSpaceUI() {
 
       const selFps = document.getElementById("sel-fps");
       const fps = selFps ? Number(selFps.value) : (sgState.exportFPS || 60);
-      const pixels = width * height;
-      // Realistic average PNG compression size, ranging from ~100KB at 720p to ~1MB at 4K
-      const sizePerFrame = (pixels * 0.15) + 30000;
 
-      // Free space formatted in max recording time rather than GB
-      const totalCapacitySec = Math.floor(avail / sizePerFrame) / fps;
-      let freeCapacityText = "";
-      if (totalCapacitySec >= 3600) {
-        const hrs = Math.floor(totalCapacitySec / 3600);
-        const mins = Math.floor((totalCapacitySec % 3600) / 60);
-        freeCapacityText = mins > 0 ? `~${hrs}h ${mins}m Disk` : `~${hrs}h Disk`;
-      } else if (totalCapacitySec >= 60) {
-        const mins = Math.floor(totalCapacitySec / 60);
-        const secs = Math.floor(totalCapacitySec % 60);
-        freeCapacityText = secs > 0 ? `~${mins}m ${secs}s Disk` : `~${mins}m Disk`;
-      } else {
-        freeCapacityText = `~${Math.round(totalCapacitySec)}s Disk`;
+      const pipeline = sgState.exportPipeline || "ffmpeg";
+      const format = sgState.exportFormat || "webm";
+      const selCrf = document.getElementById("sel-crf");
+      const crf = selCrf ? Number(selCrf.value) : (sgState.exportCRF || 18);
+
+      if (pipeline === "local") {
+        diskFreeVal.textContent = "Host Disk";
+        diskLimitVal.textContent = "Unlimited Max";
+        const diskContainer = document.getElementById("disk-space-container") || diskFreeVal.parentElement;
+        if (diskContainer) {
+          diskContainer.title = "Direct Host Directory Access: Frames are written directly to your actual physical local drive in real-time, completely bypassing browser sandbox space restrictions!";
+          diskContainer.style.cursor = "help";
+        }
+        return;
       }
-      diskFreeVal.textContent = freeCapacityText;
 
       const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.matchMedia("(any-pointer: coarse)").matches;
       const memory = navigator.deviceMemory || (isMobile ? 2 : 8);
       const isConstrained = isMobile || memory <= 4;
 
-      const quotaTarget = isConstrained ? 0.15 : 0.4;
-      const targetFrames = Math.floor((avail * quotaTarget) / sizePerFrame);
-      const ceilingFrames = isConstrained ? 5 * 60 * fps : 10 * 60 * fps;
-
-      const limit = Math.max(60, Math.min(targetFrames, ceilingFrames));
+      // Estimate max frames using our brand new estimator class, passing in crf!
+      const limit = DiscSpaceEstimator.estimateMaxFrames(pipeline, avail, width, height, fps, format, crf, isConstrained);
       const durationSec = limit / fps;
+
+      // Estimate PNG size for disk capacity rendering
+      const sizePerFrame = DiscSpaceEstimator.estimatePngFrameSize(width, height);
+
+      // Free space formatted in max recording time + available GB
+      const totalCapacitySec = Math.floor(avail / sizePerFrame) / fps;
+      const freeGB = avail / (1024 * 1024 * 1024);
+      let freeCapacityText = "";
+      if (totalCapacitySec >= 3600) {
+        const hrs = Math.floor(totalCapacitySec / 3600);
+        const mins = Math.floor((totalCapacitySec % 3600) / 60);
+        freeCapacityText = mins > 0 ? `~${hrs}h ${mins}m (${freeGB.toFixed(1)} GB)` : `~${hrs}h (${freeGB.toFixed(1)} GB)`;
+      } else if (totalCapacitySec >= 60) {
+        const mins = Math.floor(totalCapacitySec / 60);
+        const secs = Math.floor(totalCapacitySec % 60);
+        freeCapacityText = secs > 0 ? `~${mins}m (${freeGB.toFixed(1)} GB)` : `~${mins}m (${freeGB.toFixed(1)} GB)`;
+      } else {
+        freeCapacityText = `~${Math.round(totalCapacitySec)}s (${(avail / (1024 * 1024)).toFixed(0)} MB)`;
+      }
+      diskFreeVal.textContent = freeCapacityText;
+
+      // Dynamic Iframe / Sandbox helper tooltip to explain constraints
+      const diskContainer = document.getElementById("disk-space-container") || diskFreeVal.parentElement;
+      if (diskContainer) {
+        if (freeGB < 5.0) {
+          diskContainer.title = `Browser sandbox restricts origin storage to ${freeGB.toFixed(2)} GB inside this frame.\nTo unlock full disk space, launch the app in a New Tab.`;
+          diskContainer.style.cursor = "help";
+        } else {
+          diskContainer.title = `Local Origin Sandbox Space: ${freeGB.toFixed(1)} GB available.`;
+          diskContainer.style.cursor = "default";
+        }
+      }
 
       if (durationSec >= 60) {
         const mins = Math.floor(durationSec / 60);

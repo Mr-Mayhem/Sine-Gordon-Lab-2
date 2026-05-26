@@ -307,6 +307,15 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
   1. **Dynamic Cleanup Paths**: Upon encountering empty directories (`frameFiles.length === 0`), invalid zip structure exceptions, or file validation failures, dismiss standard parent layouts immediately.
   2. **Secure Synchronous Chaining**: Call `.style.display = "none"` on active modal screens (`#processing-overlay`) directly inside the synchronous early-return handler blocks immediately following standard warning alerts. This returns the application seamlessly to interactive laboratory contexts as soon as standard browser popup alerts are confirmed and closed.
 
+### 4.15 Environment-Sensitive Thread Diagnostics & Multi-Threaded Verification
+* **The Pitfall**: Video transcode loops and automated pipeline scripts run in both Single-Threaded (ST) fallback and Multi-Threaded (MT) native WebAssembly modes depending on `SharedArrayBuffer` availability. If the diagnostics center or automated test suites fail to detect, log, and target specific assertions on the active execution context (e.g., expecting MT characteristics in sandboxed / iframe environments where COOP/COEP headers are disabled), testing logs become mismatched and difficult to debug.
+* **The Resolution**:
+  1. **Strict Context Diagnostics**: On initialization, the test suite queries and logs the presence of the `SharedArrayBuffer` API:
+     - **MT Mode Enabled**: Safe COOP/COEP context (multi-threaded workers available).
+     - **ST Fallback Active**: Sandboxed/restricted origin context (single-threaded assembly).
+  2. **Thread-Targeted Config Verbosity**: Dynamically append a `Threads=` configuration parameter to the initial test log reports (`SINGLE-THREADED (ST)`, `MULTI-THREADED (MT)`, or `N/A` for still archives).
+  3. **Reactive Assembly Logs**: Tailor assembly step prints (`[Assemble] ...`) to explicitly state the compilation mechanism (e.g. `FFmpeg WASM Multi-Threaded (MT) worker pools (SAB enabled)` vs `FFmpeg WASM Single-Threaded (ST) transcode loop`). This ensures flawless inspection, precise log validation on external servers, and clear, reproducible diagnostic trails.
+
 ---
 
 ## 5. VERIFICATION WORKFLOW
