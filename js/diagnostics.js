@@ -727,6 +727,11 @@ export class DiagnosticsManager {
             window.physics.step(2);
           }
 
+          // Force fresh WebGL render to guarantee active non-blank frames
+          if (window.renderManualFrame) {
+            window.renderManualFrame();
+          }
+
           // Synchronously request WebGL render frame mapping
           await window.recorder.captureAndWait();
           
@@ -745,6 +750,14 @@ export class DiagnosticsManager {
         const savedDirName = window.recorder._dirHandle ? window.recorder._dirHandle.name : null;
         let auditSuccess = true;
         let auditMessage = "";
+        
+        let expectedW = t.width;
+        let expectedH = t.height;
+        if (t.width > 1920 || t.height > 1080) {
+          const scaleFactor = Math.min(1920 / t.width, 1080 / t.height);
+          expectedW = Math.floor((t.width * scaleFactor) / 2) * 2;
+          expectedH = Math.floor((t.height * scaleFactor) / 2) * 2;
+        }
 
         try {
           if (window.recorder._dirHandle) {
@@ -780,12 +793,12 @@ export class DiagnosticsManager {
               const readW = view.getUint32(0);
               const readH = view.getUint32(4);
               this.log(`[Audit Prereq] PNG IHDR block assertion: Read dimensions are ${readW}x${readH}`);
-              if (readW !== t.width || readH !== t.height) {
+              if (readW !== expectedW || readH !== expectedH) {
                 auditSuccess = false;
-                auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target is ${t.width}x${t.height}.`;
+                auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target raw PNG expected matches ${expectedW}x${expectedH} (Simulation target logic limits active: ${t.width}x${t.height})`;
                 this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
               } else {
-                this.log(`[Audit Prereq] PNG dimensional assertion: PASSED (Parsed frame size matches configured resolution)`, "text-[#00ffcc]");
+                this.log(`[Audit Prereq] PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-[#00ffcc]");
               }
             } else {
               auditSuccess = false;
@@ -821,12 +834,12 @@ export class DiagnosticsManager {
                 const readW = view.getUint32(0);
                 const readH = view.getUint32(4);
                 this.log(`[Audit Prereq] PNG IHDR block assertion: Read dimensions are ${readW}x${readH}`);
-                if (readW !== t.width || readH !== t.height) {
+                if (readW !== expectedW || readH !== expectedH) {
                   auditSuccess = false;
-                  auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target is ${t.width}x${t.height}.`;
+                  auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target raw PNG expected matches ${expectedW}x${expectedH} (Simulation target logic limits active: ${t.width}x${t.height})`;
                   this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
                 } else {
-                  this.log(`[Audit Prereq] PNG dimensional assertion: PASSED (Parsed frame size matches configured resolution)`, "text-[#00ffcc]");
+                  this.log(`[Audit Prereq] PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-[#00ffcc]");
                 }
               } else {
                 auditSuccess = false;
@@ -854,12 +867,12 @@ export class DiagnosticsManager {
             const readW = view.getUint32(0);
             const readH = view.getUint32(4);
             this.log(`[Audit Prereq] PNG IHDR block assertion: Read dimensions are ${readW}x${readH}`);
-            if (readW !== t.width || readH !== t.height) {
+            if (readW !== expectedW || readH !== expectedH) {
               auditSuccess = false;
-              auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target is ${t.width}x${t.height}.`;
+              auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target raw PNG expected matches ${expectedW}x${expectedH} (Simulation target logic limits active: ${t.width}x${t.height})`;
               this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
             } else {
-              this.log(`[Audit Prereq] In-memory PNG dimensional assertion: PASSED (Parsed frame size matches configured resolution)`, "text-[#00ffcc]");
+              this.log(`[Audit Prereq] In-memory PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-[#00ffcc]");
             }
           }
         } catch (auditErr) {

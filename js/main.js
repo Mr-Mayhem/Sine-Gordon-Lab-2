@@ -15,6 +15,7 @@ import SnapshotEngine from "./snapshot.js";
 import UI from "./ui-thumbs.js";
 import { bindEvents } from "./events.js";
 import { animate, changeElementCount } from "./animation.js";
+import { processFrame } from "./pipeline.js";
 
 // Local constants to avoid import ambiguity
 const PALETTE = [
@@ -416,6 +417,14 @@ function init() {
   window.recorder = recorder;
   window.sgState = sgState;
   window.controls = controls;
+  window.renderManualFrame = function() {
+    if (rendererRef.current && physics && camera && renderer) {
+      const sr = rendererRef.current;
+      const fd = processFrame(sgState, physics.phi, physics.acc, sr._glowPosAttr.array, sr._glowNegAttr.array, sr.maxAcc);
+      sr.render(fd, physics.phi);
+      renderer.render(sr.scene, camera);
+    }
+  };
   rendererRef.current = new SceneRenderer(scene, 720, sgState.morph);
   rendererRef.current.N = sgState.physics.N;
   rendererRef.current.build(sgState, undefined, sgState.morph);
