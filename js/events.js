@@ -335,7 +335,8 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
               }
             }
             let pixels = width * height;
-            let sizePerFrame = pixels * 4 + 200000;
+            // Realistic average PNG compression size, ranging from ~100KB at 720p to ~1MB at 4K
+            let sizePerFrame = (pixels * 0.15) + 30000;
 
             let quotaTarget = isConstrained ? 0.15 : 0.4;
             let targetFrames = Math.floor((avail * quotaTarget) / sizePerFrame);
@@ -637,8 +638,6 @@ export async function updateDiskSpaceUI() {
     if (navigator.storage && navigator.storage.estimate) {
       const est = await navigator.storage.estimate();
       const avail = Math.max(0, est.quota - est.usage); // Free bytes inside sandbox
-      const freeGB = avail / (1024 * 1024 * 1024);
-      diskFreeVal.textContent = `${freeGB.toFixed(1)} GB Free`;
 
       // Resolve current dimensions and FPS
       let width = 1280;
@@ -655,7 +654,24 @@ export async function updateDiskSpaceUI() {
       const selFps = document.getElementById("sel-fps");
       const fps = selFps ? Number(selFps.value) : (sgState.exportFPS || 60);
       const pixels = width * height;
-      const sizePerFrame = pixels * 4 + 200000;
+      // Realistic average PNG compression size, ranging from ~100KB at 720p to ~1MB at 4K
+      const sizePerFrame = (pixels * 0.15) + 30000;
+
+      // Free space formatted in max recording time rather than GB
+      const totalCapacitySec = Math.floor(avail / sizePerFrame) / fps;
+      let freeCapacityText = "";
+      if (totalCapacitySec >= 3600) {
+        const hrs = Math.floor(totalCapacitySec / 3600);
+        const mins = Math.floor((totalCapacitySec % 3600) / 60);
+        freeCapacityText = mins > 0 ? `~${hrs}h ${mins}m Disk` : `~${hrs}h Disk`;
+      } else if (totalCapacitySec >= 60) {
+        const mins = Math.floor(totalCapacitySec / 60);
+        const secs = Math.floor(totalCapacitySec % 60);
+        freeCapacityText = secs > 0 ? `~${mins}m ${secs}s Disk` : `~${mins}m Disk`;
+      } else {
+        freeCapacityText = `~${Math.round(totalCapacitySec)}s Disk`;
+      }
+      diskFreeVal.textContent = freeCapacityText;
 
       const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.matchMedia("(any-pointer: coarse)").matches;
       const memory = navigator.deviceMemory || (isMobile ? 2 : 8);
