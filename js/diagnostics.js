@@ -282,8 +282,8 @@ export class DiagnosticsManager {
       </div>
 
       <!-- Main Test Suite Grid -->
-      <div class="flex flex-col gap-1.5 max-h-[240px] overflow-y-auto pr-1 select-none scrollbar-thin mb-3">
-        \${testsHtml}
+      <div class="flex flex-col gap-1.5 max-h-[320px] overflow-y-auto pr-1 select-none scrollbar-thin mb-3">
+        ${testsHtml}
       </div>
 
       <!-- Real-time Test Output Logs Console -->

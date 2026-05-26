@@ -890,3 +890,43 @@ html, body {
   box-shadow: 0 10px 40px -5px rgba(239, 68, 68, 0.3);
 }
 .hud-toast-security-alert .hud-toast-header { color: #ef4444; }
+
+/* ==========================================================================
+   DIAGNOSTIC PIPELINE AND COMPLIANCE SUITE UTILITIES
+   ========================================================================== */
+.text-green-400 { color: #4ade80 !important; }
+.text-green-400\/80 { color: rgba(74, 222, 128, 0.8) !important; }
+.text-green-400\/90 { color: rgba(74, 222, 128, 0.9) !important; }
+.bg-green-500\/5 { background-color: rgba(34, 197, 94, 0.05) !important; }
+.bg-green-500\/10 { background-color: rgba(34, 197, 94, 0.1) !important; }
+.hover\:bg-green-500\/20:hover { background-color: rgba(34, 197, 94, 0.2) !important; }
+.hover\:bg-green-500\/10:hover { background-color: rgba(34, 197, 94, 0.1) !important; }
+.border-green-500\/25 { border-color: rgba(34, 197, 94, 0.25) !important; }
+.border-green-500\/30 { border-color: rgba(34, 197, 94, 0.3) !important; }
+.hover\:text-green-400:hover { color: #4ade80 !important; }
+.hover\:border-green-500\/30:hover { border-color: rgba(34, 197, 94, 0.3) !important; }
+.hover\:border-green-500\/50:hover { border-color: rgba(34, 197, 94, 0.5) !important; }
+.focus\:ring-green-500\/50:focus { --tw-ring-color: rgba(34, 197, 94, 0.5); box-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); outline: none; }
+.accent-green-400 { accent-color: #4ade80 !important; }
+
+.text-red-300 { color: #fca5a5 !important; }
+.text-red-400 { color: #f87171 !important; }
+.text-red-500 { color: #ef4444 !important; }
+.bg-red-500\/5 { background-color: rgba(239, 68, 68, 0.05) !important; }
+.bg-red-500\/10 { background-color: rgba(239, 68, 68, 0.1) !important; }
+.hover\:bg-red-500\/20:hover { background-color: rgba(239, 68, 68, 0.2) !important; }
+.border-red-500\/20 { border-color: rgba(239, 68, 68, 0.2) !important; }
+.border-red-500\/30 { border-color: rgba(239, 68, 68, 0.3) !important; }
+
+.text-yellow-400 { color: #facc15 !important; }
+.border-yellow-500\/20 { border-color: rgba(234, 179, 8, 0.2) !important; }
+.border-yellow-500\/30 { border-color: rgba(234, 179, 8, 0.3) !important; }
+.bg-yellow-500\/5 { background-color: rgba(234, 179, 8, 0.05) !important; }
+
+@keyframes diagPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+.animate-pulse { animation: diagPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; }
+.hidden { display: none !important; }
+
