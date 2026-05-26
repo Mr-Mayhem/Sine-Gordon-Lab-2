@@ -138,21 +138,21 @@ export class DiagnosticsManager {
     overlay.style.display = "none";
     overlay.style.position = "fixed";
     overlay.style.inset = "0";
-    overlay.style.background = "rgba(0,0,0,0.96)";
-    overlay.style.backdropFilter = "blur(16px)";
+    overlay.style.background = "rgba(0,0,0,0.95)";
+    overlay.style.backdropFilter = "blur(12px)";
     overlay.style.zIndex = "300";
     overlay.style.overflowY = "auto";
-    overlay.style.padding = "40px 20px";
+    overlay.style.padding = "20px 16px";
 
     const content = document.createElement("div");
     content.className = "theory-content";
-    content.style.maxWidth = "880px";
-    content.style.margin = "40px auto";
-    content.style.backgroundColor = "rgba(10, 10, 10, 0.75)";
+    content.style.maxWidth = "780px";
+    content.style.margin = "20px auto";
+    content.style.backgroundColor = "rgba(10, 10, 10, 0.85)";
     content.style.border = "1px solid rgba(255,255,255,0.08)";
-    content.style.borderRadius = "24px";
-    content.style.padding = "32px";
-    content.style.boxShadow = "0 30px 60px rgba(0,0,0,0.5)";
+    content.style.borderRadius = "16px";
+    content.style.padding = "20px 24px";
+    content.style.boxShadow = "0 20px 50px rgba(0,0,0,0.6)";
 
     const categories = [
       { name: "Level 1: Quick Compliance Checks", highRes: false },
@@ -175,40 +175,40 @@ export class DiagnosticsManager {
         const isDefaultChecked = (cat.name === "Level 1: Quick Compliance Checks");
         const checkedAttr = isDefaultChecked ? "checked" : "";
         return `
-        <div class="test-item border border-white/5 bg-white/[0.02] rounded-xl p-3 flex flex-col sm:flex-row justify-between sm:items-center gap-3" id="test-card-${test.id}">
+        <div class="test-item border border-white/5 bg-white/[0.015] rounded-lg p-2 flex flex-col sm:flex-row justify-between sm:items-center gap-2.5" id="test-card-${test.id}">
           <div class="flex-1 col-span-1 min-w-0">
             <div class="flex items-center gap-2">
-              <input type="checkbox" id="chk-test-${test.id}" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" ${checkedAttr}>
-              <span class="text-sm font-bold text-white">${test.name}</span>
-              <span class="text-[9px] bg-[#00ffcc]/10 hover:bg-[#00ffcc]/20 text-[#00ffcc] border border-[#00ffcc]/30 px-1.5 py-0.5 rounded font-mono font-semibold select-none flex-frames-badge" data-testid="${test.id}">${test.frames} FMR</span>
+              <input type="checkbox" id="chk-test-${test.id}" class="w-3.5 h-3.5 accent-[#00ffcc] cursor-pointer" ${checkedAttr}>
+              <span class="text-xs font-semibold text-white/95">${test.name}</span>
+              <span class="text-[8.5px] bg-[#00ffcc]/10 hover:bg-[#00ffcc]/20 text-[#00ffcc] border border-[#00ffcc]/25 px-1.5 py-0.2 rounded font-mono font-bold select-none flex-frames-badge" data-testid="${test.id}">${test.frames} FMR</span>
             </div>
-            <p class="text-xs text-white/50 mt-1 pl-6 select-none">${test.description}</p>
-            <div class="text-[10px] font-mono text-white/30 pl-6 mt-0.5 select-none font-bold uppercase tracking-wide">
+            <p class="text-[10.5px] text-white/45 mt-0.5 pl-5.5 select-none leading-relaxed">${test.description}</p>
+            <div class="text-[9px] font-mono text-white/25 pl-5.5 mt-0.5 select-none uppercase tracking-wider font-semibold">
               Pipeline: <span class="text-[#00ffcc]/80">${test.pipeline}</span> | 
               Resolution: <span class="text-white/60">${test.width}x${test.height}</span> | 
               Format: <span class="text-[#00ffcc]/80">${test.format}</span> ${test.crf ? `| CRF: <span class="text-amber-400 font-bold">${test.crf}</span>` : ""}
             </div>
             <!-- Dynamic Error Box -->
-            <div id="test-error-${test.id}" class="test-error-box ml-6 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[10px] p-2.5 mt-2 rounded-xl overflow-x-auto select-text hidden">
+            <div id="test-error-${test.id}" class="test-error-box ml-5.5 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[9px] p-2 mt-1.5 rounded-lg overflow-x-auto select-text hidden">
               <div class="flex items-start gap-1.5"><strong class="text-red-400 shrink-0">FAIL REASON:</strong> <span class="err-reason break-words font-medium">None</span></div>
               <div class="mt-1 opacity-80 border-t border-white/5 pt-1.5"><strong class="text-white/40">BASE SOURCE:</strong> <span class="err-base">None</span> | <strong class="text-white/40">FUNCTION:</strong> <span class="err-function">None</span></div>
             </div>
           </div>
-          <div class="flex items-center gap-2 shrink-0 justify-end pl-6 sm:pl-0">
-            <span class="text-xs font-mono font-bold uppercase select-none rounded px-2.5 py-1 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
-            <button class="btn-single-test bg-white/5 text-white/70 hover:bg-[#00ffcc]/10 hover:text-[#00ffcc] hover:border-[#00ffcc]/40 border border-white/10 py-1.5 px-3 rounded-xl text-[9px] font-bold font-mono transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
+          <div class="flex items-center gap-2 shrink-0 justify-end pl-5.5 sm:pl-0">
+            <span class="text-[9px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
+            <button class="btn-single-test bg-white/5 text-white/70 hover:bg-[#00ffcc]/10 hover:text-[#00ffcc] hover:border-[#00ffcc]/30 border border-white/10 py-1 px-2.5 rounded text-[8.5px] font-bold transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
           </div>
         </div>
         `;
       }).join("");
 
       return `
-      <div class="test-category-group test-category-highres mb-5" style="${initialStyle}" id="cat-group-${cat.name.replace(/\s+/g, '-')}">
-        <h3 class="text-[10px] uppercase font-mono font-black tracking-widest text-[#00ffcc] mb-2.5 border-b border-white/10 pb-1.5 select-none flex items-center justify-between">
+      <div class="test-category-group test-category-highres mb-4" style="${initialStyle}" id="cat-group-${cat.name.replace(/\s+/g, '-')}">
+        <h3 class="text-[9px] uppercase font-bold tracking-wider text-[#00ffcc]/90 mb-2 border-b border-white/5 pb-1 select-none flex items-center justify-between">
           <span>${cat.name}</span>
-          <span class="text-[9px] opacity-40 font-normal normal-case font-sans">Sequence Batch Assertions</span>
+          <span class="text-[8px] opacity-30 font-normal normal-case">Sequence Batch Assertions</span>
         </h3>
-        <div class="flex flex-col gap-2.5">
+        <div class="flex flex-col gap-1.5">
           ${testsGroupHtml}
         </div>
       </div>
@@ -216,53 +216,53 @@ export class DiagnosticsManager {
     }).join("");
 
     content.innerHTML = `
-      <header class="flex justify-between items-start border-b border-white/10 pb-4 mb-4">
+      <header class="flex justify-between items-center border-b border-white/10 pb-3 mb-3">
         <div>
-          <span class="text-xs font-bold tracking-[0.25em] text-[#00ffcc] uppercase select-none">Engineering Sandbox</span>
-          <h1 class="text-3xl font-black mt-1 italic uppercase tracking-tight text-white select-none">Pipeline Diagnostics & stress suite</h1>
-          <p class="text-white/40 font-mono text-[9px] uppercase tracking-[0.15em] mt-0.5 select-none">Automated compliance checks • Frame rate integrity benchmarks</p>
+          <span class="text-[9px] font-bold tracking-[0.2em] text-[#00ffcc] uppercase select-none">Engineering Sandbox</span>
+          <h1 class="text-xl font-black mt-0.5 tracking-tight text-white select-none uppercase">Pipeline Diagnostics & stress suite</h1>
+          <p class="text-white/40 font-mono text-[8.5px] uppercase tracking-[0.12em] mt-0.5 select-none">Automated compliance checks • Frame rate integrity benchmarks</p>
         </div>
-        <button id="btn-close-diagnostics" class="btn-icon w-10 h-10 text-white hover:bg-white/10 text-xl border border-white/10 rounded-full transition-all">✕</button>
+        <button id="btn-close-diagnostics" class="btn-icon w-8 h-8 text-white hover:bg-white/10 text-sm border border-white/10 rounded-full transition-all flex items-center justify-center">✕</button>
       </header>
 
       <!-- System Diagnostic Metadata Header -->
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white/[0.02] border border-white/5 rounded-2xl p-4 mb-5 font-mono text-[10px] text-white/60">
-        <div><span class="text-white/30 block select-none mb-0.5 font-bold uppercase">System Cores </span><strong id="diag-cores">Calculating...</strong></div>
-        <div><span class="text-white/30 block select-none mb-0.5 font-bold uppercase">Reported Memory </span><strong id="diag-mem">Calculating...</strong></div>
-        <div><span class="text-white/30 block select-none mb-0.5 font-bold uppercase">SharedArrayBuffer </span><strong id="diag-sab">Calculating...</strong></div>
-        <div><span class="text-white/30 block select-none mb-0.5 font-bold uppercase">OPFS Sandbox </span><strong id="diag-opfs">Calculating...</strong></div>
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white/[0.015] border border-white/5 rounded-xl p-2.5 mb-3.5 text-[9px] text-white/60">
+        <div><span class="text-white/35 block select-none mb-0.5 font-bold uppercase tracking-wider">System Cores</span><strong id="diag-cores">Calculating...</strong></div>
+        <div><span class="text-white/35 block select-none mb-0.5 font-bold uppercase tracking-wider">Reported Memory</span><strong id="diag-mem">Calculating...</strong></div>
+        <div><span class="text-white/35 block select-none mb-0.5 font-bold uppercase tracking-wider">SharedArrayBuffer</span><strong id="diag-sab">Calculating...</strong></div>
+        <div><span class="text-white/35 block select-none mb-0.5 font-bold uppercase tracking-wider">OPFS Sandbox</span><strong id="diag-opfs">Calculating...</strong></div>
       </section>
 
       <!-- Action Control Row -->
-      <div class="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 p-3 rounded-2xl mb-5">
-        <div class="flex flex-wrap gap-4 items-center">
+      <div class="flex flex-wrap items-center justify-between gap-2.5 bg-white/[0.02] border border-white/5 p-2 rounded-xl mb-3.5">
+        <div class="flex flex-wrap gap-3.5 items-center">
           <!-- Diagnostics Filter Dropdown -->
-          <div class="flex items-center gap-2 font-mono text-[10px] text-white select-none uppercase font-black tracking-wide border-r border-white/15 pr-3.5">
-            <span class="text-white/50">Viewing Level:</span>
-            <select id="sel-diagnostic-level-filter" class="thumb-select bg-white/10 border border-white/20 hover:border-[#00ffcc]/50 rounded-xl px-2.5 cursor-pointer !h-[26px] !py-0 !text-[10px] text-[#00ffcc] font-black focus:outline-none focus:ring-1 focus:ring-[#00ffcc]">
+          <div class="flex items-center gap-2 text-[9px] text-white select-none uppercase font-bold tracking-wider border-r border-white/10 pr-3.5">
+            <span class="text-white/45">Viewing Level:</span>
+            <select id="sel-diagnostic-level-filter" class="thumb-select bg-white/5 border border-white/15 hover:border-[#00ffcc]/50 rounded px-2 cursor-pointer !h-[22px] !py-0 !text-[9.5px] text-[#00ffcc] font-bold focus:outline-none focus:ring-1 focus:ring-[#00ffcc]/50">
               <option value="level-1" selected>Level 1: Quick Compliance Checks</option>
               <option value="level-2">Level 2: Duration & Storage Stress Tests</option>
               <option value="level-3">Level 3: High-Density Stress (Opt-In)</option>
               <option value="all">Show All Suite Levels</option>
             </select>
           </div>
-          <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold cursor-pointer">
-            <input type="checkbox" id="chk-select-all" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" checked>
+          <label class="flex items-center gap-1.5 text-[9px] text-white/55 select-none uppercase font-bold cursor-pointer">
+            <input type="checkbox" id="chk-select-all" class="w-3.5 h-3.5 accent-[#00ffcc] cursor-pointer" checked>
             Select All
           </label>
-          <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold cursor-pointer">
-            <input type="checkbox" id="chk-enable-probing" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" checked>
-            Enable Output Probing (HTML5/ZIP)
+          <label class="flex items-center gap-1.5 text-[9px] text-white/55 select-none uppercase font-bold cursor-pointer">
+            <input type="checkbox" id="chk-enable-probing" class="w-3.5 h-3.5 accent-[#00ffcc] cursor-pointer" checked>
+            Enable Output Probing
           </label>
-          <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold cursor-pointer" style="display: none;">
-            <input type="checkbox" id="chk-enable-highres" class="w-4 h-4 accent-[#00ffcc] cursor-pointer">
+          <label class="flex items-center gap-1.5 text-[9px] text-white/55 select-none uppercase font-bold cursor-pointer" style="display: none;">
+            <input type="checkbox" id="chk-enable-highres" class="w-3.5 h-3.5 accent-[#00ffcc] cursor-pointer">
             Enable 1080p/1440p/4K Tests
           </label>
         </div>
         
         <!-- Dynamic Target Frame Count Range -->
         <div class="flex items-center gap-2">
-          <select id="sel-test-frames-selector" class="thumb-select bg-white/5 border border-white/15 rounded-xl px-2.5 cursor-pointer !h-[26px] !py-0 !text-[10px]">
+          <select id="sel-test-frames-selector" class="thumb-select bg-white/5 border border-white/15 rounded px-2 cursor-pointer !h-[22px] !py-0 !text-[9.5px]">
             <option value="10">DURATION: 10 Frames (Ultra Short)</option>
             <option value="15" selected>DURATION: 15 Frames (Short Sandbox)</option>
             <option value="30">DURATION: 30 Frames (Quick Sandbox)</option>
@@ -274,33 +274,33 @@ export class DiagnosticsManager {
           </select>
         </div>
 
-        <div class="flex gap-2">
-          <button id="btn-run-all-diagnostics" class="btn-pill bg-[#00ffcc]/10 text-[#00ffcc] hover:bg-[#00ffcc]/20 border border-[#00ffcc]/40 py-1.5 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap">▶ Run Selected</button>
-          <button id="btn-abort-diagnostics" class="btn-pill bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/40 py-1.5 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap" style="display:none;">⏹ Abort Suite</button>
-          <button id="btn-copy-test-report" class="btn-pill bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/40 py-1.5 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap" style="display:none;">📋 Copy Test Report</button>
-          <button id="btn-clear-diagnostic-logs" class="btn-pill bg-white/5 text-white/60 hover:bg-white/10 border border-white/10 py-1.5 px-3 rounded-xl text-xs transition-all whitespace-nowrap">🧹 Clear Logs</button>
+        <div class="flex gap-1.5">
+          <button id="btn-run-all-diagnostics" class="btn-pill bg-[#00ffcc]/10 text-[#00ffcc] hover:bg-[#00ffcc]/20 border border-[#00ffcc]/30 py-1 px-3 rounded text-[10px] font-bold transition-all whitespace-nowrap">▶ Run Selected</button>
+          <button id="btn-abort-diagnostics" class="btn-pill bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 py-1 px-3 rounded text-[10px] font-bold transition-all whitespace-nowrap" style="display:none;">⏹ Abort Suite</button>
+          <button id="btn-copy-test-report" class="btn-pill bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/30 py-1 px-3 rounded text-[10px] font-bold transition-all whitespace-nowrap" style="display:none;">📋 Copy Test Report</button>
+          <button id="btn-clear-diagnostic-logs" class="btn-pill bg-white/5 text-white/55 hover:bg-white/10 border border-white/10 py-1 px-2.5 rounded text-[10px] font-bold transition-all whitespace-nowrap">🧹 Clear Logs</button>
         </div>
       </div>
 
       <!-- Main Test Suite Grid -->
-      <div class="flex flex-col gap-2 max-h-[320px] overflow-y-auto pr-1 select-none scrollbar-thin">
+      <div class="flex flex-col gap-1.5 max-h-[240px] overflow-y-auto pr-1 select-none scrollbar-thin">
         ${testsHtml}
       </div>
 
       <!-- Real-time Test Output Logs Console -->
-      <div id="diagnostics-console-box" class="mt-6 border border-white/10 rounded-2xl bg-black/80 p-4 font-mono text-[10px] flex flex-col gap-1 overflow-hidden" style="height: 250px;">
-        <div class="flex justify-between items-center text-[10px] uppercase tracking-wide border-b border-white/10 pb-1.5 mb-1.5 text-white/40">
+      <div id="diagnostics-console-box" class="mt-4 border border-white/5 rounded-xl bg-black/95 p-3 font-mono text-[9px] flex flex-col gap-1 overflow-hidden" style="height: 180px;">
+        <div class="flex justify-between items-center text-[9px] uppercase tracking-wider border-b border-white/5 pb-1 mb-1 text-white/35">
           <span>Engine Output Console</span>
-          <span id="txt-diagnostics-phase-val" class="font-bold text-[#00ffcc]">IDLE</span>
+          <span id="txt-diagnostics-phase-val" class="font-bold text-yellow-400">IDLE</span>
         </div>
-        <div id="diagnostics-logs-scrollbar" class="flex-1 overflow-y-auto pr-1 space-y-1 text-left text-[#00ffcc]/85 scrollbar-thin select-text">
-          <div class="text-white/30">[Suite] Welcome to the Sine-Gordon Lab Pipeline Diagnostics Center. Select tests and run pipeline benchmark assertions.</div>
+        <div id="diagnostics-logs-scrollbar" class="flex-1 overflow-y-auto pr-1 space-y-0.5 text-left text-[#00ffcc]/80 scrollbar-thin select-text">
+          <div class="text-white/20">[Suite] Welcome to the Sine-Gordon Lab Pipeline Diagnostics Center. Select tests and run pipeline benchmark assertions.</div>
         </div>
-        <div class="mt-2" id="box-diagnostics-progress-outer" style="display:none;">
-          <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden;" class="w-full">
+        <div class="mt-1" id="box-diagnostics-progress-outer" style="display:none;">
+          <div style="height:4px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden;" class="w-full">
             <div id="diagnostics-progress-fill" style="height:100%; background:linear-gradient(90deg, #00ffcc, #00saff); width:0%; transition:none;"></div>
           </div>
-          <div class="flex justify-between items-center text-[9px] text-white/40 mt-1">
+          <div class="flex justify-between items-center text-[8.5px] text-white/35 mt-0.5">
             <span id="txt-diagnostics-progress-step">Processing...</span>
             <span id="txt-diagnostics-progress-percent">0%</span>
           </div>
@@ -308,11 +308,11 @@ export class DiagnosticsManager {
       </div>
 
       <!-- Bottom Actions Footer Row -->
-      <div class="flex justify-between items-center mt-5 bg-white/[0.02] border border-white/5 p-3 rounded-xl select-none">
-        <span class="text-white/40 font-mono text-[9px] uppercase tracking-wider pl-1">Compliance Report Actions</span>
+      <div class="flex justify-between items-center mt-4 bg-white/[0.015] border border-white/5 p-2 px-3 rounded-lg select-none text-[9.5px]">
+        <span class="text-white/30 font-mono text-[8.5px] uppercase tracking-wider pl-1">Compliance Report Actions</span>
         <div class="flex gap-2">
-          <button id="btn-copy-test-report-bottom" class="btn-pill bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/40 py-1.5 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap" style="display:none;">📋 Copy Test Report</button>
-          <button id="btn-close-diagnostics-bottom" class="btn-pill bg-white/5 text-white/70 hover:bg-white/10 border border-white/10 py-1.5 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap">Close</button>
+          <button id="btn-copy-test-report-bottom" class="btn-pill bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/40 py-1 px-3 rounded text-[10px] font-bold transition-all whitespace-nowrap" style="display:none;">📋 Copy Test Report</button>
+          <button id="btn-close-diagnostics-bottom" class="btn-pill bg-white/5 text-white/60 hover:bg-white/10 border border-white/10 py-1 px-3 rounded text-[10px] font-bold transition-all whitespace-nowrap">Close</button>
         </div>
       </div>
     `;
@@ -536,21 +536,23 @@ export class DiagnosticsManager {
     if (!badge) return;
 
     badge.textContent = status;
-    badge.className = "text-xs font-mono font-bold uppercase select-none rounded px-2.5 py-1 tracking-wider border transition-all";
+    badge.className = "text-[9px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border transition-all";
 
     if (status === "PENDING") {
-      badge.classList.add("text-white/40", "border-white/10");
+      badge.classList.add("text-yellow-400", "border-yellow-500/20", "bg-yellow-500/5");
       badge.style.display = "none";
     } else {
       badge.style.display = "inline-block";
-      if (status === "RUNNING") {
-        badge.classList.add("text-amber-400", "border-amber-400/30", "bg-amber-400/5", "animate-pulse");
-      } else if (status === "PASS") {
-        badge.classList.add("text-[#00ffcc]", "border-[#00ffcc]/30", "bg-[#00ffcc]/5");
+      if (status === "PASS") {
+        badge.classList.add("text-green-400", "border-green-500/30", "bg-green-500/5");
       } else if (status === "FAIL") {
-        badge.classList.add("text-red-400", "border-red-400/30", "bg-red-500/5");
-      } else if (status === "ABORTED") {
-        badge.classList.add("text-gray-400", "border-gray-500/20", "bg-white/[0.02]");
+        badge.classList.add("text-red-500", "border-red-500/30", "bg-red-500/5");
+      } else {
+        // Anything else in yellow
+        badge.classList.add("text-yellow-400", "border-yellow-500/30", "bg-yellow-500/5");
+        if (status === "RUNNING") {
+          badge.classList.add("animate-pulse");
+        }
       }
     }
   }
