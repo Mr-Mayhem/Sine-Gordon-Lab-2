@@ -222,16 +222,37 @@
       <button id="btn-close-processing" class="btn-icon w-8 h-8 rounded-full" style="position:absolute; top:20px; right:20px; z-index:10; background:rgba(255,255,255,0.1); border:none; color:white; font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Close">✕</button>
 
       <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-1 w-full max-w-[720px] mx-auto">
-        <span style="font-size:10px; font-weight:900; color:#00ffcc; letter-spacing:0.4em; text-transform:uppercase;">Assembly Engine</span>
-        <span id="assembly-status" style="font-size:12px; color:rgba(255,255,255,0.4); font-family:var(--font-mono);">Ready</span>
+        <span style="font-size:10px; font-weight:900; color:#00ffcc; letter-spacing:0.4em; text-transform:uppercase; filter: drop-shadow(0 0 4px rgba(0,255,204,0.35));">Assembly Engine</span>
+        <!-- Hidden legacy status node updated by other JS code, intercepted via MutationObserver -->
+        <span id="assembly-status" style="display:none;">Ready</span>
       </div>
 
-      <!-- Preview Canvas -->
+      <!-- Aligned Top Text Blobs (Consistent, fixed-height to prevent vertical resizing jitter) -->
+      <div id="assembly-overview-tiles" class="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto mb-1" style="height: 120px; min-height: 120px;">
+        <!-- Left Blob: Assembly Details -->
+        <div id="assembly-status-left" class="border border-white/5 bg-white/[0.02] rounded-[12px] p-3 flex flex-col gap-0.5 text-left select-none font-mono text-[10px] text-white/70 overflow-hidden justify-center h-full">
+          <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
+          <div><strong>Project Version:</strong> v1.2.0-hybrid-ts</div>
+          <div><strong>Mode:</strong> Idle</div>
+          <div><strong>Phase:</strong> Ready for stream compilation</div>
+          <div><strong>Frames:</strong> 0 / 0</div>
+        </div>
+
+        <!-- Right Blob: Diagnostic Report -->
+        <div id="assembly-status-right" class="border border-white/5 bg-white/[0.02] rounded-[12px] p-3 flex flex-col gap-0.5 text-left select-none font-mono text-[10px] text-white/70 overflow-hidden justify-center h-full">
+          <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
+          <div class="flex justify-between border-b border-white/[0.03] pb-0.5"><span class="text-white/40">Format:</span><span class="text-white font-medium">Automatic</span></div>
+          <div class="flex justify-between border-b border-white/[0.03] pb-0.5"><span class="text-white/40">Threading:</span><span class="text-white font-medium">Single-Threaded</span></div>
+          <div class="flex justify-between pb-0.5"><span class="text-white/40">COOP/COEP:</span><span class="text-white text-white/50">N/A</span></div>
+        </div>
+      </div>
+
+      <!-- Preview Canvas (Thumbnail Window) -->
       <div id="assembly-preview" class="w-full max-w-[720px] aspect-video bg-[#000] rounded-[16px] overflow-hidden border border-white/10 relative shadow-inner mx-auto mt-0">
         <canvas id="preview-canvas" class="w-full h-full object-contain"></canvas>
       </div>
 
-      <!-- Scrolling log window -->
+      <!-- Scrolling log window below thumbnail -->
       <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[12px] bg-black/40 p-3 flex flex-col gap-1 overflow-hidden mx-auto" style="height: 380px;">
         <div class="flex justify-between items-center text-[9px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1">
           <span>Assembly Logs & Standard Output</span>

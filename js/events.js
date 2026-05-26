@@ -618,6 +618,9 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
       return m;
     }
   };
+
+  // Initialize Mutation Observer to split and align the Assembly text blobs
+  initAssemblyStatusObserver();
 }
 
 /**
@@ -685,3 +688,107 @@ export async function updateDiskSpaceUI() {
 
 // Wire helper up to global scope to allow external triggers to refresh readouts
 window.updateDiskSpaceUI = updateDiskSpaceUI;
+
+/**
+ * MutationObserver to automatically keep the top-level Left (Details) and Right (Diagnostics)
+ * informational blobs completely synchronized with writes to the legacy hidden `#assembly-status` element.
+ * This guarantees consistent layout presentation without vertical shift or resizing.
+ */
+export function initAssemblyStatusObserver() {
+  const target = document.getElementById("assembly-status");
+  const leftCol = document.getElementById("assembly-status-left");
+  const rightCol = document.getElementById("assembly-status-right");
+  if (!target || !leftCol || !rightCol) return;
+
+  const observer = new MutationObserver(() => {
+    const html = target.innerHTML;
+    if (!html || html === "Ready" || html.trim() === "") {
+      leftCol.innerHTML = `
+        <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
+        <div><strong>Project Version:</strong> v1.2.0-hybrid-ts</div>
+        <div><strong>Mode:</strong> Idle</div>
+        <div><strong>Phase:</strong> Ready for stream compilation</div>
+        <div><strong>Frames:</strong> 0 / 0</div>
+      `;
+      rightCol.innerHTML = `
+        <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
+        <div class="flex justify-between border-b border-white/[0.03] pb-0.5"><span class="text-white/40">Format:</span><span class="text-white font-medium">-</span></div>
+        <div class="flex justify-between border-b border-white/[0.03] pb-0.5"><span class="text-white/40">Threading:</span><span class="text-white font-medium">-</span></div>
+        <div class="flex justify-between pb-0.5"><span class="text-white/40">COOP/COEP:</span><span class="text-white text-white/50">N/A</span></div>
+      `;
+      return;
+    }
+
+    // Check if it's the complex vertical summary from _updateAssemblyUI()
+    if (html.includes("Diagnostic Report") || html.includes("flex")) {
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+      
+      const textCenterDiv = temp.querySelector(".text-center") || temp;
+      let leftHtml = "";
+      if (textCenterDiv) {
+        const parts = textCenterDiv.innerHTML.split("<br>");
+        leftHtml = `<span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>`;
+        parts.forEach(part => {
+          if (part.trim() && !part.includes("Diagnostic Report") && !part.includes(" flex")) {
+            leftHtml += `<div class="py-0.5 border-b border-white/[0.02] last:border-b-0">${part}</div>`;
+          }
+        });
+      } else {
+        leftHtml = `<span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span><div>${html}</div>`;
+      }
+      leftCol.innerHTML = leftHtml;
+
+      const reportRows = temp.querySelectorAll(".flex.justify-between");
+      let rightHtml = `<span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>`;
+      let parsedRows = 0;
+      reportRows.forEach(row => {
+        const spans = row.querySelectorAll("span");
+        if (spans.length === 2) {
+          const key = spans[0].textContent.trim();
+          const val = spans[1].outerHTML;
+          if (key && key !== "Diagnostic Report") {
+            rightHtml += `
+              <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03] last:border-b-0">
+                <span class="text-white/40">${key}:</span>
+                ${val}
+              </div>
+            `;
+            parsedRows++;
+          }
+        }
+      });
+
+      if (parsedRows === 0) {
+        const format = (typeof sgState !== 'undefined' && sgState.exportFormat ? sgState.exportFormat : 'webm') || 'webm';
+        rightHtml += `
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Format:</span><span class="text-white font-medium">${format.toUpperCase()}</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Threading:</span><span class="text-white font-medium">Automatic</span></div>
+          <div class="flex justify-between items-center py-0.5"><span class="text-white/40">COOP/COEP:</span><span class="text-white text-white/50">N/A</span></div>
+        `;
+      }
+      rightCol.innerHTML = rightHtml;
+
+    } else {
+      const parts = html.split("<br>");
+      let leftHtml = `<span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>`;
+      parts.forEach(part => {
+        if (part.trim()) {
+          leftHtml += `<div class="py-0.5 border-b border-white/[0.02] last:border-b-0">${part}</div>`;
+        }
+      });
+      leftCol.innerHTML = leftHtml;
+
+      const format = (typeof sgState !== 'undefined' && sgState.exportFormat ? sgState.exportFormat : 'webm') || 'webm';
+      rightCol.innerHTML = `
+        <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Format:</span><span class="text-white font-medium">${format.toUpperCase()}</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Threading:</span><span class="text-white font-medium">Single-Threaded</span></div>
+        <div class="flex justify-between items-center py-0.5"><span class="text-white/40">COOP/COEP:</span><span class="text-white text-white/50">N/A</span></div>
+      `;
+    }
+  });
+
+  observer.observe(target, { childList: true, subtree: true, characterData: true });
+}
+
