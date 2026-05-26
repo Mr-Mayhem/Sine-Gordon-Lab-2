@@ -41,12 +41,12 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
   "2560x1440": {
     width: 2560,
     height: 1440,
-    filter: "scale=2560:1440:force_original_aspect_ratio=increase:flags=lanczos,crop=2560:1440,setsar=1"
+    filter: "scale=2560:1440:force_original_aspect_ratio=increase:flags=bicubic,crop=2560:1440,setsar=1"
   },
   "3840x2160": {
     width: 3840,
     height: 2160,
-    filter: "scale=3840:2160:force_original_aspect_ratio=increase:flags=lanczos,crop=3840:2160,setsar=1"
+    filter: "scale=3840:2160:force_original_aspect_ratio=increase:flags=bicubic,crop=3840:2160,setsar=1"
   }
 };
 
@@ -130,22 +130,32 @@ export function changeCanvasToRecordingResolution(canvas, renderer, camera) {
     preH = Math.floor((canvas.height / dpr) / 2) * 2;
   }
 
+  // Cap physical canvas size for recording to prevent WebGL overflow and lag
+  var captureW = aw;
+  var captureH = ah;
+  if (aw > 1920 || ah > 1080) {
+    var scaleFactor = Math.min(1920 / aw, 1080 / ah);
+    captureW = Math.floor((aw * scaleFactor) / 2) * 2;
+    captureH = Math.floor((ah * scaleFactor) / 2) * 2;
+    console.log(`[FFmpeg-Res-Cap] Target resolution ${aw}x${ah} is above physical capture limits. Downscaling physical recording buffer to ${captureW}x${captureH} (proportional aspect scale). Upscaling will be performed at FFmpeg synthesis step.`);
+  }
+
   if (renderer) {
     renderer.setPixelRatio(1);
-    renderer.setSize(aw, ah, false);
+    renderer.setSize(captureW, captureH, false);
     if (camera) {
-      camera.aspect = aw / ah;
+      camera.aspect = captureW / captureH;
       camera.updateProjectionMatrix();
     }
   }
-  canvas.width = aw;
-  canvas.height = ah;
+  canvas.width = captureW;
+  canvas.height = captureH;
 
-  console.log("Canvas physically scaled to target format:", aw + "x" + ah, "(was logical preset:", preW + "x" + preH + ")");
+  console.log("Canvas physically scaled to target format:", captureW + "x" + captureH, "(target output render: " + aw + "x" + ah + ", was logical preset: " + preW + "x" + preH + ")");
 
   return {
-    width: aw,
-    height: ah,
+    width: captureW,
+    height: captureH,
     preRecordingWidth: preW,
     preRecordingHeight: preH
   };

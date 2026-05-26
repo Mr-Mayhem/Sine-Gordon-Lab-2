@@ -32,14 +32,19 @@ export function getEncodingParams(alignedW, alignedH) {
     targetRes.height,
   );
 
-  var resolutionScale = (alignedW * alignedH) / (1280 * 720);
+  var resolutionScale = (targetRes.width * targetRes.height) / (1280 * 720);
   var webmBitrate = Math.max(2, Math.round(2 * resolutionScale)) + "M";
   // Always use standard realtime deadline and thread-friendly cpu-used settings to avoid WASM memory leaks / timeouts at high resolutions
   var webmDeadline = "realtime";
   var webmCpuUsed = resolutionScale > 2.0 ? "5" : "4";
 
-  // Use veryfast preset for high density resolutions to prevent OOM / processor lockups
-  var x264Preset = resolutionScale > 2.0 ? "veryfast" : "medium";
+  // Use ultrafast preset for ultra-high-density scales (at/above 4K) and veryfast for 1080p/1440p to prevent OOM
+  var x264Preset = "medium";
+  if (resolutionScale > 5.0) {
+    x264Preset = "ultrafast";
+  } else if (resolutionScale > 2.0) {
+    x264Preset = "veryfast";
+  }
 
   // For high-density scales at/above 1080p, restrict H.264 to 1 thread to avoid thread stack overhead and memory pressure.
   var x264Threads = resolutionScale > 2.0 ? "1" : "2";
@@ -97,7 +102,9 @@ export function buildChunkArgs(
       "-threads",
       params.x264Threads,
       "-rc-lookahead",
-      params.resolutionScale > 2.0 ? "5" : "15",
+      params.resolutionScale > 5.0 ? "0" : (params.resolutionScale > 2.0 ? "5" : "15"),
+      "-refs",
+      params.resolutionScale > 2.0 ? "1" : "3",
       "-crf",
       params.crf,
       "-pix_fmt",
@@ -179,7 +186,9 @@ export function buildAssemblyArgs(alignedW, alignedH, outputFile) {
       "-threads",
       params.x264Threads,
       "-rc-lookahead",
-      params.resolutionScale > 2.0 ? "5" : "15",
+      params.resolutionScale > 5.0 ? "0" : (params.resolutionScale > 2.0 ? "5" : "15"),
+      "-refs",
+      params.resolutionScale > 2.0 ? "1" : "3",
       "-crf",
       params.crf,
       "-pix_fmt",

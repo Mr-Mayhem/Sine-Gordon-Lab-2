@@ -300,8 +300,26 @@ export default class RecordingEngine {
       this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
       this._gl.readPixels(0, 0, width, height, this._gl.RGBA, this._gl.UNSIGNED_BYTE, this._pixelBuffer);
       var error = this._gl.getError();
-      if (error !== this._gl.NO_ERROR) { this._telemetry.glErrors.push({ frame: this._frameCount, error: error }); }
-      var frameIndex = this._frameCount; this._frameCount++;
+      if (error !== this._gl.NO_ERROR) {
+        console.warn(`[RECORDING ANOMALY] WebGL error detected during readPixels: 0x${error.toString(16)} (Frame: ${this._frameCount})`);
+        this._telemetry.glErrors.push({ frame: this._frameCount, error: error });
+      }
+      var frameIndex = this._frameCount;
+      if (frameIndex === 0) {
+        let isBlank = true;
+        for (let idx = 0; idx < this._pixelBuffer.length; idx++) {
+          if (this._pixelBuffer[idx] !== 0) {
+            isBlank = false;
+            break;
+          }
+        }
+        if (isBlank) {
+          console.warn("[RECORDING ANOMALY] First frame captured is completely blank (all RGBA values are 0). This typically indicates readPixels called outside of an active drawing buffer flush, or missing preserveDrawingBuffer canvas context configuration.");
+        } else {
+          console.log("[RECORDING OK] First frame verified to contain active pixel grid data (non-zero render framebuffer).");
+        }
+      }
+      this._frameCount++;
       if (this._telemetry.firstFrameTime === 0) this._telemetry.firstFrameTime = performance.now();
       this._telemetry.lastFrameTime = performance.now();
       var pixelCopy = new Uint8Array(this._pixelBuffer);

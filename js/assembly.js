@@ -264,6 +264,97 @@ function logBrowserMemory(prefix = "[Memory]") {
   }
 }
 
+function inspectProbeResults(ffmpegLogs, expectedFrames, fps, expectedW, expectedH) {
+  let durationStr = null;
+  let resolutionStr = null;
+  let actualFpsStr = null;
+  
+  const lastLogs = ffmpegLogs.slice(-120);
+  for (const log of lastLogs) {
+    const msg = log.msg || "";
+    
+    if (msg.includes("Duration:")) {
+      const match = msg.match(/Duration:\s*(\d+):(\d+):([\d.]+)/);
+      if (match) {
+        durationStr = `${match[1]}:${match[2]}:${match[3]}`;
+      }
+    }
+    
+    if (msg.includes("Video:") && msg.includes("fps")) {
+      const resMatch = msg.match(/(\d+)x(\d+)/);
+      if (resMatch) {
+        resolutionStr = `${resMatch[1]}x${resMatch[2]}`;
+      }
+      const fpsMatch = msg.match(/([\d.]+)\s*fps/);
+      if (fpsMatch) {
+        actualFpsStr = fpsMatch[1];
+      }
+    }
+  }
+  
+  const expectedDuration = expectedFrames / fps;
+  
+  console.log("======================================================================");
+  console.log("[METADATA SANITY INSPECTOR] Probing Final Compiled Video Quality & Integrity");
+  console.log("======================================================================");
+  console.log(`- Expected dimensions:            ${expectedW}x${expectedH}`);
+  console.log(`- Actual dimensions probed:       ${resolutionStr || "Unknown (No video stream detected)"}`);
+  console.log(`- Expected duration calculated:   ${expectedDuration.toFixed(2)} seconds`);
+  
+  let probedDurationSec = null;
+  if (durationStr) {
+    const parts = durationStr.split(":");
+    if (parts.length === 3) {
+      probedDurationSec = parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseFloat(parts[2]);
+      console.log(`- Actual duration probed:         ${durationStr} (${probedDurationSec.toFixed(2)} seconds)`);
+    }
+  } else {
+    console.log(`- Actual duration probed:         Unknown (No duration block-metadata parsed)`);
+  }
+  
+  console.log(`- Expected frame rate:            ${fps} fps`);
+  console.log(`- Actual frame rate probed:       ${actualFpsStr || "Unknown"} fps`);
+  
+  let anomaliesFound = 0;
+  
+  if (resolutionStr) {
+    const expectedResKey = `${expectedW}x${expectedH}`;
+    if (resolutionStr !== expectedResKey) {
+      console.warn(`[ANOMALY DETECTED] Resolution Mismatch! Expected '${expectedResKey}' but got '${resolutionStr}'`);
+      anomaliesFound++;
+    } else {
+      console.log(`[PROBE OK] Output dimensions match exact pixel targets perfectly.`);
+    }
+  }
+  
+  if (probedDurationSec !== null) {
+    const durationDiff = Math.abs(probedDurationSec - expectedDuration);
+    if (durationDiff > 0.15) {
+      console.warn(`[ANOMALY DETECTED] Duration Discrepancy! Video is ${durationDiff.toFixed(2)}s ${probedDurationSec > expectedDuration ? 'longer' : 'shorter'} than computed sequence duration (${expectedDuration.toFixed(2)}s)`);
+      anomaliesFound++;
+    } else {
+      console.log(`[PROBE OK] Output duration matches expected physical sequence duration (tolerance < 0.15s).`);
+    }
+  }
+  
+  if (actualFpsStr) {
+    const probedFps = parseFloat(actualFpsStr);
+    if (Math.abs(probedFps - fps) > 0.5) {
+      console.warn(`[ANOMALY DETECTED] Frame Rate Mismatch! Video is encoded at ${probedFps} fps instead of target ${fps} fps.`);
+      anomaliesFound++;
+    } else {
+      console.log(`[PROBE OK] Output frame rate matches target simulation capture frequency.`);
+    }
+  }
+  
+  if (anomaliesFound === 0) {
+    console.log(`[INTEGRITY PASSED] All expectations match generated video headers exactly. Zero anomalies logged.`);
+  } else {
+    console.warn(`[INTEGRITY CHECK] Complete with ${anomaliesFound} anomalies noted for workspace attention.`);
+  }
+  console.log("======================================================================");
+}
+
 function _updateAssemblyUI() {
   if (!_assemblyStats) return;
   var s = _assemblyStats;
@@ -996,7 +1087,25 @@ async function _assemble(
       let nextBufferIdx = (activeBufferIdx + 1) % 2;
       let preloadPromise =
         c + 1 < numChunks ? preloadChunk(nextBufferIdx) : null;
+
+      const expectedChunkFrameCount = chunkSizes[c];
+      console.log(`[CHUNK INSPECTION] Executing chunk synthesis for batch ${c + 1}/${numChunks}: expected ${expectedChunkFrameCount} frames, actual preloaded ${framesInThisChunk} frames.`);
+      if (expectedChunkFrameCount !== framesInThisChunk) {
+        console.warn(`[CHUNK ANOMALY] Frame count mismatch inside chunk compiler! (Expected: ${expectedChunkFrameCount}, Got: ${framesInThisChunk})`);
+      }
+
       await ffmpeg.exec(chunkArgs);
+
+      try {
+        const fileData = await ffmpeg.readFile(chunkName);
+        console.log(`[CHUNK INSPECTION] Chunk '${chunkName}' compiles matching expectations. WebAssembly VM file size: ${(fileData.byteLength / 1024).toFixed(1)} KB.`);
+        if (fileData.byteLength === 0) {
+          console.error(`[CHUNK ANOMALY] Chunk '${chunkName}' generated an empty 0-byte stream file! This will break subsequent concat stages.`);
+        }
+      } catch (fileErr) {
+        console.error(`[CHUNK ANOMALY] Failed to inspect compiled chunk file '${chunkName}':`, fileErr);
+      }
+
       logBrowserMemory(`[Memory] Post-chunk ${c + 1}/${numChunks}`);
       for (let i = 0; i < framesInThisChunk; i++) {
         try {
@@ -1213,6 +1322,16 @@ async function _assemble(
     console.log("======================================================================");
     console.log("[FFmpeg Diagnostics] METADATA PROBE COMPLETED.");
     console.log("======================================================================");
+
+    try {
+      const logsArray = (recorderRef && recorderRef._ffmpegLogs) || [];
+      const finalW = resolveRecordingResolution().width;
+      const finalH = resolveRecordingResolution().height;
+      const params = getEncodingParams(alignedW, alignedH);
+      inspectProbeResults(logsArray, totalFrames, params.fps, finalW, finalH);
+    } catch (probeParseErr) {
+      console.warn("[Integrity Check] Failed to complete metadata check parser:", probeParseErr);
+    }
 
     // Detailed clues/guidelines on why certain output files might feel "broken" on some players
     console.log("[FFmpeg Diagnostics] CLUES & TROUBLESHOOTING PLAYBACK ISSUES:");
