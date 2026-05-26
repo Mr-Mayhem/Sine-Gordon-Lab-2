@@ -176,7 +176,7 @@ export class DiagnosticsManager {
         const checkedAttr = isDefaultChecked ? "checked" : "";
         return `
         <div class="test-item border border-white/5 bg-white/[0.02] rounded-xl p-3 flex flex-col sm:flex-row justify-between sm:items-center gap-3" id="test-card-${test.id}">
-          <div class="flex-1">
+          <div class="flex-1 col-span-1 min-w-0">
             <div class="flex items-center gap-2">
               <input type="checkbox" id="chk-test-${test.id}" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" ${checkedAttr}>
               <span class="text-sm font-bold text-white">${test.name}</span>
@@ -187,6 +187,11 @@ export class DiagnosticsManager {
               Pipeline: <span class="text-[#00ffcc]/80">${test.pipeline}</span> | 
               Resolution: <span class="text-white/60">${test.width}x${test.height}</span> | 
               Format: <span class="text-[#00ffcc]/80">${test.format}</span> ${test.crf ? `| CRF: <span class="text-amber-400 font-bold">${test.crf}</span>` : ""}
+            </div>
+            <!-- Dynamic Error Box -->
+            <div id="test-error-${test.id}" class="test-error-box ml-6 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[10px] p-2.5 mt-2 rounded-xl overflow-x-auto select-text hidden">
+              <div class="flex items-start gap-1.5"><strong class="text-red-400 shrink-0">FAIL REASON:</strong> <span class="err-reason break-words font-medium">None</span></div>
+              <div class="mt-1 opacity-80 border-t border-white/5 pt-1.5"><strong class="text-white/40">BASE SOURCE:</strong> <span class="err-base">None</span> | <strong class="text-white/40">FUNCTION:</strong> <span class="err-function">None</span></div>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0 justify-end pl-6 sm:pl-0">
@@ -550,6 +555,80 @@ export class DiagnosticsManager {
     }
   }
 
+  parseErrorDetails(err) {
+    const result = {
+      reason: "Unknown execution challenge",
+      base: "N/A",
+      functionName: "anonymous"
+    };
+
+    if (!err) return result;
+
+    result.reason = err.message || String(err);
+    result.base = err.name || "Error";
+
+    if (err.stack) {
+      const lines = err.stack.split("\n");
+      for (const line of lines) {
+        if (!line) continue;
+        if (line.includes(err.message) && !line.includes(".js") && !line.includes("@")) continue;
+
+        // Chrome-style backtrace parsing
+        const chromeMatch = line.match(/^\s*at\s+([^\s(]+)?\s*\(?([^)]+)\)?/);
+        if (chromeMatch) {
+          const fnName = chromeMatch[1] || "anonymous";
+          const sourceUrl = chromeMatch[2] || "";
+          
+          let baseFile = "unknown file";
+          if (sourceUrl) {
+            const parts = sourceUrl.split("?")[0].split("/");
+            baseFile = parts[parts.length - 1] || "unknown file";
+          }
+          
+          result.functionName = fnName;
+          result.base = baseFile;
+          break;
+        }
+
+        // Firefox/Safari-style backtrace parsing
+        const firefoxMatch = line.match(/^([^@]+)?@(.*)$/);
+        if (firefoxMatch) {
+          const fnName = firefoxMatch[1] || "anonymous";
+          const sourceUrl = firefoxMatch[2] || "";
+          
+          let baseFile = "unknown file";
+          if (sourceUrl) {
+            const parts = sourceUrl.split("?")[0].split("/");
+            baseFile = parts[parts.length - 1] || "unknown file";
+          }
+          
+          result.functionName = fnName;
+          result.base = baseFile;
+          break;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  updateTestErrorUI(testId, errorDetails = null) {
+    const errorEl = document.getElementById(`test-error-${testId}`);
+    if (!errorEl) return;
+
+    if (errorDetails) {
+      errorEl.querySelector(".err-reason").textContent = errorDetails.reason || "Unknown execution challenge";
+      errorEl.querySelector(".err-base").textContent = errorDetails.base || "N/A";
+      errorEl.querySelector(".err-function").textContent = errorDetails.functionName || "N/A";
+      errorEl.classList.remove("hidden");
+    } else {
+      errorEl.classList.add("hidden");
+      errorEl.querySelector(".err-reason").textContent = "None";
+      errorEl.querySelector(".err-base").textContent = "None";
+      errorEl.querySelector(".err-function").textContent = "None";
+    }
+  }
+
   showProgress(show, label = "", percent = 0) {
     const progOuter = document.getElementById("box-diagnostics-progress-outer");
     const progFill = document.getElementById("diagnostics-progress-fill");
@@ -640,6 +719,8 @@ export class DiagnosticsManager {
     // Reset all status badges of DIAGNOSTIC_TESTS to PENDING (completely hidden by default)
     DIAGNOSTIC_TESTS.forEach(t => {
       this.updateTestBadge(t.id, "PENDING");
+      this.updateTestErrorUI(t.id, null);
+      this.testResults[t.id] = { status: "PENDING", failureReason: null, failureBase: null, failureFunction: null };
     });
 
     // Cache pre-test global settings
@@ -666,100 +747,104 @@ export class DiagnosticsManager {
 
     try {
       for (let i = 0; i < tests.length; i++) {
+        const t = tests[i];
         if (this.isAborted) {
-          this.updateTestBadge(tests[i].id, "ABORTED");
+          this.updateTestBadge(t.id, "ABORTED");
+          this.testResults[t.id] = { status: "ABORTED", failureReason: null, failureBase: null, failureFunction: null };
           continue;
         }
 
-        const t = tests[i];
         const actualFrames = chosenFramesCount !== null ? chosenFramesCount : t.frames;
         this.log(`🤖 INITIALIZING: [${t.name}]`, "text-white font-bold mt-3");
         this.updateTestBadge(t.id, "RUNNING");
+        this.updateTestErrorUI(t.id, null); // Clear existing error UI
 
-        // 1. Synchronize options programmatically
-        window.sgState.exportPipeline = t.pipeline;
-        window.sgState.exportFormat = t.format;
-        window.sgState.exportFPS = t.fps;
-        window.sgState.exportWidth = t.width;
-        window.sgState.exportHeight = t.height;
-        if (document.getElementById("sel-crf") && t.crf) {
-          document.getElementById("sel-crf").value = t.crf;
-        }
-
-        if (window.refreshUI) {
-          window.refreshUI();
-        }
-
-        const testHasSab = typeof SharedArrayBuffer !== "undefined";
-        const testNeedMultiThreaded = (t.format === "mp4") && testHasSab;
-        const testThreadingLabel = t.pipeline === "zip" ? "N/A (ZIP Still Archive)" : (testNeedMultiThreaded ? "MULTI-THREADED (MT)" : "SINGLE-THREADED (ST)");
-        this.log(`[Config] Pipeline=${t.pipeline}, Format=${t.format}, Target Resolution=${t.width}x${t.height}, Frames Limit=${actualFrames}, Threads=${testThreadingLabel}`);
-
-        // 2. Clear previous flags and establish testers
-        window.recorder.isTesting = true;
-        let finalOutputBlob = null;
-
-        if (t.pipeline === "zip") {
-          window.onTestZipBlobGenerated = function(blob, err) {
-            finalOutputBlob = blob;
-          };
-        } else {
-          window.onTestVideoBlobGenerated = function(blob) {
-            finalOutputBlob = blob;
-          };
-        }
-
-        // 3. Fire recording engine
-        this.log(`[Record] Instantiating frame stream capture buffer...`);
-        this.showProgress(true, `[1/2] Recording frames for ${t.id}`, 0);
-        await window.recorder.start();
-
-        // 4. Manual frame submission loop
-        let success = true;
-        for (let frameIndex = 0; frameIndex < actualFrames; frameIndex++) {
-          if (this.isAborted) {
-            success = false;
-            break;
-          }
-
-          // Advance physical pendulums sequentially to guarantee variation
-          if (window.physics) {
-            window.physics.step(2);
-          }
-
-          // Force fresh WebGL render to guarantee active non-blank frames
-          if (window.renderManualFrame) {
-            window.renderManualFrame();
-          }
-
-          // Synchronously request WebGL render frame mapping
-          await window.recorder.captureAndWait();
-          
-          this.showProgress(true, `Capturing frame ${frameIndex + 1}/${actualFrames}`, (frameIndex + 1) / actualFrames * 100);
-          await delay(10); // minor interval to let general microtasks complete
-        }
-
-        if (this.isAborted) {
-          this.log(`⚠️ Recording cancelled Programmatically for ${t.id}`);
-          await window.recorder.stop();
-          this.updateTestBadge(t.id, "ABORTED");
-          continue;
-        }
-
-        // 4.1 Perform Intermediate Storage Integrity Audit
-        const savedDirName = window.recorder._dirHandle ? window.recorder._dirHandle.name : null;
-        let auditSuccess = true;
-        let auditMessage = "";
-        
-        let expectedW = t.width;
-        let expectedH = t.height;
-        if (t.width > 1920 || t.height > 1080) {
-          const scaleFactor = Math.min(1920 / t.width, 1080 / t.height);
-          expectedW = Math.floor((t.width * scaleFactor) / 2) * 2;
-          expectedH = Math.floor((t.height * scaleFactor) / 2) * 2;
-        }
+        let savedDirName = null;
 
         try {
+          // 1. Synchronize options programmatically
+          window.sgState.exportPipeline = t.pipeline;
+          window.sgState.exportFormat = t.format;
+          window.sgState.exportFPS = t.fps;
+          window.sgState.exportWidth = t.width;
+          window.sgState.exportHeight = t.height;
+          if (document.getElementById("sel-crf") && t.crf) {
+            document.getElementById("sel-crf").value = t.crf;
+          }
+
+          if (window.refreshUI) {
+            window.refreshUI();
+          }
+
+          const testHasSab = typeof SharedArrayBuffer !== "undefined";
+          const testNeedMultiThreaded = (t.format === "mp4") && testHasSab;
+          const testThreadingLabel = t.pipeline === "zip" ? "N/A (ZIP Still Archive)" : (testNeedMultiThreaded ? "MULTI-THREADED (MT)" : "SINGLE-THREADED (ST)");
+          this.log(`[Config] Pipeline=${t.pipeline}, Format=${t.format}, Target Resolution=${t.width}x${t.height}, Frames Limit=${actualFrames}, Threads=${testThreadingLabel}`);
+
+          // 2. Clear previous flags and establish testers
+          window.recorder.isTesting = true;
+          let finalOutputBlob = null;
+
+          if (t.pipeline === "zip") {
+            window.onTestZipBlobGenerated = function(blob, err) {
+              finalOutputBlob = blob;
+            };
+          } else {
+            window.onTestVideoBlobGenerated = function(blob) {
+              finalOutputBlob = blob;
+            };
+          }
+
+          // 3. Fire recording engine
+          this.log(`[Record] Instantiating frame stream capture buffer...`);
+          this.showProgress(true, `[1/2] Recording frames for ${t.id}`, 0);
+          await window.recorder.start();
+
+          savedDirName = window.recorder._dirHandle ? window.recorder._dirHandle.name : null;
+
+          // 4. Manual frame submission loop
+          for (let frameIndex = 0; frameIndex < actualFrames; frameIndex++) {
+            if (this.isAborted) {
+              const abortErr = new Error("Recording cancelled programmatically during frame loop.");
+              abortErr.name = "AbortActionError";
+              throw abortErr;
+            }
+
+            // Advance physical pendulums sequentially to guarantee variation
+            if (window.physics) {
+              window.physics.step(2);
+            }
+
+            // Force fresh WebGL render to guarantee active non-blank frames
+            if (window.renderManualFrame) {
+              window.renderManualFrame();
+            }
+
+            // Synchronously request WebGL render frame mapping
+            await window.recorder.captureAndWait();
+            
+            this.showProgress(true, `Capturing frame ${frameIndex + 1}/${actualFrames}`, (frameIndex + 1) / actualFrames * 100);
+            await delay(10); // minor interval to let general microtasks complete
+          }
+
+          if (this.isAborted) {
+            const abortErr = new Error("Recording cancelled programmatically.");
+            abortErr.name = "AbortActionError";
+            throw abortErr;
+          }
+
+          // 4.1 Perform Intermediate Storage Integrity Audit
+          let auditSuccess = true;
+          let auditMessage = "";
+          
+          let expectedW = t.width;
+          let expectedH = t.height;
+          if (t.width > 1920 || t.height > 1080) {
+            const scaleFactor = Math.min(1920 / t.width, 1080 / t.height);
+            expectedW = Math.floor((t.width * scaleFactor) / 2) * 2;
+            expectedH = Math.floor((t.height * scaleFactor) / 2) * 2;
+          }
+
           if (window.recorder._dirHandle) {
             this.log("[Audit Prereq] Auditing captured frames saved inside OPFS sandboxed disk...");
             const opfsFiles = [];
@@ -875,64 +960,89 @@ export class DiagnosticsManager {
               this.log(`[Audit Prereq] In-memory PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-[#00ffcc]");
             }
           }
-        } catch (auditErr) {
-          auditSuccess = false;
-          auditMessage = `Audit checklist threw exception: ${auditErr.message}`;
-          this.log(`🛑 [Audit Exception] ${auditMessage}`, "text-red-400");
-        }
 
-        // 5. Trigger Stop / Frame Assembly
-        const activeMT = (t.format === "mp4") && (typeof SharedArrayBuffer !== "undefined");
-        const modeLabel = t.pipeline === "zip" ? "ZIP storage archive stream" : (activeMT ? "FFmpeg WASM Multi-Threaded (MT) worker pools (SAB enabled)" : "FFmpeg WASM Single-Threaded (ST) transcode loop");
-        this.log(`[Assemble] Direct capture completed. Bundling and transcoding via ${modeLabel}...`);
-        this.showProgress(true, `[2/2] Assembling compiled binary stream`, 50);
-        
-        await window.recorder.stop();
-
-        // 6. Wait for compilation thread to output finished product
-        let waitRetries = actualFrames > 150 ? 120 : 40; // longer retry scope for large stress files
-        while (window.recorder.isAssembling && waitRetries > 0 && !this.isAborted) {
-          await delay(1000);
-          waitRetries--;
-          this.showProgress(true, `Assembling... Time outstanding limit: ${waitRetries}s`, 75);
-        }
-
-        if (this.isAborted) {
-          this.log(`⚠️ Assembly suite cancelled for ${t.id}`);
-          this.updateTestBadge(t.id, "ABORTED");
-          continue;
-        }
-
-        // 6.1 Verify directory cleanup in the Origin Private File System
-        if (savedDirName) {
-          try {
-            const rootCheck = await navigator.storage.getDirectory();
-            let isDirStillExist = false;
-            for await (const name of rootCheck.keys()) {
-              if (name === savedDirName) {
-                isDirStillExist = true;
-                break;
-              }
-            }
-            if (isDirStillExist) {
-              this.log(`⚠️ Cleanup Assertion Fail: Sandboxed temporary directory '${savedDirName}' remained in OPFS after stop/completion!`, "text-amber-400 font-bold");
-              auditSuccess = false;
-            } else {
-              this.log(`[Cleanup Probe] OPFS Sandbox Cleanup: PASSED (Temporary frames directory successfully deleted)`, "text-[#00ffcc]");
-            }
-          } catch (cleanCheckErr) {
-            this.log(`⚠️ Cleanup verify caution: ${cleanCheckErr.message}`);
+          if (!auditSuccess) {
+            const auditErr = new Error(`PNG Audit Checklist Failed: ${auditMessage}`);
+            auditErr.name = "AuditAssertionError";
+            throw auditErr;
           }
-        }
 
-        // 7. Verify result blob structure
-        if (finalOutputBlob && finalOutputBlob.size > 0) {
-          const blobSizeKB = (finalOutputBlob.size / 1024).toFixed(1);
-          this.log(`🎉 SUCCESS: Compiled Blob generated! Payload: ${blobSizeKB} KB. (MIME: ${finalOutputBlob.type})`, "text-[#00ffcc] font-semibold");
+          // 5. Trigger Stop / Frame Assembly
+          const activeMT = (t.format === "mp4") && (typeof SharedArrayBuffer !== "undefined");
+          const modeLabel = t.pipeline === "zip" ? "ZIP storage archive stream" : (activeMT ? "FFmpeg WASM Multi-Threaded (MT) worker pools (SAB enabled)" : "FFmpeg WASM Single-Threaded (ST) transcode loop");
+          this.log(`[Assemble] Direct capture completed. Bundling and transcoding via ${modeLabel}...`);
+          this.showProgress(true, `[2/2] Assembling compiled binary stream`, 50);
           
-          // Let's run structural probes to ensure compatibility
-          if (t.pipeline === "ffmpeg") {
+          let assemblyTimedOut = false;
+          let assembleTimer = null;
+          const maxAssembleTimeMs = Math.max(50000, actualFrames * 1000);
+
+          const stopPromise = (async () => {
+            await window.recorder.stop();
+            
+            // 6. Wait for compilation thread to output finished product
+            let waitRetries = actualFrames > 150 ? 120 : 40; // longer retry scope for large stress files
+            while (window.recorder.isAssembling && waitRetries > 0 && !this.isAborted && !assemblyTimedOut) {
+              await delay(1000);
+              waitRetries--;
+              this.showProgress(true, `Assembling... Time outstanding limit: ${waitRetries}s`, 75);
+            }
+            return { success: !this.isAborted };
+          })();
+
+          const assembleTimeoutPromise = new Promise((resolve) => {
+            assembleTimer = setTimeout(() => {
+              assemblyTimedOut = true;
+              resolve({ timeout: true });
+            }, maxAssembleTimeMs);
+          });
+
+          const assemblyOutcome = await Promise.race([stopPromise, assembleTimeoutPromise]);
+          clearTimeout(assembleTimer);
+
+          if (assemblyOutcome && assemblyOutcome.timeout) {
+            const timeoutErr = new Error(`Assembly timeout: blocked or transcoder stalled after ${(maxAssembleTimeMs / 1000).toFixed(0)} seconds!`);
+            timeoutErr.name = "TimeoutError";
+            throw timeoutErr;
+          }
+
+          if (this.isAborted) {
+            const abortErr = new Error("Assembly suite cancelled programmatically.");
+            abortErr.name = "AbortActionError";
+            throw abortErr;
+          }
+
+          // 6.1 Verify directory cleanup in the Origin Private File System
+          if (savedDirName) {
             try {
+              const rootCheck = await navigator.storage.getDirectory();
+              let isDirStillExist = false;
+              for await (const name of rootCheck.keys()) {
+                if (name === savedDirName) {
+                  isDirStillExist = true;
+                  break;
+                }
+              }
+              if (isDirStillExist) {
+                const cleanErr = new Error(`Cleanup Assertion Fail: Sandboxed temporary directory '${savedDirName}' remained in OPFS after stop/completion!`);
+                cleanErr.name = "CleanupError";
+                throw cleanErr;
+              } else {
+                this.log(`[Cleanup Probe] OPFS Sandbox Cleanup: PASSED (Temporary frames directory successfully deleted)`, "text-[#00ffcc]");
+              }
+            } catch (cleanCheckErr) {
+              this.log(`⚠️ Cleanup verify caution: ${cleanCheckErr.message}`);
+              if (cleanCheckErr.name === "CleanupError") throw cleanCheckErr;
+            }
+          }
+
+          // 7. Verify result blob structure
+          if (finalOutputBlob && finalOutputBlob.size > 0) {
+            const blobSizeKB = (finalOutputBlob.size / 1024).toFixed(1);
+            this.log(`🎉 SUCCESS: Compiled Blob generated! Payload: ${blobSizeKB} KB. (MIME: ${finalOutputBlob.type})`, "text-[#00ffcc] font-semibold");
+            
+            // Let's run structural probes to ensure compatibility
+            if (t.pipeline === "ffmpeg") {
               if (enableProbing) {
                 this.log(`[Probe] Attempting standard HTML5 direct-to-video decode...`);
                 const probeResult = await this.probeVideoBlob(finalOutputBlob);
@@ -965,30 +1075,20 @@ export class DiagnosticsManager {
                 }
 
                 if (probeResult.width !== t.width || probeResult.height !== t.height) {
-                  throw new Error(`Video output resolution mismatch: parsed ${probeResult.width}x${probeResult.height}, configured ${t.width}x${t.height}.`);
+                  const mmErr = new Error(`Video output resolution mismatch: parsed ${probeResult.width}x${probeResult.height}, configured ${t.width}x${t.height}.`);
+                  mmErr.name = "ResolutionMismatchError";
+                  throw mmErr;
                 }
               } else {
                 this.log(`[Probe] Direct output probing bypassed (Opted out).`);
               }
 
-              if (auditSuccess) {
-                this.updateTestBadge(t.id, "PASS");
-              } else {
-                this.log(`❌ Assert Failed: Video compiled, but pre-record PNG verification failed: ${auditMessage}`, "text-red-400 font-bold");
-                this.updateTestBadge(t.id, "FAIL");
-              }
-            } catch (probeErr) {
-              this.log(`⚠️ Decode Warning: ${probeErr.message}`, "text-[#ff6b6b]");
-              if (auditSuccess) {
-                this.updateTestBadge(t.id, "PASS"); // Allow as pass if payload is intact, but alert logger
-              } else {
-                this.updateTestBadge(t.id, "FAIL");
-              }
-            }
-          } else {
-            // ZIP Pipeline Check
-            if (window.JSZip && t.format === "zip") {
-              try {
+              this.updateTestBadge(t.id, "PASS");
+              this.testResults[t.id] = { status: "PASS", failureReason: null, failureBase: null, failureFunction: null };
+
+            } else {
+              // ZIP Pipeline Check
+              if (window.JSZip && t.format === "zip") {
                 if (enableProbing) {
                   this.log(`[Probe] Decompressing sandboxed ZIP stream...`);
                   const zipObj = await new window.JSZip().loadAsync(finalOutputBlob);
@@ -1009,48 +1109,95 @@ export class DiagnosticsManager {
                     const zH = view.getUint32(4);
                     this.log(`[Probe] ZIP frame 0 IHDR assertion: Extracted size is ${zW}x${zH}`);
                     if (zW !== t.width || zH !== t.height) {
-                      throw new Error(`ZIP dimensional mismatch: Extracted size ${zW}x${zH} does not match target ${t.width}x${t.height}.`);
+                      const mmErr = new Error(`ZIP dimensional mismatch: Extracted size ${zW}x${zH} does not match target ${t.width}x${t.height}.`);
+                      mmErr.name = "ZipDimensionError";
+                      throw mmErr;
                     } else {
                       this.log(`[Probe] ZIP frame extraction size verification: PASSED`, "text-[#00ffcc]");
                     }
                   } else {
-                    throw new Error("Could not find frame_000000.png inside the ZIP archive.");
+                    const findErr = new Error("Could not find frame_000000.png inside the ZIP archive.");
+                    findErr.name = "ZipFrameNotFoundError";
+                    throw findErr;
                   }
                 } else {
                   this.log(`[Probe] Sandboxed ZIP format probing bypassed (Opted out).`);
                 }
 
-                if (auditSuccess) {
-                  this.updateTestBadge(t.id, "PASS");
-                } else {
-                  this.log(`❌ Assert Failed: Output OK, but pre-record PNG verification failed: ${auditMessage}`, "text-red-400 font-bold");
-                  this.updateTestBadge(t.id, "FAIL");
-                }
-              } catch (zipErr) {
-                this.log(`⚠️ Unzip error structural trace: ${zipErr.message}`, "text-[#ff6b6b]");
-                this.updateTestBadge(t.id, "FAIL");
-              }
-            } else {
-              if (auditSuccess) {
                 this.updateTestBadge(t.id, "PASS");
+                this.testResults[t.id] = { status: "PASS", failureReason: null, failureBase: null, failureFunction: null };
               } else {
-                this.log(`❌ Assert Failed: Output OK, but pre-record PNG verification failed: ${auditMessage}`, "text-red-400 font-bold");
-                this.updateTestBadge(t.id, "FAIL");
+                this.updateTestBadge(t.id, "PASS");
+                this.testResults[t.id] = { status: "PASS", failureReason: null, failureBase: null, failureFunction: null };
               }
             }
+          } else {
+            const emptyErr = new Error("No finished video bytes accumulated or stream is blank.");
+            emptyErr.name = "EmptyPayloadError";
+            throw emptyErr;
           }
-        } else {
-          this.log(`⚠️ Error: No finished video bytes accumulated or stream is blank.`, "text-[#ff6b6b] font-bold");
+
+        } catch (testErr) {
+          // Failure handling!
+          this.log(`❌ TEST FAILED: ${testErr.message || testErr}`, "text-red-400 font-bold");
+          
+          const errDetails = this.parseErrorDetails(testErr);
+          this.testResults[t.id] = {
+            status: "FAIL",
+            failureReason: errDetails.reason,
+            failureBase: errDetails.base,
+            failureFunction: errDetails.functionName
+          };
+          
           this.updateTestBadge(t.id, "FAIL");
+          this.updateTestErrorUI(t.id, errDetails);
+
+          // Forcibly stop loops, deactivate encoding thread and clear state to prevent resource lock
+          if (window.recorder) {
+            window.recorder.isRecording = false;
+            window.recorder.isAssembling = false;
+            
+            if (window.recorder._ffmpeg) {
+              try {
+                if (typeof window.recorder._ffmpeg.terminate === "function") {
+                  window.recorder._ffmpeg.terminate();
+                } else if (typeof window.recorder._ffmpeg.exit === "function") {
+                  window.recorder._ffmpeg.exit();
+                }
+              } catch (tErr) {
+                console.warn("[Failure Cleanup] Worker termination warning:", tErr);
+              }
+              window.recorder._ffmpeg = null;
+            }
+
+            // Immediately delete sandboxed OPFS directory to prevent space pollution
+            if (savedDirName) {
+              try {
+                const root = await navigator.storage.getDirectory();
+                await root.removeEntry(savedDirName, { recursive: true });
+                this.log(`[Failure Cleanup] Decimated temporary sandboxed directory '${savedDirName}' from OPFS.`, "text-white/40");
+              } catch (cleanCheckErr) {
+                console.log(`[Failure Cleanup] Sandboxed folder removal skipped: ${cleanCheckErr.message}`);
+              }
+            }
+
+            // Restore canvas size
+            if (typeof window.recorder._restoreCanvasSize === "function") {
+              window.recorder._restoreCanvasSize();
+            }
+          }
+
+        } finally {
+          // Clear test flags and proceed to next sequential test
+          if (window.recorder) {
+            window.recorder.isTesting = false;
+            window.recorder.isAssembling = false;
+          }
+          window.onTestVideoBlobGenerated = null;
+          window.onTestZipBlobGenerated = null;
+          
+          await delay(500); // cooldown padding between sequential runs
         }
-
-        // Clear test loops
-        window.recorder.isTesting = false;
-        window.onTestVideoBlobGenerated = null;
-        window.onTestZipBlobGenerated = null;
-        window.recorder.isAssembling = false;
-
-        await delay(500); // cooldown padding between sequential runs
       }
     } catch (e) {
       this.log(`🛑 Fatal suite panic: ${e.message || e}`, "text-red-400 font-black");
@@ -1103,7 +1250,7 @@ export class DiagnosticsManager {
       const summaryTests = DIAGNOSTIC_TESTS.map(t => {
         const badge = document.getElementById(`status-badge-${t.id}`);
         const status = badge ? badge.textContent : "UNTESTED";
-        return {
+        const resObj = {
           id: t.id,
           name: t.name,
           pipeline: t.pipeline,
@@ -1112,6 +1259,14 @@ export class DiagnosticsManager {
           frames: chosenFramesCount !== null ? chosenFramesCount : t.frames,
           status: status
         };
+
+        const storedResult = this.testResults[t.id];
+        if (storedResult && storedResult.status === "FAIL") {
+          resObj.failureReason = storedResult.failureReason || "Unknown challenge during pipeline assembly execution";
+          resObj.failureBase = storedResult.failureBase || "Error";
+          resObj.failureFunction = storedResult.failureFunction || "anonymous";
+        }
+        return resObj;
       });
 
       const specs = {

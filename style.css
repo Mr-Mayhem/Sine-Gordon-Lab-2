@@ -494,11 +494,11 @@ html, body {
 
 /* Unified thumb label — used everywhere */
 .thumb-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: #ccc;
   white-space: nowrap;
   user-select: none;
@@ -614,15 +614,15 @@ html, body {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: #aaa;
-  font-size: 11px;
+  font-size: 10px;
   font-family: var(--font-sans);
   font-weight: 700;
-  padding: 4px 6px;
+  padding: 3px 6px;
   border-radius: 6px;
   cursor: pointer;
   text-transform: uppercase;
   outline: none;
-  height: 30px;
+  height: 26px;
 }
 
 .thumb-select:hover {
@@ -634,7 +634,7 @@ html, body {
 #sel-test-frames-selector option {
   background: #1a1a1a;
   color: #ccc;
-  font-size: 11px;
+  font-size: 10px;
   font-family: var(--font-sans);
   font-weight: 700;
   padding: 4px 8px;
@@ -726,7 +726,7 @@ html, body {
 
 .bottom-bar-inner {
   margin: 0 auto;
-  padding: 14px 44px 16px 44px;
+  padding: 12px 28px 14px 28px;
   display: flex;
   align-items: center;
   gap: 14px;

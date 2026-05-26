@@ -276,7 +276,7 @@ function refreshUI() {
 }
 
 function init() {
-  console.log("=== [Sine-Gordon Lab] Project Version: 1.3.0-hybrid-ts loaded ===");
+  console.log("=== [Sine-Gordon Lab] Project Version: 1.4.0-hybrid-ts loaded ===");
   loadExportSettings();
   
   const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.matchMedia("(any-pointer: coarse)").matches;
@@ -475,9 +475,9 @@ function init() {
     '<div class="flex flex-col gap-1">' +
       UI.template("speed", "Speed", "h", "val-speed") +
       UI.template("kappa", "Coupling", "h", "val-kappa") +
-      UI.template("grav", "Gravity", "h", "val-grav") +
     '</div>' +
     '<div class="flex flex-col gap-1">' +
+      UI.template("grav", "Gravity", "h", "val-grav") +
       UI.template("gamma", "Damping", "h", "val-gamma") +
       '<div id="gimbal-damping-column" class="flex" style="display: none;">' +
         UI.template("gimbal-damping", "G-Damp", "h", "val-gimbal-damping") +
