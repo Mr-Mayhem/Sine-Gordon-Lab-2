@@ -414,6 +414,7 @@ export async function assembleFromStorage(pipeline, recorderRef) {
     try {
       let zip = new window.JSZip();
       let unzipped = await zip.loadAsync(zipBlob);
+      let indices = [];
       for (let name of Object.keys(unzipped.files)) {
         let fi = unzipped.files[name];
         if (!fi.dir && name.startsWith("frame_") && name.endsWith(".png")) {
@@ -426,8 +427,22 @@ export async function assembleFromStorage(pipeline, recorderRef) {
               },
             },
           });
+          let matches = name.match(/frame_(\d+)\.png/);
+          if (matches) {
+            indices.push(parseInt(matches[1], 10));
+          }
         }
       }
+      let expectedTotalFrames = 0;
+      if (indices.length > 0) {
+        let minIndex = Math.min(...indices);
+        let maxIndex = Math.max(...indices);
+        expectedTotalFrames = maxIndex - minIndex + 1;
+      } else {
+        expectedTotalFrames = frameFiles.length;
+      }
+      recorderRef._expectedZipFrameCount = expectedTotalFrames;
+      recorderRef._zipActualPngCount = frameFiles.length;
     } catch (e) {
       console.error("ZIP read error", e);
       alert("Could not load ZIP.");
@@ -749,6 +764,7 @@ async function _assemble(
     recorderRef.isAssembling = false;
     return;
   }
+  let actualAssembledFrames = 0;
   logBrowserMemory("[Assembly Initial Baseline]");
   if (externalFrameFiles && externalFrameFiles.length < totalFrames) {
     console.warn(
@@ -1042,6 +1058,7 @@ async function _assemble(
     doubleBuffer = null;
     doubleBufferLengths = null;
 
+    actualAssembledFrames = framesProcessed;
     _assemblyStats.encodeProgress = 100;
     if (percentEl) percentEl.textContent = "100%";
     if (fill) fill.style.width = "100%";
@@ -1143,6 +1160,7 @@ async function _assemble(
       console.error("Encode failed:", e);
     }
     clearInterval(encodingInterval);
+    actualAssembledFrames = loadedCount;
     _assemblyStats.currentPhase = "Encoding complete";
     _assemblyStats.encodeProgress = 100;
     _assemblyStats.encodeElapsed =
@@ -1152,6 +1170,36 @@ async function _assemble(
 
   try {
     if (!ffmpeg) throw new Error("FFmpeg instance unavailable");
+
+    if (mode === "zip-to-video") {
+      const expected = recorderRef._expectedZipFrameCount || totalFrames;
+      const actualPngs = recorderRef._zipActualPngCount || totalFrames;
+      const actualChunked = actualAssembledFrames;
+      
+      console.log("======================================================================");
+      console.log("[ZIP SANITY CHECK] Verification of Frame Integrity at Video Compiler Phase");
+      console.log("======================================================================");
+      console.log(`- Expected total frames in sequence range: ${expected}`);
+      console.log(`- Actual physical PNG frames extracted:      ${actualPngs}`);
+      console.log(`- Actual chunking count encoded at end:     ${actualChunked}`);
+      
+      const frameDiscrepancyFromSequence = expected - actualPngs;
+      const lossDuringEncoding = actualPngs - actualChunked;
+      const integrityPct = expected > 0 ? ((actualChunked / expected) * 100).toFixed(2) : "0.00";
+      
+      if (expected === actualChunked) {
+        console.log(`[ZIP OK] Integrity Test Passed (100.00% matching). Zero frames omitted or dropped.`);
+      } else {
+        console.warn(`[ZIP WARNING] Frame count discrepancy detected! Integrity at ${integrityPct}%.`);
+        if (frameDiscrepancyFromSequence > 0) {
+          console.warn(`  ↳ Gaps in imported ZIP filename indices: ${frameDiscrepancyFromSequence} frame(s) missing from raw sequence.`);
+        }
+        if (lossDuringEncoding > 0) {
+          console.warn(`  ↳ Dropped or corrupted during FFmpeg processing: ${lossDuringEncoding} frame(s) skipped.`);
+        }
+      }
+      console.log("======================================================================");
+    }
 
     // Diagnostic Probe of the generated output file before we do anything else
     console.log("======================================================================");
