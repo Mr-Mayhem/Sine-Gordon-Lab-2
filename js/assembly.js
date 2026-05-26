@@ -862,7 +862,21 @@ async function _assemble(
     } else if (pixelsPerFrame >= 1920 * 1080) {
       CHUNK_SIZE = 100; // 1080p: safe memory barrier chunks
     }
-    const numChunks = Math.ceil(totalFrames / CHUNK_SIZE);
+
+    // Dynamic chunk sizes to prevent tiny final chunks (minimum 15 frames)
+    const chunkSizes = [];
+    let remaining = totalFrames;
+    while (remaining > 0) {
+      if (remaining <= CHUNK_SIZE + 15) {
+        chunkSizes.push(remaining);
+        break;
+      } else {
+        chunkSizes.push(CHUNK_SIZE);
+        remaining -= CHUNK_SIZE;
+      }
+    }
+    const numChunks = chunkSizes.length;
+
     let concatList = "";
     var framesProcessed = 0;
     _assemblyStats.chunkFramesProcessed = 0;
@@ -872,9 +886,12 @@ async function _assemble(
     var doubleBufferLengths = [0, 0];
     var activeBufferIdx = 0;
     var loadIdx = 0;
+    var loadChunkIdx = 0;
 
     const preloadChunk = async (bufferIdx) => {
-      let end = Math.min(loadIdx + CHUNK_SIZE, totalFrames);
+      if (loadChunkIdx >= numChunks) return;
+      let currentChunkSize = chunkSizes[loadChunkIdx];
+      let end = loadIdx + currentChunkSize;
       let ptr = 0;
       for (let i = loadIdx; i < end; i++) {
         try {
@@ -904,6 +921,7 @@ async function _assemble(
       }
       doubleBufferLengths[bufferIdx] = ptr;
       loadIdx = end;
+      loadChunkIdx++;
     };
 
     await preloadChunk(activeBufferIdx);
