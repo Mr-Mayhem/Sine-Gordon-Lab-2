@@ -243,6 +243,27 @@ function syncResolutionsToUIDropdown(width, height) {
   }
 }
 
+function logBrowserMemory(prefix = "[Memory]") {
+  if (window.performance && window.performance.memory) {
+    const mem = window.performance.memory;
+    const usedMB = (mem.usedJSHeapSize / 1024 / 1024).toFixed(1);
+    const totalMB = (mem.totalJSHeapSize / 1024 / 1024).toFixed(1);
+    const limitMB = (mem.jsHeapLimit / 1024 / 1024).toFixed(1);
+    console.log(`${prefix} Used: ${usedMB} MB / Total: ${totalMB} MB (Limit: ${limitMB} MB)`);
+    return { usedMB, totalMB, limitMB };
+  } else {
+    // Fallback if performance.memory API is missing (e.g. Firefox/Safari)
+    try {
+      if (window.performance && window.performance.getEntries) {
+        const entries = window.performance.getEntries();
+        // Just log a heartbeat indicator to verify performance timers are operative
+        console.log(`${prefix} Heartbeat verified (Native heap profiling unavailable in this browser engine). Performance timer count: ${entries.length}`);
+      }
+    } catch (e) {}
+    return null;
+  }
+}
+
 function _updateAssemblyUI() {
   if (!_assemblyStats) return;
   var s = _assemblyStats;
@@ -327,6 +348,7 @@ function shouldUseChunkedAssembly(frameCount, width, height) {
 export async function assembleFromStorage(pipeline, recorderRef) {
   if (recorderRef.isAssembling) return;
   clearAssemblyLogs();
+  logBrowserMemory("[Storage Baseline]");
 
   let frameFiles = [];
 
@@ -566,6 +588,7 @@ export async function assemble(
 ) {
   recorderRef.isAssembling = true;
   clearAssemblyLogs();
+  logBrowserMemory("[Canvas Buffer Baseline]");
 
   let frameFiles = null;
 
@@ -726,6 +749,7 @@ async function _assemble(
     recorderRef.isAssembling = false;
     return;
   }
+  logBrowserMemory("[Assembly Initial Baseline]");
   if (externalFrameFiles && externalFrameFiles.length < totalFrames) {
     console.warn(
       `[FFmpeg] Parameter totalFrames is ${totalFrames} but externalFrameFiles.length is ${externalFrameFiles.length}. Clamping to match.`,
@@ -921,6 +945,8 @@ async function _assemble(
           "frame_" + String(i).padStart(6, "0") + ".png",
           frameData,
         );
+        // Instant standard RAM clearing of frame buffer reference to eliminate GC burden
+        doubleBuffer[activeBufferIdx][i] = null;
       }
 
       let chunkName = "chunk_" + c + (format === "mp4" ? ".ts" : ".webm");
@@ -937,6 +963,7 @@ async function _assemble(
       let preloadPromise =
         c + 1 < numChunks ? preloadChunk(nextBufferIdx) : null;
       await ffmpeg.exec(chunkArgs);
+      logBrowserMemory(`[Memory] Post-chunk ${c + 1}/${numChunks}`);
       for (let i = 0; i < framesInThisChunk; i++) {
         try {
           await ffmpeg.deleteFile(
@@ -973,69 +1000,17 @@ async function _assemble(
         await ffmpeg.deleteFile(onlyChunk);
       } catch (e) {}
     } else {
-      if (format === "mp4") {
-        // [FFmpeg TS copy patch] Read all TS chunk files and concatenate their bytes in Javascript 
-        // to bypass the concat demuxer timestamp gaps and black-screen playback issues.
-        try {
-          console.log("[FFmpeg] Concatenating MPEG-TS chunks via binary merge in JS to bypass timing and black screen issues...");
-          let chunkArrays = [];
-          for (let c = 0; c < numChunks; c++) {
-            let chunkName = "chunk_" + c + ".ts";
-            let cdata = await ffmpeg.readFile(chunkName);
-            chunkArrays.push(cdata);
-            // Delete TS chunk file from MEMFS instantly upon reading to prevent giant 4K memory footprint overflow inside WebAssembly virtual heap!
-            try {
-              await ffmpeg.deleteFile(chunkName);
-            } catch (delErr) {
-              console.warn(`[FFmpeg] Pre-free chunk delete error for ${chunkName}:`, delErr);
-            }
-          }
-          let totalLength = chunkArrays.reduce((sum, arr) => sum + (arr.byteLength || arr.length || 0), 0);
-          let mergedBytes = new Uint8Array(totalLength);
-          let offset = 0;
-          for (let arr of chunkArrays) {
-            let src = arr instanceof Uint8Array ? arr : new Uint8Array(arr);
-            mergedBytes.set(src, offset);
-            offset += src.byteLength || src.length || 0;
-          }
-          await ffmpeg.writeFile("merged.ts", mergedBytes);
-          console.log(`[FFmpeg] Binary concatenation of ${numChunks} chunks completed. Merged stream size: ${(mergedBytes.byteLength / 1024 / 1024).toFixed(2)} MB`);
-          
-          // Clean up large buffer references in JS environment immediately before heavy exec starts to protect RAM
-          chunkArrays = [];
-          mergedBytes = null;
+      console.log(`[FFmpeg] Merging ${numChunks} chunks via native concat demuxer...`);
+      await ffmpeg.writeFile(
+        "mylist.txt",
+        new TextEncoder().encode(concatList),
+      );
+      const concatArgs = buildConcatArgs("mylist.txt", format, outputFile);
+      await ffmpeg.exec(concatArgs);
+      try {
+        await ffmpeg.deleteFile("mylist.txt");
+      } catch (e) {}
 
-          // Re-mux the clean merged transport stream into output.mp4, which automatically re-times stream zero offset and converts AnnexB to AVCC.
-          await ffmpeg.exec([
-            "-i",
-            "merged.ts",
-            "-c",
-            "copy",
-            "-movflags",
-            "+faststart",
-            outputFile,
-          ]);
-          try {
-            await ffmpeg.deleteFile("merged.ts");
-          } catch (e) {}
-        } catch (err) {
-          console.error("[FFmpeg] Binary TS concatenation and remux failed, falling back to concat demuxer:", err);
-          await ffmpeg.writeFile(
-            "mylist.txt",
-            new TextEncoder().encode(concatList),
-          );
-          const concatArgs = buildConcatArgs("mylist.txt", format, outputFile);
-          await ffmpeg.exec(concatArgs);
-        }
-      } else {
-        // Standard WebM concat list remains unchanged
-        await ffmpeg.writeFile(
-          "mylist.txt",
-          new TextEncoder().encode(concatList),
-        );
-        const concatArgs = buildConcatArgs("mylist.txt", format, outputFile);
-        await ffmpeg.exec(concatArgs);
-      }
       for (let c = 0; c < numChunks; c++) {
         try {
           await ffmpeg.deleteFile(
@@ -1218,6 +1193,7 @@ async function _assemble(
   }
   if (document.getElementById("assembly-ready-actions"))
     document.getElementById("assembly-ready-actions").style.display = "flex";
+  logBrowserMemory("[Memory] Final Reclamation Check");
   console.log("[FFmpeg] Assembly complete.");
   console.log("=== FINAL TELEMETRY ===");
   if (recorderRef.getTelemetry) recorderRef.getTelemetry();

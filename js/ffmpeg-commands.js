@@ -79,7 +79,6 @@ export function buildChunkArgs(
   let args = [];
 
   if (params.format === "mp4") {
-    const offsetSec = (framesOffset / params.fps).toFixed(6);
     args = [
       "-framerate",
       String(params.fps),
@@ -111,10 +110,6 @@ export function buildChunkArgs(
       "0",
       "-g",
       String(params.fps),
-      "-video_track_timescale",
-      "90000",
-      "-output_ts_offset",
-      String(offsetSec),
     ];
   } else {
     args = [
