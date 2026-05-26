@@ -240,6 +240,9 @@ function syncResolutionsToUIDropdown(width, height) {
       selRes.appendChild(option);
       selRes.value = resVal;
     }
+    if (window.updateDiskSpaceUI) {
+      window.updateDiskSpaceUI();
+    }
   }
 }
 
@@ -1074,7 +1077,7 @@ async function _assemble(
         doubleBuffer[activeBufferIdx][i] = null;
       }
 
-      let chunkName = "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm");
+      let chunkName = "chunk_" + c + (format === "mp4" ? ".ts" : ".webm");
       concatList += "file '" + chunkName + "'\n";
       let chunkArgs = buildChunkArgs(
         framesInThisChunk,
@@ -1121,7 +1124,7 @@ async function _assemble(
     }
 
     if (numChunks === 1) {
-      var onlyChunk = "chunk_0." + (format === "mp4" ? "mp4" : "webm");
+      var onlyChunk = "chunk_0." + (format === "mp4" ? "ts" : "webm");
       try {
         if (format === "mp4") {
           await ffmpeg.exec([
@@ -1157,7 +1160,7 @@ async function _assemble(
       for (let c = 0; c < numChunks; c++) {
         try {
           await ffmpeg.deleteFile(
-            "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm"),
+            "chunk_" + c + (format === "mp4" ? ".ts" : ".webm"),
           );
         } catch (e) {}
       }

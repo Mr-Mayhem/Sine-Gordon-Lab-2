@@ -433,13 +433,10 @@
                 </div>
               </div>
               
-              <div class="flex flex-col gap-1 border-l border-white/10 pl-3">
-                <span class="label-micro text-accent opacity-70" style="font-size:7.5px;">MAX DURATION</span>
-                <select id="sel-limit" class="thumb-select !h-[16px] !py-0 !text-[9px] !w-[110px] !bg-transparent border-none text-[var(--accent)] font-bold">
-                  <option value="min">Minimum (5s)</option>
-                  <option value="default" selected>Nominal (30s)</option>
-                  <option value="max">Available Disc Limit</option>
-                </select>
+              <div class="flex flex-col gap-0.5 border-l border-white/10 pl-3 min-w-[95px]">
+                <span class="label-micro text-accent opacity-70" style="font-size:7.5px;">DISC SPACE LIMIT</span>
+                <span id="disk-limit-val" class="text-[9px] text-[var(--accent)] font-bold whitespace-nowrap leading-none select-none">~30s Max</span>
+                <span id="disk-free-val" class="text-[8px] text-white/50 whitespace-nowrap leading-none select-none">Calculating...</span>
               </div>
               
               <div class="flex flex-col gap-1 border-l border-white/10 pl-3">

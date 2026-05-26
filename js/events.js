@@ -319,13 +319,22 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
         const memory = navigator.deviceMemory || (isMobile ? 2 : 8);
         const isConstrained = isMobile || memory <= 4;
 
-        if (sgState.exportLimit === "min") {
-          limit = 5 * fps;
-        } else if (sgState.exportLimit === "max") {
-          if (navigator.storage && navigator.storage.estimate) {
+        if (navigator.storage && navigator.storage.estimate) {
+          try {
             let est = await navigator.storage.estimate();
-            let avail = est.quota - est.usage;
-            let pixels = sgState.exportWidth * sgState.exportHeight;
+            let avail = Math.max(0, est.quota - est.usage);
+            
+            let width = 1280;
+            let height = 720;
+            const selRes = document.getElementById("sel-res");
+            if (selRes && selRes.value) {
+              const parts = selRes.value.split("x");
+              if (parts.length === 2) {
+                width = Number(parts[0]);
+                height = Number(parts[1]);
+              }
+            }
+            let pixels = width * height;
             let sizePerFrame = pixels * 4 + 200000;
 
             let quotaTarget = isConstrained ? 0.15 : 0.4;
@@ -335,11 +344,12 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
 
             limit = Math.min(targetFrames, ceilingFrames);
             if (limit < 60) limit = 60;
-          } else {
-            limit = isConstrained ? 3600 : 7200;
+          } catch (estErr) {
+            console.error("Failed to estimate storage for limit:", estErr);
+            limit = isConstrained ? 30 * fps : 60 * fps;
           }
         } else {
-          limit = 30 * fps;
+          limit = isConstrained ? 1800 : 3600;
         }
 
         recorder.setFrameLimit(limit);
@@ -532,10 +542,19 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     };
   }
 
-  // Resolution dropdown: no onchange handler — value is read directly at record time
+  // Resolution dropdown: update disk limit and remaining capacity on change
+  var selRes = document.getElementById("sel-res");
+  if (selRes) {
+    selRes.onchange = function () {
+      updateDiskSpaceUI();
+    };
+  }
+
   document.getElementById("sel-fps").onchange = function () {
     sgState.exportFPS = Number(this.value);
+    updateDiskSpaceUI();
   };
+
   if (document.getElementById("sel-crf"))
     document.getElementById("sel-crf").onchange = function () {
       sgState.exportCRF = this.value;
@@ -587,6 +606,9 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     document.getElementById("btn-b-dir-cw").classList.remove("active");
   };
 
+  // Perform initial disk space estimation
+  updateDiskSpaceUI();
+
   // Unload Warning
   window.onbeforeunload = function (e) {
     if (recorder.isRecording || recorder.isAssembling) {
@@ -597,3 +619,69 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     }
   };
 }
+
+/**
+ * Dynamically queries browser storage capacity via storage estimate API, 
+ * computes actual frame budget size based on active dimensions & FPS variables,
+ * and updates live readout UI counters in place of the old Max Duration selector.
+ */
+export async function updateDiskSpaceUI() {
+  const diskLimitVal = document.getElementById("disk-limit-val");
+  const diskFreeVal = document.getElementById("disk-free-val");
+  if (!diskLimitVal || !diskFreeVal) return;
+
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const est = await navigator.storage.estimate();
+      const avail = Math.max(0, est.quota - est.usage); // Free bytes inside sandbox
+      const freeGB = avail / (1024 * 1024 * 1024);
+      diskFreeVal.textContent = `${freeGB.toFixed(1)} GB Free`;
+
+      // Resolve current dimensions and FPS
+      let width = 1280;
+      let height = 720;
+      const selRes = document.getElementById("sel-res");
+      if (selRes && selRes.value) {
+        const parts = selRes.value.split("x");
+        if (parts.length === 2) {
+          width = Number(parts[0]);
+          height = Number(parts[1]);
+        }
+      }
+
+      const selFps = document.getElementById("sel-fps");
+      const fps = selFps ? Number(selFps.value) : (sgState.exportFPS || 60);
+      const pixels = width * height;
+      const sizePerFrame = pixels * 4 + 200000;
+
+      const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.matchMedia("(any-pointer: coarse)").matches;
+      const memory = navigator.deviceMemory || (isMobile ? 2 : 8);
+      const isConstrained = isMobile || memory <= 4;
+
+      const quotaTarget = isConstrained ? 0.15 : 0.4;
+      const targetFrames = Math.floor((avail * quotaTarget) / sizePerFrame);
+      const ceilingFrames = isConstrained ? 5 * 60 * fps : 10 * 60 * fps;
+
+      const limit = Math.max(60, Math.min(targetFrames, ceilingFrames));
+      const durationSec = limit / fps;
+
+      if (durationSec >= 60) {
+        const mins = Math.floor(durationSec / 60);
+        const secs = Math.floor(durationSec % 60);
+        diskLimitVal.textContent = secs > 0 ? `~${mins}m ${secs}s Max` : `~${mins}m Max`;
+      } else {
+        diskLimitVal.textContent = `~${Math.round(durationSec)}s Max`;
+      }
+    } else {
+      diskFreeVal.textContent = "Quota N/A";
+      diskLimitVal.textContent = "Unlimited Limit";
+    }
+  } catch (err) {
+    console.error("Failed to estimate storage quota:", err);
+    diskFreeVal.textContent = "Quota Err";
+    diskLimitVal.textContent = "Nominal (30s)";
+  }
+}
+
+// Wire helper up to global scope to allow external triggers to refresh readouts
+window.updateDiskSpaceUI = updateDiskSpaceUI;
