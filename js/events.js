@@ -777,7 +777,7 @@ export function initAssemblyStatusObserver() {
     if (!html || html === "Ready" || html.trim() === "") {
       leftCol.innerHTML = `
         <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
-        <div><strong>Project Version:</strong> v1.2.0-hybrid-ts</div>
+        <div><strong>Project Version:</strong> v1.3.0-hybrid-ts</div>
         <div><strong>Mode:</strong> Idle</div>
         <div><strong>Phase:</strong> Ready for stream compilation</div>
         <div><strong>Frames:</strong> 0 / 0</div>

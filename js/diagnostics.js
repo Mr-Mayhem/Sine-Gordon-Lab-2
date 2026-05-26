@@ -11,6 +11,7 @@ const DIAGNOSTIC_TESTS = [
   {
     id: "SD_WEBM_QUICK",
     name: "Quick Test: SD 360p (WebM)",
+    category: "Level 1: Quick Compliance Checks",
     pipeline: "ffmpeg",
     format: "webm",
     width: 640,
@@ -18,11 +19,12 @@ const DIAGNOSTIC_TESTS = [
     fps: 30,
     crf: "23",
     frames: 30,
-    description: "Verifies basic pixel capture and high-speed WebAassembly FFmpeg integration."
+    description: "Verifies basic pixel capture and high-speed WebAssembly FFmpeg integration at 360p."
   },
   {
     id: "SD_MP4_QUICK",
-    name: "Quick Test: SD 480p (MP4/Fallback)",
+    name: "Quick Test: SD 480p (MP4/H.264)",
+    category: "Level 1: Quick Compliance Checks",
     pipeline: "ffmpeg",
     format: "mp4",
     width: 852,
@@ -30,11 +32,37 @@ const DIAGNOSTIC_TESTS = [
     fps: 30,
     crf: "18",
     frames: 30,
-    description: "Tests H.264 macroblock boundary matching at widescreen 482x480 resolution."
+    description: "Tests single-threaded H.264 macroblock boundary matching at widescreen 852x480 resolution."
+  },
+  {
+    id: "ZIP_STILLS_QUICK",
+    name: "Stills Test: ZIP Export 480p",
+    category: "Level 1: Quick Compliance Checks",
+    pipeline: "zip",
+    format: "zip",
+    width: 852,
+    height: 480,
+    fps: 30,
+    frames: 30,
+    description: "Examines sandboxed ZIP archiving, file streams, and memory footprints without transcoding."
+  },
+  {
+    id: "SD_WEBM_STRESS",
+    name: "Extended Stress: SD 480p (WebM)",
+    category: "Level 2: Duration & Storage Stress Tests",
+    pipeline: "ffmpeg",
+    format: "webm",
+    width: 852,
+    height: 480,
+    fps: 30,
+    crf: "15",
+    frames: 300,
+    description: "Renders 300 frames to monitor long-running OPFS storage retention and WebM assembly stability."
   },
   {
     id: "HD_WEBM_STRESS",
-    name: "HD Stress Test: HD 720p (WebM)",
+    name: "Extended Stress: HD 720p (WebM)",
+    category: "Level 2: Duration & Storage Stress Tests",
     pipeline: "ffmpeg",
     format: "webm",
     width: 1280,
@@ -45,27 +73,46 @@ const DIAGNOSTIC_TESTS = [
     description: "Exercises thread limits, substantial frame counts, and chunk-oriented memory pipelines."
   },
   {
-    id: "SD_WEBM_STRESS",
-    name: "SD Stress Test: SD 480p (WebM)",
+    id: "FHD_MP4_STRESS",
+    name: "Density Stress: FHD 1080p (MP4/H.264)",
+    category: "Level 3: High-Density Stress Tests (Opt-In)",
     pipeline: "ffmpeg",
-    format: "webm",
-    width: 852,
-    height: 480,
+    format: "mp4",
+    width: 1920,
+    height: 1080,
     fps: 30,
-    crf: "15",
-    frames: 300,
-    description: "Renders 300 frames to monitor long-running OPFS storage retention and frame assembly stability."
+    crf: "23",
+    frames: 30,
+    highRes: true,
+    description: "Evaluates standard 1080p Full HD transcode limits and multi-threaded worker rendering."
   },
   {
-    id: "ZIP_STILLS_QUICK",
-    name: "Stills Test: ZIP Export 480p",
-    pipeline: "zip",
-    format: "zip",
-    width: 852,
-    height: 480,
+    id: "QHD_WEBM_STRESS",
+    name: "Density Stress: QHD 1440p (WebM)",
+    category: "Level 3: High-Density Stress Tests (Opt-In)",
+    pipeline: "ffmpeg",
+    format: "webm",
+    width: 2560,
+    height: 1440,
     fps: 30,
+    crf: "25",
     frames: 30,
-    description: "Examines sandboxed ZIP archiving, file streams, and memory footprints without transcoding."
+    highRes: true,
+    description: "Tests high-density QHD 1440p pixel buffers and sequential chunk allocations."
+  },
+  {
+    id: "UHD_MP4_STRESS",
+    name: "Density Stress: UHD 4K 2160p (MP4/H.264)",
+    category: "Level 3: High-Density Stress Tests (Opt-In)",
+    pipeline: "ffmpeg",
+    format: "mp4",
+    width: 3840,
+    height: 2160,
+    fps: 30,
+    crf: "28",
+    frames: 30,
+    highRes: true,
+    description: "Max-density stress benchmark testing memory pressure and WASM heap bounds."
   }
 ];
 
@@ -95,7 +142,7 @@ export class DiagnosticsManager {
     overlay.style.backdropFilter = "blur(16px)";
     overlay.style.zIndex = "300";
     overlay.style.overflowY = "auto";
-    overlay.style.padding = "40px 20px flex justify-center items-center";
+    overlay.style.padding = "40px 20px";
 
     const content = document.createElement("div");
     content.className = "theory-content";
@@ -107,26 +154,54 @@ export class DiagnosticsManager {
     content.style.padding = "32px";
     content.style.boxShadow = "0 30px 60px rgba(0,0,0,0.5)";
 
-    let testsHtml = DIAGNOSTIC_TESTS.map((test, index) => `
-      <div class="test-item border border-white/5 bg-white/[0.02] rounded-xl p-3 flex flex-col sm:flex-row justify-between sm:items-center gap-3" id="test-card-${test.id}">
-        <div class="flex-1">
-          <div class="flex items-center gap-2">
-            <input type="checkbox" id="chk-test-${test.id}" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" checked>
-            <span class="text-sm font-bold text-white">${test.name}</span>
-            <span class="text-[9px] bg-[#00ffcc]/10 hover:bg-[#00ffcc]/20 text-[#00ffcc] border border-[#00ffcc]/30 px-1.5 py-0.5 rounded font-mono font-semibold select-none flex-frames-badge" data-testid="${test.id}">${test.frames} FMR</span>
+    const categories = [
+      { name: "Level 1: Quick Compliance Checks", highRes: false },
+      { name: "Level 2: Duration & Storage Stress Tests", highRes: false },
+      { name: "Level 3: High-Density Stress Tests (Opt-In)", highRes: true }
+    ];
+
+    let testsHtml = categories.map(cat => {
+      const catTests = DIAGNOSTIC_TESTS.filter(t => t.category === cat.name);
+      const initialStyle = cat.highRes ? "display: none !important;" : "";
+      
+      const testsGroupHtml = catTests.map(test => {
+        const isHighRes = !!test.highRes;
+        const checkedAttr = isHighRes ? "" : "checked";
+        return `
+        <div class="test-item border border-white/5 bg-white/[0.02] rounded-xl p-3 flex flex-col sm:flex-row justify-between sm:items-center gap-3" id="test-card-${test.id}">
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="chk-test-${test.id}" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" ${checkedAttr}>
+              <span class="text-sm font-bold text-white">${test.name}</span>
+              <span class="text-[9px] bg-[#00ffcc]/10 hover:bg-[#00ffcc]/20 text-[#00ffcc] border border-[#00ffcc]/30 px-1.5 py-0.5 rounded font-mono font-semibold select-none flex-frames-badge" data-testid="${test.id}">${test.frames} FMR</span>
+            </div>
+            <p class="text-xs text-white/50 mt-1 pl-6 select-none">${test.description}</p>
+            <div class="text-[10px] font-mono text-white/30 pl-6 mt-0.5 select-none font-bold uppercase tracking-wide">
+              Pipeline: <span class="text-[#00ffcc]/80">${test.pipeline}</span> | 
+              Resolution: <span class="text-white/60">${test.width}x${test.height}</span> | 
+              Format: <span class="text-[#00ffcc]/80">${test.format}</span> ${test.crf ? `| CRF: <span class="text-amber-400 font-bold">${test.crf}</span>` : ""}
+            </div>
           </div>
-          <p class="text-xs text-white/50 mt-1 pl-6 select-none">${test.description}</p>
-          <div class="text-[10px] font-mono text-white/30 pl-6 mt-0.5 select-none font-bold uppercase tracking-wide">
-            Pipeline: <span class="text-[#00ffcc]/80">${test.pipeline}</span> | 
-            Resolution: <span class="text-white/60">${test.width}x${test.height}</span> | 
-            Format: <span class="text-[#00ffcc]/80">${test.format}</span> ${test.crf ? `| CRF: <span class="text-amber-400 font-bold">${test.crf}</span>` : ""}
+          <div class="flex items-center gap-2 shrink-0 justify-end pl-6 sm:pl-0">
+            <span class="text-xs font-mono font-bold uppercase select-none rounded px-2.5 py-1 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
+            <button class="btn-single-test bg-white/5 text-white/70 hover:bg-[#00ffcc]/10 hover:text-[#00ffcc] hover:border-[#00ffcc]/40 border border-white/10 py-1.5 px-3 rounded-xl text-[9px] font-bold font-mono transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
           </div>
         </div>
-        <div class="flex items-center gap-2 shrink-0 justify-end">
-          <span class="text-xs font-mono font-bold uppercase select-none rounded px-2.5 py-1 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
+        `;
+      }).join("");
+
+      return `
+      <div class="test-category-group test-category-highres mb-5" style="${initialStyle}" id="cat-group-${cat.name.replace(/\s+/g, '-')}">
+        <h3 class="text-[10px] uppercase font-mono font-black tracking-widest text-[#00ffcc] mb-2.5 border-b border-white/10 pb-1.5 select-none flex items-center justify-between">
+          <span>${cat.name}</span>
+          <span class="text-[9px] opacity-40 font-normal normal-case font-sans">Sequence Batch Assertions</span>
+        </h3>
+        <div class="flex flex-col gap-2.5">
+          ${testsGroupHtml}
         </div>
       </div>
-    `).join("");
+      `;
+    }).join("");
 
     content.innerHTML = `
       <header class="flex justify-between items-start border-b border-white/10 pb-4 mb-4">
@@ -148,10 +223,20 @@ export class DiagnosticsManager {
 
       <!-- Action Control Row -->
       <div class="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 p-3 rounded-2xl mb-5">
-        <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold">
-          <input type="checkbox" id="chk-select-all" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" checked>
-          Select All Diagnostics
-        </label>
+        <div class="flex flex-wrap gap-4">
+          <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold cursor-pointer">
+            <input type="checkbox" id="chk-select-all" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" checked>
+            Select All Diagnostics
+          </label>
+          <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold cursor-pointer">
+            <input type="checkbox" id="chk-enable-probing" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" checked>
+            Enable Output Probing (HTML5/ZIP)
+          </label>
+          <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold cursor-pointer">
+            <input type="checkbox" id="chk-enable-highres" class="w-4 h-4 accent-[#00ffcc] cursor-pointer">
+            Enable 1080p/1440p/4K Tests
+          </label>
+        </div>
         
         <!-- Dynamic Target Frame Count Range -->
         <div class="flex items-center gap-2">
@@ -176,7 +261,7 @@ export class DiagnosticsManager {
       </div>
 
       <!-- Main Test Suite Grid -->
-      <div class="flex flex-col gap-2.5 max-h-[300px] overflow-y-auto pr-1 select-none scrollbar-thin">
+      <div class="flex flex-col gap-2 max-h-[320px] overflow-y-auto pr-1 select-none scrollbar-thin">
         ${testsHtml}
       </div>
 
@@ -230,11 +315,48 @@ export class DiagnosticsManager {
     const selectAllChk = document.getElementById("chk-select-all");
     selectAllChk.onchange = (e) => {
       const isChecked = e.target.checked;
+      const highresChk = document.getElementById("chk-enable-highres");
+      const highresEnabled = highresChk ? highresChk.checked : false;
       DIAGNOSTIC_TESTS.forEach(t => {
         const itemChk = document.getElementById(`chk-test-${t.id}`);
-        if (itemChk) itemChk.checked = isChecked;
+        if (itemChk) {
+          if (t.highRes) {
+            itemChk.checked = highresEnabled ? isChecked : false;
+          } else {
+            itemChk.checked = isChecked;
+          }
+        }
       });
     };
+
+    // Toggle High-Res tests checkbox logic
+    const highresChk = document.getElementById("chk-enable-highres");
+    if (highresChk) {
+      highresChk.onchange = (e) => {
+        const isChecked = e.target.checked;
+        const groupEl = document.getElementById("cat-group-Level-3:-High-Density-Stress-Tests-(Opt-In)");
+        if (groupEl) {
+          if (isChecked) {
+            groupEl.style.setProperty("display", "block", "important");
+          } else {
+            groupEl.style.setProperty("display", "none", "important");
+          }
+        }
+        DIAGNOSTIC_TESTS.forEach(t => {
+          if (t.highRes) {
+            const itemChk = document.getElementById(`chk-test-${t.id}`);
+            if (itemChk) {
+              if (isChecked) {
+                // Keep opt-in tests unchecked by default, or optionally auto check
+                itemChk.checked = false;
+              } else {
+                itemChk.checked = false;
+              }
+            }
+          }
+        });
+      };
+    }
 
     // Run Selected Button
     document.getElementById("btn-run-all-diagnostics").onclick = () => this.runSelected();
@@ -410,6 +532,9 @@ export class DiagnosticsManager {
     const selectEl = document.getElementById("sel-test-frames-selector");
     const chosenFramesCount = selectEl ? parseInt(selectEl.value, 10) : null;
 
+    const enableProbingEl = document.getElementById("chk-enable-probing");
+    const enableProbing = enableProbingEl ? enableProbingEl.checked : true;
+
     // UI state shifts
     document.getElementById("btn-run-all-diagnostics").style.display = "none";
     document.getElementById("btn-abort-diagnostics").style.display = "inline-block";
@@ -427,6 +552,10 @@ export class DiagnosticsManager {
       this.log(`[Env Diagnostics] MP4/H.264 exports will utilize multi-threaded WebAssembly worker pools.`);
     } else {
       this.log(`[Env Diagnostics] Note: MP4/H.264 exports will fall back to single-threaded WebAssembly workers.`);
+    }
+
+    if (!enableProbing) {
+      this.log(`[Env Diagnostics] Strict Output Probing (HTML5 decoding & ZIP verification) is disabled. Tests will assert pipeline completion and payload bounds.`, "text-amber-300 font-medium");
     }
 
     // Reset all status badges of DIAGNOSTIC_TESTS to PENDING (completely hidden by default)
@@ -712,38 +841,42 @@ export class DiagnosticsManager {
           // Let's run structural probes to ensure compatibility
           if (t.pipeline === "ffmpeg") {
             try {
-              this.log(`[Probe] Attempting standard HTML5 direct-to-video decode...`);
-              const probeResult = await this.probeVideoBlob(finalOutputBlob);
-              this.log(`[Probe] Decode validation successful! Tracks: ${probeResult.width}x${probeResult.height}, Length: ${probeResult.duration.toFixed(2)}s`, "text-[#00ffcc]");
-              
-              // 7.1 Perform Dynamic Aspect Ratio and Letterbox Intrusion Audit
-              const srcAspect = (t.width / t.height);
-              const videoAspect = (probeResult.width / probeResult.height);
-              const isWebM = t.format === "webm";
-              const diffAttr = Math.abs(srcAspect - videoAspect);
-              
-              this.log(`[Probe] Aspect Ratio Evaluation: Target Config: ${srcAspect.toFixed(3)}, Decoded Track: ${videoAspect.toFixed(3)}`);
-              if (isWebM) {
-                if (diffAttr < 0.02) {
-                  this.log(`[Aspect Audit] WebM Letterbox Minimization: SUCCESS (Flawless snug fit. No extraneous padding detected)`, "text-[#00ffcc]");
-                } else {
-                  const isLetterboxNecessary = (t.width === 1920 && t.height === 1080) || (t.width === 1280 && t.height === 720);
-                  if (isLetterboxNecessary) {
-                    this.log(`[Aspect Audit] WebM Letterbox Minimization: Intrusions only used for standard 16:9 compliance (${t.width}x${t.height})`, "text-[#00ffcc]/80");
+              if (enableProbing) {
+                this.log(`[Probe] Attempting standard HTML5 direct-to-video decode...`);
+                const probeResult = await this.probeVideoBlob(finalOutputBlob);
+                this.log(`[Probe] Decode validation successful! Tracks: ${probeResult.width}x${probeResult.height}, Length: ${probeResult.duration.toFixed(2)}s`, "text-[#00ffcc]");
+                
+                // 7.1 Perform Dynamic Aspect Ratio and Letterbox Intrusion Audit
+                const srcAspect = (t.width / t.height);
+                const videoAspect = (probeResult.width / probeResult.height);
+                const isWebM = t.format === "webm";
+                const diffAttr = Math.abs(srcAspect - videoAspect);
+                
+                this.log(`[Probe] Aspect Ratio Evaluation: Target Config: ${srcAspect.toFixed(3)}, Decoded Track: ${videoAspect.toFixed(3)}`);
+                if (isWebM) {
+                  if (diffAttr < 0.02) {
+                    this.log(`[Aspect Audit] WebM Letterbox Minimization: SUCCESS (Flawless snug fit. No extraneous padding detected)`, "text-[#00ffcc]");
                   } else {
-                    this.log(`⚠️ [Aspect Audit] WebM Aspect Notice: Mismatch detected (${(diffAttr * 100).toFixed(1)}%). Recommend strict crop-to-fit sizing to clip borders.`, "text-amber-400 font-medium");
+                    const isLetterboxNecessary = (t.width === 1920 && t.height === 1080) || (t.width === 1280 && t.height === 720);
+                    if (isLetterboxNecessary) {
+                      this.log(`[Aspect Audit] WebM Letterbox Minimization: Intrusions only used for standard 16:9 compliance (${t.width}x${t.height})`, "text-[#00ffcc]/80");
+                    } else {
+                      this.log(`⚠️ [Aspect Audit] WebM Aspect Notice: Mismatch detected (${(diffAttr * 100).toFixed(1)}%). Recommend strict crop-to-fit sizing to clip borders.`, "text-amber-400 font-medium");
+                    }
+                  }
+                } else {
+                  if (diffAttr < 0.02) {
+                    this.log(`[Aspect Audit] Aspect Compliance: PERFECT fit.`, "text-[#00ffcc]");
+                  } else {
+                    this.log(`[Aspect Audit] Aspect Compliance: Letterboxing configured to adapt mismatch.`, "text-white/40");
                   }
                 }
-              } else {
-                if (diffAttr < 0.02) {
-                  this.log(`[Aspect Audit] Aspect Compliance: PERFECT fit.`, "text-[#00ffcc]");
-                } else {
-                  this.log(`[Aspect Audit] Aspect Compliance: Letterboxing configured to adapt mismatch.`, "text-white/40");
-                }
-              }
 
-              if (probeResult.width !== t.width || probeResult.height !== t.height) {
-                throw new Error(`Video output resolution mismatch: parsed ${probeResult.width}x${probeResult.height}, configured ${t.width}x${t.height}.`);
+                if (probeResult.width !== t.width || probeResult.height !== t.height) {
+                  throw new Error(`Video output resolution mismatch: parsed ${probeResult.width}x${probeResult.height}, configured ${t.width}x${t.height}.`);
+                }
+              } else {
+                this.log(`[Probe] Direct output probing bypassed (Opted out).`);
               }
 
               if (auditSuccess) {
@@ -764,31 +897,35 @@ export class DiagnosticsManager {
             // ZIP Pipeline Check
             if (window.JSZip && t.format === "zip") {
               try {
-                this.log(`[Probe] Decompressing sandboxed ZIP stream...`);
-                const zipObj = await new window.JSZip().loadAsync(finalOutputBlob);
-                const countOfFiles = Object.keys(zipObj.files).length;
-                this.log(`[Probe] Valid zip found. Holds ${countOfFiles} frame entries!`, "text-[#00ffcc]");
-                
-                // Assert ZIP count matches frames scheduled
-                if (countOfFiles !== actualFrames) {
-                  this.log(`⚠️ Assertion Warning: ZIP items count (${countOfFiles}) differs from expected frames (${actualFrames})!`, "text-amber-400 font-bold");
-                }
+                if (enableProbing) {
+                  this.log(`[Probe] Decompressing sandboxed ZIP stream...`);
+                  const zipObj = await new window.JSZip().loadAsync(finalOutputBlob);
+                  const countOfFiles = Object.keys(zipObj.files).length;
+                  this.log(`[Probe] Valid zip found. Holds ${countOfFiles} frame entries!`, "text-[#00ffcc]");
+                  
+                  // Assert ZIP count matches frames scheduled
+                  if (countOfFiles !== actualFrames) {
+                    this.log(`⚠️ Assertion Warning: ZIP items count (${countOfFiles}) differs from expected frames (${actualFrames})!`, "text-amber-400 font-bold");
+                  }
 
-                // Parse the first image inside the ZIP to guarantee its dimensions!
-                const firstZipFile = zipObj.file("frame_000000.png");
-                if (firstZipFile) {
-                  const dataArray = await firstZipFile.async("uint8array");
-                  const view = new DataView(dataArray.buffer, 16, 8);
-                  const zW = view.getUint32(0);
-                  const zH = view.getUint32(4);
-                  this.log(`[Probe] ZIP frame 0 IHDR assertion: Extracted size is ${zW}x${zH}`);
-                  if (zW !== t.width || zH !== t.height) {
-                    throw new Error(`ZIP dimensional mismatch: Extracted size ${zW}x${zH} does not match target ${t.width}x${t.height}.`);
+                  // Parse the first image inside the ZIP to guarantee its dimensions!
+                  const firstZipFile = zipObj.file("frame_000000.png");
+                  if (firstZipFile) {
+                    const dataArray = await firstZipFile.async("uint8array");
+                    const view = new DataView(dataArray.buffer, 16, 8);
+                    const zW = view.getUint32(0);
+                    const zH = view.getUint32(4);
+                    this.log(`[Probe] ZIP frame 0 IHDR assertion: Extracted size is ${zW}x${zH}`);
+                    if (zW !== t.width || zH !== t.height) {
+                      throw new Error(`ZIP dimensional mismatch: Extracted size ${zW}x${zH} does not match target ${t.width}x${t.height}.`);
+                    } else {
+                      this.log(`[Probe] ZIP frame extraction size verification: PASSED`, "text-[#00ffcc]");
+                    }
                   } else {
-                    this.log(`[Probe] ZIP frame extraction size verification: PASSED`, "text-[#00ffcc]");
+                    throw new Error("Could not find frame_000000.png inside the ZIP archive.");
                   }
                 } else {
-                  throw new Error("Could not find frame_000000.png inside the ZIP archive.");
+                  this.log(`[Probe] Sandboxed ZIP format probing bypassed (Opted out).`);
                 }
 
                 if (auditSuccess) {

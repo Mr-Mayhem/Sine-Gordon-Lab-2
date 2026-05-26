@@ -366,7 +366,7 @@ function _updateAssemblyUI() {
   var fill = document.getElementById("progress-fill");
   if (statusEl) {
     var lines = [];
-    lines.push("<strong>Project Version:</strong> v1.2.0-hybrid-ts");
+    lines.push("<strong>Project Version:</strong> v1.3.0-hybrid-ts");
     if (s.mode) {
       lines.push("<strong>Mode:</strong> " + s.mode);
     }
@@ -866,7 +866,7 @@ async function _assemble(
     );
     totalFrames = externalFrameFiles.length;
   }
-  console.log(`[Sine-Gordon Lab v1.2.0-hybrid-ts] [FFmpeg] Activity Mode: ${mode}`);
+  console.log(`[Sine-Gordon Lab v1.3.0-hybrid-ts] [FFmpeg] Activity Mode: ${mode}`);
   console.log("Assembling", totalFrames, "frames...");
 
   _assemblyStats = {

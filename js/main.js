@@ -275,7 +275,7 @@ function refreshUI() {
 }
 
 function init() {
-  console.log("=== [Sine-Gordon Lab] Project Version: 1.2.0-hybrid-ts loaded ===");
+  console.log("=== [Sine-Gordon Lab] Project Version: 1.3.0-hybrid-ts loaded ===");
   loadExportSettings();
   
   const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.matchMedia("(any-pointer: coarse)").matches;
