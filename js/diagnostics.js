@@ -162,7 +162,13 @@ export class DiagnosticsManager {
 
     let testsHtml = categories.map(cat => {
       const catTests = DIAGNOSTIC_TESTS.filter(t => t.category === cat.name);
-      const initialStyle = cat.highRes ? "display: none !important;" : "";
+      // Default level selection in the dropdown is Level 1, so Level 1 group is shown by default - Level 2/3 are initially display:none
+      let initialStyle = "";
+      if (cat.name === "Level 1: Quick Compliance Checks") {
+        initialStyle = "display: block !important;";
+      } else {
+        initialStyle = "display: none !important;";
+      }
       
       const testsGroupHtml = catTests.map(test => {
         const isHighRes = !!test.highRes;
@@ -223,16 +229,26 @@ export class DiagnosticsManager {
 
       <!-- Action Control Row -->
       <div class="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 p-3 rounded-2xl mb-5">
-        <div class="flex flex-wrap gap-4">
+        <div class="flex flex-wrap gap-4 items-center">
+          <!-- Diagnostics Filter Dropdown -->
+          <div class="flex items-center gap-2 font-mono text-[10px] text-white select-none uppercase font-black tracking-wide border-r border-white/15 pr-3.5">
+            <span class="text-white/50">Viewing Level:</span>
+            <select id="sel-diagnostic-level-filter" class="thumb-select bg-white/10 border border-white/20 hover:border-[#00ffcc]/50 rounded-xl px-2.5 cursor-pointer !h-[26px] !py-0 !text-[10px] text-[#00ffcc] font-black focus:outline-none focus:ring-1 focus:ring-[#00ffcc]">
+              <option value="level-1" selected>Level 1: Quick Compliance Checks</option>
+              <option value="level-2">Level 2: Duration & Storage Stress Tests</option>
+              <option value="level-3">Level 3: High-Density Stress (Opt-In)</option>
+              <option value="all">Show All Suite Levels</option>
+            </select>
+          </div>
           <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold cursor-pointer">
             <input type="checkbox" id="chk-select-all" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" checked>
-            Select All Diagnostics
+            Select All
           </label>
           <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold cursor-pointer">
             <input type="checkbox" id="chk-enable-probing" class="w-4 h-4 accent-[#00ffcc] cursor-pointer" checked>
             Enable Output Probing (HTML5/ZIP)
           </label>
-          <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold cursor-pointer">
+          <label class="flex items-center gap-2 font-mono text-[10px] text-white/70 select-none uppercase font-bold cursor-pointer" style="display: none;">
             <input type="checkbox" id="chk-enable-highres" class="w-4 h-4 accent-[#00ffcc] cursor-pointer">
             Enable 1080p/1440p/4K Tests
           </label>
@@ -311,47 +327,87 @@ export class DiagnosticsManager {
       };
     }
     
-    // Select All Checkbox logic
+    // Select All Checkbox logic — modified to only select visible category tests
     const selectAllChk = document.getElementById("chk-select-all");
     selectAllChk.onchange = (e) => {
       const isChecked = e.target.checked;
-      const highresChk = document.getElementById("chk-enable-highres");
-      const highresEnabled = highresChk ? highresChk.checked : false;
       DIAGNOSTIC_TESTS.forEach(t => {
         const itemChk = document.getElementById(`chk-test-${t.id}`);
         if (itemChk) {
-          if (t.highRes) {
-            itemChk.checked = highresEnabled ? isChecked : false;
-          } else {
+          const groupName = t.category;
+          const groupEl = document.getElementById(`cat-group-${groupName.replace(/\s+/g, '-')}`);
+          if (groupEl && groupEl.style.display !== "none") {
             itemChk.checked = isChecked;
           }
         }
       });
     };
 
-    // Toggle High-Res tests checkbox logic
+    // Diagnostics Filter & High-Res checks coordination
+    const levelFilterSelect = document.getElementById("sel-diagnostic-level-filter");
     const highresChk = document.getElementById("chk-enable-highres");
+
+    const updateCategoryVisibilities = (filterVal) => {
+      const group1 = document.getElementById("cat-group-Level-1:-Quick-Compliance-Checks");
+      const group2 = document.getElementById("cat-group-Level-2:-Duration-&-Storage-Stress-Tests");
+      const group3 = document.getElementById("cat-group-Level-3:-High-Density-Stress-Tests-(Opt-In)");
+
+      if (filterVal === "level-1") {
+        if (group1) group1.style.setProperty("display", "block", "important");
+        if (group2) group2.style.setProperty("display", "none", "important");
+        if (group3) group3.style.setProperty("display", "none", "important");
+        if (highresChk) highresChk.checked = false;
+      } else if (filterVal === "level-2") {
+        if (group1) group1.style.setProperty("display", "none", "important");
+        if (group2) group2.style.setProperty("display", "block", "important");
+        if (group3) group3.style.setProperty("display", "none", "important");
+        if (highresChk) highresChk.checked = false;
+      } else if (filterVal === "level-3") {
+        if (group1) group1.style.setProperty("display", "none", "important");
+        if (group2) group2.style.setProperty("display", "none", "important");
+        if (group3) group3.style.setProperty("display", "block", "important");
+        if (highresChk) {
+          highresChk.checked = true;
+          DIAGNOSTIC_TESTS.forEach(t => {
+            if (t.highRes) {
+              const itemChk = document.getElementById(`chk-test-${t.id}`);
+              if (itemChk) itemChk.checked = true;
+            }
+          });
+        }
+      } else if (filterVal === "all") {
+        if (group1) group1.style.setProperty("display", "block", "important");
+        if (group2) group2.style.setProperty("display", "block", "important");
+        const highresEnabled = highresChk ? highresChk.checked : false;
+        if (group3) group3.style.setProperty("display", highresEnabled ? "block" : "none", "important");
+      }
+    };
+
+    if (levelFilterSelect) {
+      levelFilterSelect.onchange = (e) => {
+        updateCategoryVisibilities(e.target.value);
+      };
+    }
+
     if (highresChk) {
       highresChk.onchange = (e) => {
         const isChecked = e.target.checked;
-        const groupEl = document.getElementById("cat-group-Level-3:-High-Density-Stress-Tests-(Opt-In)");
-        if (groupEl) {
-          if (isChecked) {
-            groupEl.style.setProperty("display", "block", "important");
-          } else {
-            groupEl.style.setProperty("display", "none", "important");
+        const currentFilter = levelFilterSelect ? levelFilterSelect.value : "level-1";
+
+        if (isChecked && currentFilter !== "level-3" && currentFilter !== "all") {
+          if (levelFilterSelect) {
+            levelFilterSelect.value = "all";
           }
+          updateCategoryVisibilities("all");
+        } else {
+          updateCategoryVisibilities(currentFilter);
         }
+
         DIAGNOSTIC_TESTS.forEach(t => {
           if (t.highRes) {
             const itemChk = document.getElementById(`chk-test-${t.id}`);
             if (itemChk) {
-              if (isChecked) {
-                // Keep opt-in tests unchecked by default, or optionally auto check
-                itemChk.checked = false;
-              } else {
-                itemChk.checked = false;
-              }
+              itemChk.checked = isChecked;
             }
           }
         });
@@ -414,6 +470,13 @@ export class DiagnosticsManager {
     this.updateSpecs();
     this.updateTestLengthsSelector();
     this.updateUIForSelectedFrameCount();
+
+    // Reset selection and visibility to Level 1
+    const levelFilterSelect = document.getElementById("sel-diagnostic-level-filter");
+    if (levelFilterSelect) {
+      levelFilterSelect.value = "level-1";
+      levelFilterSelect.dispatchEvent(new Event('change'));
+    }
   }
 
   hide() {
