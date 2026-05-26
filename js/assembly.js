@@ -1074,14 +1074,14 @@ async function _assemble(
         doubleBuffer[activeBufferIdx][i] = null;
       }
 
-      let chunkName = "chunk_" + c + (format === "mp4" ? ".ts" : ".webm");
+      let chunkName = "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm");
       concatList += "file '" + chunkName + "'\n";
       let chunkArgs = buildChunkArgs(
         framesInThisChunk,
         alignedW,
         alignedH,
         chunkName,
-        framesProcessed, // Continuous starting timestamp offset for sequential TS chunks
+        framesProcessed, // Continuous starting timestamp offset for sequential chunks
       );
 
       let nextBufferIdx = (activeBufferIdx + 1) % 2;
@@ -1121,7 +1121,7 @@ async function _assemble(
     }
 
     if (numChunks === 1) {
-      var onlyChunk = "chunk_0." + (format === "mp4" ? "ts" : "webm");
+      var onlyChunk = "chunk_0." + (format === "mp4" ? "mp4" : "webm");
       try {
         if (format === "mp4") {
           await ffmpeg.exec([
@@ -1157,7 +1157,7 @@ async function _assemble(
       for (let c = 0; c < numChunks; c++) {
         try {
           await ffmpeg.deleteFile(
-            "chunk_" + c + (format === "mp4" ? ".ts" : ".webm"),
+            "chunk_" + c + (format === "mp4" ? ".mp4" : ".webm"),
           );
         } catch (e) {}
       }
