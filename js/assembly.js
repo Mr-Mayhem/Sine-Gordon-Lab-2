@@ -1152,6 +1152,39 @@ async function _assemble(
 
   try {
     if (!ffmpeg) throw new Error("FFmpeg instance unavailable");
+
+    // Diagnostic Probe of the generated output file before we do anything else
+    console.log("======================================================================");
+    console.log("[FFmpeg Diagnostics] STARTING METADATA PROBE OF:", outputFile);
+    console.log("======================================================================");
+    try {
+      await ffmpeg.exec(["-i", outputFile]);
+    } catch (probeErr) {
+      // ffmpeg exits with code 1 when given -i with no output parameters, which is expected
+    }
+    console.log("======================================================================");
+    console.log("[FFmpeg Diagnostics] METADATA PROBE COMPLETED.");
+    console.log("======================================================================");
+
+    // Detailed clues/guidelines on why certain output files might feel "broken" on some players
+    console.log("[FFmpeg Diagnostics] CLUES & TROUBLESHOOTING PLAYBACK ISSUES:");
+    console.log("----------------------------------------------------------------------");
+    console.log("1. ULTRA HIGH RESOLUTION (e.g. 4K, 3840x2160 @ 60fps) LIMITS:");
+    console.log("   - High resolution 4K streams at 60fps are demanding and encode using H.264 profile 'High' with level 5.2.");
+    console.log("   - Older devices, certain mobile/tablet screens, and standard legacy media players will show a black screen,");
+    console.log("     render frozen frames, or stutter. We recommend 1080p (1920x1080) for excellent universal compatibility.");
+    console.log("2. SUB-SECOND OR VERY SHORT DURATION BARRIERS:");
+    console.log("   - Many native OS media players (like QuickTime on macOS/iOS, default Android players) have built-in");
+    console.log("     safety/continuity checks that discard or crash on video files that have a total duration of under 1.5 seconds.");
+    console.log("   - To play perfectly, please record a longer segment (at least 3-4 seconds, i.e., 180+ frames).");
+    console.log("3. NO AUDIO STREAM SENSITIVITY:");
+    console.log("   - Some strict video players and upload applications (like messaging apps or email clients) will report");
+    console.log("     a silent video lacking an audio layer as 'corrupt' or 'unsupported'.");
+    console.log("4. CONTAINER FORMAT SELECTION (MP4 vs. WebM):");
+    console.log("   - If mp4 files do not play cleanly on your device/browser, switch the Export Format dropdown to WebM");
+    console.log("     which uses modern web codecs (VP8/VP9) that run flawlessly on all major browser layout engines.");
+    console.log("======================================================================");
+
     const data = await ffmpeg.readFile(outputFile);
     console.log(
       "[FFmpeg] Output:",
