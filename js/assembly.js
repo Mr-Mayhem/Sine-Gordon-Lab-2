@@ -921,8 +921,6 @@ async function _assemble(
           "frame_" + String(i).padStart(6, "0") + ".png",
           frameData,
         );
-        // Free this specific frame array immediately to reclaim memory!
-        doubleBuffer[activeBufferIdx][i] = null;
       }
 
       let chunkName = "chunk_" + c + (format === "mp4" ? ".ts" : ".webm");
@@ -985,16 +983,23 @@ async function _assemble(
             let chunkName = "chunk_" + c + ".ts";
             let cdata = await ffmpeg.readFile(chunkName);
             chunkArrays.push(cdata);
+            // Delete TS chunk file from MEMFS instantly upon reading to prevent giant 4K memory footprint overflow inside WebAssembly virtual heap!
+            try {
+              await ffmpeg.deleteFile(chunkName);
+            } catch (delErr) {
+              console.warn(`[FFmpeg] Pre-free chunk delete error for ${chunkName}:`, delErr);
+            }
           }
-          let totalLength = chunkArrays.reduce((sum, arr) => sum + arr.length, 0);
+          let totalLength = chunkArrays.reduce((sum, arr) => sum + (arr.byteLength || arr.length || 0), 0);
           let mergedBytes = new Uint8Array(totalLength);
           let offset = 0;
           for (let arr of chunkArrays) {
-            mergedBytes.set(arr, offset);
-            offset += arr.length;
+            let src = arr instanceof Uint8Array ? arr : new Uint8Array(arr);
+            mergedBytes.set(src, offset);
+            offset += src.byteLength || src.length || 0;
           }
           await ffmpeg.writeFile("merged.ts", mergedBytes);
-          console.log(`[FFmpeg] Binary concatenation of ${numChunks} chunks completed. Merged stream size: ${(mergedBytes.length / 1024 / 1024).toFixed(2)} MB`);
+          console.log(`[FFmpeg] Binary concatenation of ${numChunks} chunks completed. Merged stream size: ${(mergedBytes.byteLength / 1024 / 1024).toFixed(2)} MB`);
           
           // Clean up large buffer references in JS environment immediately before heavy exec starts to protect RAM
           chunkArrays = [];
@@ -1039,6 +1044,10 @@ async function _assemble(
         } catch (e) {}
       }
     }
+
+    // Release all preloaded frame array buffers and doubleBuffer structures inside JS context to prevent post-render memory stagnation
+    doubleBuffer = null;
+    doubleBufferLengths = null;
 
     _assemblyStats.encodeProgress = 100;
     if (percentEl) percentEl.textContent = "100%";
@@ -1090,6 +1099,7 @@ async function _assemble(
     _assemblyStats.missingFrames = missingFrames.length;
     if (missingFrames.length > totalFrames * 0.5) {
       console.error("Too many missing frames.");
+      clearInterval(encodingInterval);
       recorderRef.isAssembling = false;
       if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
         console.log(
