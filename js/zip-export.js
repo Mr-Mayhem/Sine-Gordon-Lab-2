@@ -76,10 +76,27 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
       let zip = new window.JSZip();
       Object.defineProperty(zip, "comment", { get: () => "Sine-Gordon Lab recording" });
       
+      const zipStartTime = performance.now();
       for (let i = 0; i < frameFiles.length; i++) {
           let f = frameFiles[i];
           const file = await f.handle.getFile();
           zip.file(f.name, file);
+          
+          let dimensions = "unknown";
+          try {
+              const headerSlice = file.slice(16, 24);
+              const buffer = await headerSlice.arrayBuffer();
+              const view = new DataView(buffer);
+              const w = view.getUint32(0, false);
+              const h = view.getUint32(4, false);
+              if (w > 0 && w < 100000 && h > 0 && h < 100000) {
+                  dimensions = `${w}x${h}`;
+              }
+          } catch (dimsErr) {}
+
+          const sizeStr = (file.size / 1024).toFixed(2) + " KB";
+          const elapsed = (performance.now() - zipStartTime).toFixed(0);
+          console.log(`[ZIP Debug] Frame ${i + 1}/${frameFiles.length} | Name: ${f.name} | Resolution: ${dimensions} | Size: ${sizeStr} | Time: +${elapsed}ms | SystemTime: ${new Date().toLocaleTimeString()}`);
           
           if (i % 10 === 0 && previewCanvas) {
               try {
@@ -265,11 +282,32 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
     let frameNames = Object.keys(zip.files).filter(name => name.startsWith("frame_") && name.endsWith(".png"));
     frameNames.sort((a, b) => a.localeCompare(b));
     
+    const memoryZipStartTime = performance.now();
     for (let i = 0; i < frameNames.length; i++) {
+        let name = frameNames[i];
+        let zi = zip.file(name);
+        
+        let dimensions = "unknown";
+        let sizeStr = "unknown";
+        if (zi) {
+            try {
+                let u8 = await zi.async("uint8array");
+                sizeStr = (u8.length / 1024).toFixed(2) + " KB";
+                if (u8.length >= 24) {
+                    const view = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+                    const w = view.getUint32(16, false);
+                    const h = view.getUint32(20, false);
+                    if (w > 0 && w < 100000 && h > 0 && h < 100000) {
+                        dimensions = `${w}x${h}`;
+                    }
+                }
+            } catch (err) {}
+        }
+        const elapsed = (performance.now() - memoryZipStartTime).toFixed(0);
+        console.log(`[ZIP Debug] Memory Frame ${i + 1}/${frameNames.length} | Name: ${name} | Resolution: ${dimensions} | Size: ${sizeStr} | Time: +${elapsed}ms | SystemTime: ${new Date().toLocaleTimeString()}`);
+        
         if (i % 10 === 0) {
             try {
-                let name = frameNames[i];
-                let zi = zip.file(name);
                 if (zi && previewCanvas) {
                     let ab = await zi.async("arraybuffer");
                     let fileBlob = new Blob([ab], { type: "image/png" });
