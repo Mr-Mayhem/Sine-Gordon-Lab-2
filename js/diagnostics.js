@@ -171,8 +171,9 @@ export class DiagnosticsManager {
       }
       
       const testsGroupHtml = catTests.map(test => {
-        const isHighRes = !!test.highRes;
-        const checkedAttr = isHighRes ? "" : "checked";
+        // Only Level 1 should be checked by default initially
+        const isDefaultChecked = (cat.name === "Level 1: Quick Compliance Checks");
+        const checkedAttr = isDefaultChecked ? "checked" : "";
         return `
         <div class="test-item border border-white/5 bg-white/[0.02] rounded-xl p-3 flex flex-col sm:flex-row justify-between sm:items-center gap-3" id="test-card-${test.id}">
           <div class="flex-1">
@@ -368,12 +369,6 @@ export class DiagnosticsManager {
         if (group3) group3.style.setProperty("display", "block", "important");
         if (highresChk) {
           highresChk.checked = true;
-          DIAGNOSTIC_TESTS.forEach(t => {
-            if (t.highRes) {
-              const itemChk = document.getElementById(`chk-test-${t.id}`);
-              if (itemChk) itemChk.checked = true;
-            }
-          });
         }
       } else if (filterVal === "all") {
         if (group1) group1.style.setProperty("display", "block", "important");
@@ -381,6 +376,27 @@ export class DiagnosticsManager {
         const highresEnabled = highresChk ? highresChk.checked : false;
         if (group3) group3.style.setProperty("display", highresEnabled ? "block" : "none", "important");
       }
+
+      // Automatically sync checkboxes: check if they are in a visible category, uncheck if they are in a hidden category
+      const selectAllChecked = selectAllChk ? selectAllChk.checked : true;
+      DIAGNOSTIC_TESTS.forEach(t => {
+        const itemChk = document.getElementById(`chk-test-${t.id}`);
+        if (itemChk) {
+          const groupName = t.category;
+          const groupEl = document.getElementById(`cat-group-${groupName.replace(/\s+/g, '-')}`);
+          const isGroupVisible = groupEl && groupEl.style.display !== "none";
+          
+          if (isGroupVisible) {
+            if (t.highRes) {
+              itemChk.checked = highresChk ? highresChk.checked : false;
+            } else {
+              itemChk.checked = selectAllChecked;
+            }
+          } else {
+            itemChk.checked = false;
+          }
+        }
+      });
     };
 
     if (levelFilterSelect) {
