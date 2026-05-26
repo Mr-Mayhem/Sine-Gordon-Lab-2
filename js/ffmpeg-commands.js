@@ -112,6 +112,8 @@ export function buildChunkArgs(
       String(params.fps),
       "-video_track_timescale",
       "90000",
+      "-muxdelay",
+      "0",
       "-output_ts_offset",
       String((framesOffset / params.fps).toFixed(6)),
     ];
