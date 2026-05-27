@@ -115,6 +115,30 @@ function refreshUI() {
   if (document.getElementById("sel-crf")) document.getElementById("sel-crf").value = sgState.exportCRF;
   if (document.getElementById("sel-limit")) document.getElementById("sel-limit").value = sgState.exportLimit;
 
+  // Sync structural control panel dropdowns with underlying state
+  const selTopo = document.getElementById("sel-topology");
+  if (selTopo) {
+    selTopo.value = sgState.physics.topo || "circ";
+  }
+  const selLem = document.getElementById("sel-lemniscate-form");
+  if (selLem) {
+    selLem.value = sgState.lemniscateForm || "gerono";
+    selLem.style.display = sgState.physics.topo === "lemniscate" ? "" : "none";
+  }
+  const btnWrap = document.getElementById("btn-linear-wrap");
+  if (btnWrap) {
+    btnWrap.style.display = sgState.physics.topo === "linear" ? "" : "none";
+    if (sgState.physics.linearWrap) {
+      btnWrap.classList.add("active");
+    } else {
+      btnWrap.classList.remove("active");
+    }
+  }
+  const selOrient = document.getElementById("sel-orientation");
+  if (selOrient) {
+    selOrient.value = sgState.orientationTarget || "horizontal";
+  }
+
   // Sync resolution dropdown to the current state dimensions programmatically
   const pbPrev = document.getElementById("assembly-preview");
   const selResolution = document.getElementById("sel-res");

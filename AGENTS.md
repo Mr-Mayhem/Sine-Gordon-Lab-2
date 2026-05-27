@@ -316,6 +316,15 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
   2. **Thread-Targeted Config Verbosity**: Dynamically append a `Threads=` configuration parameter to the initial test log reports (`SINGLE-THREADED (ST)`, `MULTI-THREADED (MT)`, or `N/A` for still archives).
   3. **Reactive Assembly Logs**: Tailor assembly step prints (`[Assemble] ...`) to explicitly state the compilation mechanism (e.g. `FFmpeg WASM Multi-Threaded (MT) worker pools (SAB enabled)` vs `FFmpeg WASM Single-Threaded (ST) transcode loop`). This ensures flawless inspection, precise log validation on external servers, and clear, reproducible diagnostic trails.
 
+### 4.16 Structural Control Panel State-Sync Integrity
+* **The Pitfall**: In complex multi-window, persistent browser, or manual testing environments, global state parameters such as the active topology (`sgState.physics.topo`), linear wrapping state (`sgState.physics.linearWrap`), or screen orientation (`sgState.orientationTarget`) can get out of sync with raw DOM selectors (`#sel-topology`, `#sel-lemniscate-form`, `#btn-linear-wrap`, `#sel-orientation`). When different windows are loaded or re-initialized, the UI state dropdowns can display stale mock defaults while the underlying physics simulation runs on a different active mode.
+* **The Resolution (Bi-directional UI Back-Syncing)**:
+  1. On every single invocation of the baseline UI update pipeline (`refreshUI()`), programmatically force all high-level control dropdowns and dynamic buttons to re-align their active DOM properties to match the exact values held in the simulation state:
+     - Always force selection state: `document.getElementById("sel-topology").value = sgState.physics.topo`.
+     - Manage visibility arrays cleanly, showing/hiding `#sel-lemniscate-form` and `#btn-linear-wrap` depending on active layout modes.
+     - Toggle class listings dynamically to keep button accent classes (`.active`) completely accurate.
+  2. This guarantees absolute structural integrity across multiple tabs, device pivots, or window resizes, preventing stale DOM displays from masking active physical topologies.
+
 ---
 
 ## 5. VERIFICATION WORKFLOW

@@ -20,6 +20,26 @@ import { LogNexus } from "./logger.js";
 
 var _assemblyStats = null;
 
+export function onFFmpegLog(msg) {
+  if (!_assemblyStats) return;
+  const match = msg.match(/frame\s*=\s*(\d+)/i);
+  if (match) {
+    const frameNum = parseInt(match[1], 10);
+    if (!isNaN(frameNum)) {
+      const isEncodingPhase = _assemblyStats.currentPhase && _assemblyStats.currentPhase.startsWith("Encoding video");
+      if (isEncodingPhase) {
+        const baseOffset = _assemblyStats.chunkFramesProcessed || 0;
+        _assemblyStats.framesEncoded = Math.min(baseOffset + frameNum, _assemblyStats.totalFrames);
+        
+        _assemblyStats.encodeProgress = Math.round(
+          (_assemblyStats.framesEncoded / _assemblyStats.totalFrames) * 100
+        );
+        _updateAssemblyUI();
+      }
+    }
+  }
+}
+
 // Clean logs helper - delegates to consolidated nexus
 export function clearAssemblyLogs() {
   LogNexus.clearNormal();
@@ -223,7 +243,15 @@ function _updateAssemblyUI() {
       lines.push("<strong>Mode:</strong> " + s.mode);
     }
     lines.push("Phase: " + s.currentPhase);
-    lines.push("Frames: " + s.verifiedFrames + " / " + s.totalFrames);
+    
+    // Display actual framesEncoded during encoding phase, otherwise folder-reading verifiedFrames
+    const isEncodingPhase = s.currentPhase && s.currentPhase.startsWith("Encoding video");
+    if (isEncodingPhase) {
+      lines.push("Frames: " + s.framesEncoded + " / " + s.totalFrames);
+    } else {
+      lines.push("Frames: " + s.verifiedFrames + " / " + s.totalFrames);
+    }
+
     if (s.missingFrames > 0) lines.push("Missing: " + s.missingFrames);
     if (s.encodeElapsed > 0) {
       var sec = (s.encodeElapsed / 1000).toFixed(1);
@@ -282,7 +310,12 @@ function _updateAssemblyUI() {
     bottomPhaseEl.textContent = s.currentPhase;
   }
   if (bottomFramesEl && typeof s.verifiedFrames !== "undefined") {
-    bottomFramesEl.textContent = `${s.verifiedFrames} / ${s.totalFrames} frames`;
+    const isEncodingPhase = s.currentPhase && s.currentPhase.startsWith("Encoding video");
+    if (isEncodingPhase) {
+      bottomFramesEl.textContent = `${s.framesEncoded} / ${s.totalFrames} frames`;
+    } else {
+      bottomFramesEl.textContent = `${s.verifiedFrames} / ${s.totalFrames} frames`;
+    }
   }
 }
 
@@ -498,7 +531,7 @@ export async function assembleFromStorage(pipeline, recorderRef) {
   const ffmpeg = await loadFFmpeg(
     (typeof appState !== "undefined" ? appState.exportFormat : null) || "webm",
     recorderRef,
-    null,
+    onFFmpegLog,
   );
   if (!ffmpeg) {
     overlay.style.display = "none";
@@ -925,6 +958,7 @@ async function _assemble(
         }
       }
 
+      _assemblyStats.currentPhase = `Writing frames (Batch ${c + 1}/${numChunks})`;
       for (let i = 0; i < framesInThisChunk; i++) {
         var frameData = doubleBuffer[activeBufferIdx][i];
         if (!frameData) {
@@ -966,6 +1000,9 @@ async function _assemble(
       if (expectedChunkFrameCount !== framesInThisChunk) {
         console.warn(`[CHUNK ANOMALY] Frame count mismatch inside chunk compiler! (Expected: ${expectedChunkFrameCount}, Got: ${framesInThisChunk})`);
       }
+
+      _assemblyStats.currentPhase = `Encoding video (Batch ${c + 1}/${numChunks})`;
+      _updateAssemblyUI();
 
       await ffmpeg.exec(chunkArgs);
 

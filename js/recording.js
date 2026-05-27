@@ -6,7 +6,7 @@
 
 import { sgState as appState } from "./state.js";
 import { loadFFmpeg } from "./ffmpeg-loader.js";
-import { assemble, assembleFromStorage } from "./assembly.js";
+import { assemble, assembleFromStorage, onFFmpegLog } from "./assembly.js";
 import { exportToZip } from "./zip-export.js";
 import {
   resolveRecordingResolution,
@@ -265,7 +265,7 @@ export default class RecordingEngine {
       if (statusEl) statusEl.innerHTML = "<strong>Mode:</strong> video-render<br><strong>Phase:</strong> Loading FFmpeg...";
       
       try {
-        this._ffmpeg = await loadFFmpeg(typeof appState !== 'undefined' ? appState.exportFormat : "webm", this);
+        this._ffmpeg = await loadFFmpeg(typeof appState !== 'undefined' ? appState.exportFormat : "webm", this, onFFmpegLog);
       } catch (e) {
         console.error("FFmpeg load failed", e);
         alert("FFmpeg could not load. Try ZIP export.");
