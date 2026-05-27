@@ -6,115 +6,61 @@
 // =============================================================================
 
 import { DiscSpaceEstimator } from "./disc-space-estimator.js";
+import { LogNexus } from "./logger.js";
 
-const DIAGNOSTIC_TESTS = [
-  {
-    id: "SD_WEBM_QUICK",
-    name: "Quick Test: SD 360p (WebM)",
-    category: "Level 1: Quick Compliance Checks",
-    pipeline: "ffmpeg",
-    format: "webm",
-    width: 640,
-    height: 360,
-    fps: 30,
-    crf: "23",
-    frames: 30,
-    description: "Verifies basic pixel capture and high-speed WebAssembly FFmpeg integration at 360p."
-  },
-  {
-    id: "SD_MP4_QUICK",
-    name: "Quick Test: SD 480p (MP4/H.264)",
-    category: "Level 1: Quick Compliance Checks",
-    pipeline: "ffmpeg",
-    format: "mp4",
-    width: 852,
-    height: 480,
-    fps: 30,
-    crf: "18",
-    frames: 30,
-    description: "Tests single-threaded H.264 macroblock boundary matching at widescreen 852x480 resolution."
-  },
-  {
-    id: "ZIP_STILLS_QUICK",
-    name: "Stills Test: ZIP Export 480p",
-    category: "Level 1: Quick Compliance Checks",
-    pipeline: "zip",
-    format: "zip",
-    width: 852,
-    height: 480,
-    fps: 30,
-    frames: 30,
-    description: "Examines sandboxed ZIP archiving, file streams, and memory footprints without transcoding."
-  },
-  {
-    id: "SD_WEBM_STRESS",
-    name: "Extended Stress: SD 480p (WebM)",
-    category: "Level 2: Duration & Storage Stress Tests",
-    pipeline: "ffmpeg",
-    format: "webm",
-    width: 852,
-    height: 480,
-    fps: 30,
-    crf: "15",
-    frames: 300,
-    description: "Renders 300 frames to monitor long-running OPFS storage retention and WebM assembly stability."
-  },
-  {
-    id: "HD_WEBM_STRESS",
-    name: "Extended Stress: HD 720p (WebM)",
-    category: "Level 2: Duration & Storage Stress Tests",
-    pipeline: "ffmpeg",
-    format: "webm",
-    width: 1280,
-    height: 720,
-    fps: 30,
-    crf: "28",
-    frames: 300,
-    description: "Exercises thread limits, substantial frame counts, and chunk-oriented memory pipelines."
-  },
-  {
-    id: "FHD_MP4_STRESS",
-    name: "Density Stress: FHD 1080p (MP4/H.264)",
-    category: "Level 3: High-Density Stress Tests (Opt-In)",
-    pipeline: "ffmpeg",
-    format: "mp4",
-    width: 1920,
-    height: 1080,
-    fps: 30,
-    crf: "23",
-    frames: 30,
-    highRes: true,
-    description: "Evaluates standard 1080p Full HD transcode limits and multi-threaded worker rendering."
-  },
-  {
-    id: "QHD_WEBM_STRESS",
-    name: "Density Stress: QHD 1440p (WebM)",
-    category: "Level 3: High-Density Stress Tests (Opt-In)",
-    pipeline: "ffmpeg",
-    format: "webm",
-    width: 2560,
-    height: 1440,
-    fps: 30,
-    crf: "25",
-    frames: 30,
-    highRes: true,
-    description: "Tests high-density QHD 1440p pixel buffers and sequential chunk allocations."
-  },
-  {
-    id: "UHD_MP4_STRESS",
-    name: "Density Stress: UHD 4K 2160p (MP4/H.264)",
-    category: "Level 3: High-Density Stress Tests (Opt-In)",
-    pipeline: "ffmpeg",
-    format: "mp4",
-    width: 3840,
-    height: 2160,
-    fps: 30,
-    crf: "28",
-    frames: 30,
-    highRes: true,
-    description: "Max-density stress benchmark testing memory pressure and WASM heap bounds."
+class TestSpecHelper {
+  static createSpec({ mode, resolution, crf, threading }) {
+    let pipeline = "ffmpeg";
+    let format = "webm";
+    let testCrf = crf;
+    let description = "";
+
+    const threadLabel = threading === "MT" ? "multi-threaded" : "single-threaded";
+
+    if (mode === "Frames_to_Zip") {
+      pipeline = "zip";
+      format = "zip";
+      testCrf = null;
+      description = `Verifies high-speed synchronized pixel capture and low-memory JSZip stream generation at ${resolution.width}x${resolution.height}.`;
+    } else if (mode === "Zip_to_Video_WebM") {
+      pipeline = "zip-to-video";
+      format = "webm";
+      description = `Tests in-memory zip file extraction and high-speed WebAssembly FFmpeg WebM transcode at ${resolution.width}x${resolution.height} (CRF ${testCrf}).`;
+    } else if (mode.startsWith("Zip_to_Video_MP4")) {
+      pipeline = "zip-to-video";
+      format = "mp4";
+      description = `Tests in-memory zip file extraction and ${threadLabel} WebAssembly FFmpeg H.264 MP4 transcode at ${resolution.width}x${resolution.height} (CRF ${testCrf}).`;
+    } else if (mode === "Frames_to_Video_WebM") {
+      pipeline = "ffmpeg";
+      format = "webm";
+      description = `Verifies direct WebGL capture to high-speed WebAssembly FFmpeg WebM compilation at ${resolution.width}x${resolution.height} (CRF ${testCrf}).`;
+    } else if (mode.startsWith("Frames_to_Video_MP4")) {
+      pipeline = "ffmpeg";
+      format = "mp4";
+      description = `Verifies direct WebGL capture to ${threadLabel} H.264 MP4 transcode at ${resolution.width}x${resolution.height} (CRF ${testCrf}).`;
+    }
+
+    const modeTitle = mode.replace(/_/g, " ");
+
+    return {
+      id: `DIAG_${mode}_${threading || "ST"}_${resolution.width}x${resolution.height}`,
+      name: `${modeTitle} (${threading || "ST"}): ${resolution.name} (${resolution.width}x${resolution.height})`,
+      category: `Mode: ${mode}`,
+      pipeline: pipeline,
+      format: format,
+      threading: threading || "ST",
+      width: resolution.width,
+      height: resolution.height,
+      fps: resolution.fps,
+      crf: testCrf,
+      frames: 30,
+      highRes: resolution.highRes || false,
+      description: description
+    };
   }
-];
+}
+
+let DIAGNOSTIC_TESTS = [];
 
 export class DiagnosticsManager {
   constructor() {
@@ -122,7 +68,7 @@ export class DiagnosticsManager {
     this.isTesting = false;
     this.isAborted = false;
     this.currentTestIndex = -1;
-    this.logs = [];
+    this.logs = LogNexus.testLogs;
     this.testResults = {};
     
     this.setupModal();
@@ -146,90 +92,27 @@ export class DiagnosticsManager {
 
     const content = document.createElement("div");
     content.className = "theory-content";
-    content.style.maxWidth = "780px";
-    content.style.margin = "20px auto";
+    content.style.maxWidth = "880px";
+    content.style.margin = "10px auto";
     content.style.backgroundColor = "rgba(10, 10, 10, 0.85)";
     content.style.border = "1px solid rgba(255,255,255,0.08)";
-    content.style.borderRadius = "16px";
-    content.style.padding = "20px 24px";
+    content.style.borderRadius = "12px";
+    content.style.padding = "10px 16px";
     content.style.boxShadow = "0 20px 50px rgba(0,0,0,0.6)";
 
-    const categories = [
-      { name: "Level 1: Quick Compliance Checks", highRes: false },
-      { name: "Level 2: Duration & Storage Stress Tests", highRes: false },
-      { name: "Level 3: High-Density Stress Tests (Opt-In)", highRes: true }
-    ];
-
-    let testsHtml = categories.map(cat => {
-      const catTests = DIAGNOSTIC_TESTS.filter(t => t.category === cat.name);
-      // Default level selection in the dropdown is Level 1, so Level 1 group is shown by default - Level 2/3 are initially display:none
-      let initialStyle = "";
-      if (cat.name === "Level 1: Quick Compliance Checks") {
-        initialStyle = "display: block !important;";
-      } else {
-        initialStyle = "display: none !important;";
-      }
-      
-      const testsGroupHtml = catTests.map(test => {
-        // Only Level 1 should be checked by default initially
-        const isDefaultChecked = (cat.name === "Level 1: Quick Compliance Checks");
-        const checkedAttr = isDefaultChecked ? "checked" : "";
-        
-        let description = test.description;
-        if (typeof SharedArrayBuffer === "undefined") {
-          description = description.replace(" and multi-threaded worker rendering", "");
-          description = description.replace("multi-threaded worker rendering", "single-threaded rendering");
-        }
-
-        return `
-        <div class="test-item border border-white/5 bg-white/[0.015] rounded-lg p-2 flex flex-col sm:flex-row justify-between sm:items-center gap-2.5" id="test-card-${test.id}">
-          <div class="flex-1 col-span-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <input type="checkbox" id="chk-test-${test.id}" class="w-3.5 h-3.5 accent-green-400 cursor-pointer" ${checkedAttr}>
-              <span id="test-title-${test.id}" class="text-[10px] font-semibold text-white/95 transition-colors">${test.name}</span>
-              <span class="text-[6.5px] bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/25 px-1.5 py-0.2 rounded font-mono font-bold select-none flex-frames-badge" data-testid="${test.id}">${test.frames} FMR</span>
-            </div>
-            <p class="text-[8.5px] text-white/45 mt-0.5 pl-5.5 select-none leading-relaxed">${description}</p>
-            <div class="text-[7px] font-mono text-white/25 pl-5.5 mt-0.5 select-none uppercase tracking-wider font-semibold">
-              Pipeline: <span class="text-green-400/80">${test.pipeline}</span> | 
-              Resolution: <span class="text-white/60">${test.width}x${test.height}</span> | 
-              Format: <span class="text-green-400/80">${test.format}</span> ${test.crf ? `| CRF: <span class="text-amber-400 font-bold">${test.crf}</span>` : ""}
-            </div>
-            <!-- Dynamic Error Box -->
-            <div id="test-error-${test.id}" class="test-error-box ml-5.5 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[7px] p-2 mt-1.5 rounded-lg overflow-x-auto select-text hidden"></div>
-          </div>
-          <div class="flex items-center gap-2 shrink-0 justify-end pl-5.5 sm:pl-0">
-            <span class="text-[7px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
-            <button class="btn-single-test bg-white/5 text-white/70 hover:bg-green-500/10 hover:text-green-400 hover:border-green-500/30 border border-white/10 py-1 px-2.5 rounded text-[6.5px] font-bold transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
-          </div>
-        </div>
-        `;
-      }).join("");
-
-      return `
-      <div class="test-category-group test-category-highres mb-4" style="${initialStyle}" id="cat-group-${cat.name.replace(/\s+/g, '-')}">
-        <h3 class="text-[9px] uppercase font-bold tracking-wider text-green-400/90 mb-2 border-b border-white/5 pb-1 select-none flex items-center justify-between">
-          <span>${cat.name}</span>
-          <span class="text-[8px] opacity-30 font-normal normal-case">Sequence Batch Assertions</span>
-        </h3>
-        <div class="flex flex-col gap-1.5">
-          ${testsGroupHtml}
-        </div>
-      </div>
-      `;
-    }).join("");
+    let testsHtml = "";
 
     content.innerHTML = `
-      <header class="flex justify-between items-center border-b border-white/10 pb-3 mb-3">
+      <header class="flex justify-between items-center border-b border-white/10 pb-1 mb-1.5">
         <div>
-          <h1 class="text-xl font-black mt-0.5 tracking-tight text-white select-none uppercase">Video Pipeline Diagnostics and Test Suite</h1>
-          <p class="text-white/40 font-mono text-[8.5px] uppercase tracking-[0.12em] mt-0.5 select-none">Automated compliance checks • Frame rate integrity benchmarks</p>
+          <h1 class="text-[9.5px] font-bold tracking-wider text-white select-none uppercase font-mono">Video Pipeline Diagnostics</h1>
+          <p class="text-white/35 font-mono text-[6px] uppercase tracking-[0.12em] mt-0.5 select-none">Automated compliance checks • Frame rate integrity benchmarks</p>
         </div>
-        <button id="btn-close-diagnostics" class="btn-icon w-8 h-8 text-white hover:bg-white/10 text-sm border border-white/10 rounded-full transition-all flex items-center justify-center">✕</button>
+        <button id="btn-close-diagnostics" class="btn-icon w-5 h-5 text-white hover:bg-white/10 text-[9px] border border-white/10 rounded-full transition-all flex items-center justify-center">✕</button>
       </header>
 
       <!-- System Diagnostic Metadata Header -->
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white/[0.015] border border-white/5 rounded-xl p-2.5 mb-3 text-[9px] text-white/60">
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-1.5 bg-white/[0.015] border border-white/5 rounded-lg p-1 mb-1.5 text-[6.5px] text-white/60">
         <div><span class="text-white/35 select-none mb-0.5 font-bold uppercase tracking-wider" style="display: block;">System Cores: </span><strong id="diag-cores">Calculating...</strong></div>
         <div><span class="text-white/35 select-none mb-0.5 font-bold uppercase tracking-wider" style="display: block;">Reported Memory: </span><strong id="diag-mem">Calculating...</strong></div>
         <div><span class="text-white/35 select-none mb-0.5 font-bold uppercase tracking-wider" style="display: block;">SharedArrayBuffer: </span><strong id="diag-sab">Calculating...</strong></div>
@@ -237,35 +120,44 @@ export class DiagnosticsManager {
       </section>
 
       <!-- Action Control Row -->
-      <div class="flex flex-wrap items-center justify-between gap-2.5 bg-white/[0.02] border border-white/5 p-2 rounded-xl mb-3">
-        <div class="flex flex-wrap gap-3.5 items-center">
-          <!-- Diagnostics Filter Dropdown -->
-          <div class="flex items-center gap-2 text-[9px] text-white select-none uppercase font-bold tracking-wider border-r border-white/10 pr-3.5">
-            <span class="text-white/45">Viewing Level:</span>
-            <select id="sel-diagnostic-level-filter" class="thumb-select bg-white/5 border border-white/15 hover:border-green-500/50 rounded px-2 cursor-pointer !h-[22px] !py-0 !text-[9.5px] text-green-400 font-bold focus:outline-none focus:ring-1 focus:ring-green-500/50">
-              <option value="level-1" selected>Level 1: Quick Compliance Checks</option>
-              <option value="level-2">Level 2: Duration & Storage Stress Tests</option>
-              <option value="level-3">Level 3: High-Density Stress (Opt-In)</option>
-              <option value="all">Show All Suite Levels</option>
+      <div class="flex flex-wrap items-center justify-between gap-1 bg-white/[0.02] border border-white/5 p-1 px-1.5 rounded-lg mb-1.5">
+        <div class="flex flex-wrap gap-1 md:gap-2 items-center">
+          <!-- Mode Selection Dropdown -->
+          <div class="flex items-center gap-1 text-[6.5px] text-white select-none uppercase font-bold tracking-wider border-r border-white/10 pr-1 lg:pr-2">
+            <span class="text-white/45 font-bold text-[6.5px]">Mode:</span>
+            <select id="sel-diagnostic-mode" class="thumb-select bg-white/5 border border-white/15 hover:border-white/45 rounded px-1 cursor-pointer !h-[16px] !py-0 !text-[6.5px] text-white font-bold focus:outline-none focus:ring-1 focus:ring-white/30">
+              <option value="Frames_to_Zip" selected>Frames_to_Zip</option>
+              <option value="Zip_to_Video_WebM">Zip_to_Video (WebM)</option>
+              <option value="Zip_to_Video_MP4_ST">Zip_to_Video (MP4 ST)</option>
+              <option value="Zip_to_Video_MP4_MT" id="opt-zip-mp4-mt">Zip_to_Video (MP4 MT)</option>
+              <option value="Frames_to_Video_WebM">Frames_to_Video (WebM)</option>
+              <option value="Frames_to_Video_MP4_ST">Frames_to_Video (MP4 ST)</option>
+              <option value="Frames_to_Video_MP4_MT" id="opt-frames-mp4-mt">Frames_to_Video (MP4 MT)</option>
             </select>
           </div>
-          <label class="flex items-center gap-1.5 text-[9px] text-white/55 select-none uppercase font-bold cursor-pointer">
-            <input type="checkbox" id="chk-select-all" class="w-3.5 h-3.5 accent-green-400 cursor-pointer" checked>
+          <!-- Compression Selection Dropdown -->
+          <div class="flex items-center gap-1 text-[6.5px] text-white select-none uppercase font-bold tracking-wider border-r border-white/10 pr-1 lg:pr-2" id="box-diagnostic-compression" style="display: none;">
+            <span class="text-white/45 font-bold text-[6.5px]">Compression:</span>
+            <select id="sel-diagnostic-compression" class="thumb-select bg-white/5 border border-white/15 hover:border-white/45 rounded px-1 cursor-pointer !h-[16px] !py-0 !text-[6.5px] text-white font-bold focus:outline-none focus:ring-1 focus:ring-white/30">
+              <option value="18">High Quality (CRF 18)</option>
+              <option value="23" selected>Standard (CRF 23)</option>
+              <option value="28">Eco Space (CRF 28)</option>
+              <option value="32">Extreme Space (CRF 32)</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-1 text-[6.5px] text-white/55 select-none uppercase font-bold cursor-pointer">
+            <input type="checkbox" id="chk-select-all" class="w-2 h-2 accent-white cursor-pointer" checked>
             Select All
           </label>
-          <label class="flex items-center gap-1.5 text-[9px] text-white/55 select-none uppercase font-bold cursor-pointer">
-            <input type="checkbox" id="chk-enable-probing" class="w-3.5 h-3.5 accent-green-400 cursor-pointer" checked>
+          <label class="flex items-center gap-1 text-[6.5px] text-white/55 select-none uppercase font-bold cursor-pointer">
+            <input type="checkbox" id="chk-enable-probing" class="w-2 h-2 accent-white cursor-pointer" checked>
             Enable Output Probing
-          </label>
-          <label class="flex items-center gap-1.5 text-[9px] text-white/55 select-none uppercase font-bold cursor-pointer" style="display: none;">
-            <input type="checkbox" id="chk-enable-highres" class="w-3.5 h-3.5 accent-green-400 cursor-pointer">
-            Enable 1080p/1440p/4K Tests
           </label>
         </div>
         
         <!-- Dynamic Target Frame Count Range -->
-        <div class="flex items-center gap-2">
-          <select id="sel-test-frames-selector" class="thumb-select bg-white/5 border border-white/15 rounded px-2 cursor-pointer !h-[22px] !py-0 !text-[9.5px]">
+        <div class="flex items-center gap-1">
+          <select id="sel-test-frames-selector" class="thumb-select bg-white/5 border border-white/15 rounded px-1 cursor-pointer !h-[16px] !py-0 !text-[6.5px]">
             <option value="10">DURATION: 10 Frames (Ultra Short)</option>
             <option value="15" selected>DURATION: 15 Frames (Short Sandbox)</option>
             <option value="30">DURATION: 30 Frames (Quick Sandbox)</option>
@@ -277,33 +169,33 @@ export class DiagnosticsManager {
           </select>
         </div>
 
-        <div class="flex gap-1.5">
-          <button id="btn-run-all-diagnostics" class="btn-pill bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30 py-1 px-3 rounded text-[10px] font-bold transition-all whitespace-nowrap">▶ Run Selected</button>
-          <button id="btn-abort-diagnostics" class="btn-pill bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 py-1 px-3 rounded text-[10px] font-bold transition-all whitespace-nowrap" style="display:none;">⏹ Abort Suite</button>
-          <button id="btn-copy-test-report" class="btn-pill bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/30 py-1 px-3 rounded text-[10px] font-bold transition-all whitespace-nowrap" style="display:none;">📋 Copy Test Report</button>
-          <button id="btn-clear-diagnostic-logs" class="btn-pill bg-white/5 text-white/55 hover:bg-white/10 border border-white/10 py-1 px-2.5 rounded text-[10px] font-bold transition-all whitespace-nowrap">🧹 Clear Logs</button>
+        <div class="flex gap-1">
+          <button id="btn-run-all-diagnostics" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap">▶ Run Selected</button>
+          <button id="btn-abort-diagnostics" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap" style="display:none;">⏹ Abort Suite</button>
+          <button id="btn-copy-test-report" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap" style="display:none;">📋 Copy Test Report</button>
+          <button id="btn-clear-diagnostic-logs" class="btn-pill bg-white/5 text-white/55 hover:bg-white/10 border border-white/10 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap">🧹 Clear Logs</button>
         </div>
       </div>
 
-      <!-- Main Test Suite Grid -->
-      <div class="flex flex-col gap-1.5 pr-1 select-none scrollbar-thin mb-3" style="max-height: 250px; overflow-y: auto;">
-        ${testsHtml}
+      <!-- Main Test Suite Grid (Made Taller) -->
+      <div id="diagnostics-tests-container" class="flex flex-col gap-1 pr-1 select-none scrollbar-thin mb-1.5" style="max-height: 480px; overflow-y: auto;">
+        <!-- Dynamically populated via rebuildTestsList() -->
       </div>
 
-      <!-- Real-time Test Output Logs Console -->
-      <div id="diagnostics-console-box" class="border border-white/5 rounded-xl bg-black/95 p-3 font-mono text-[7px] flex flex-col gap-1 overflow-hidden" style="height: 180px; min-height: 180px; display: flex !important; flex-shrink: 0; box-sizing: border-box;">
-        <div class="flex justify-between items-center text-[7px] uppercase tracking-wider border-b border-white/5 pb-1 mb-1 text-white/35">
+      <!-- Real-time Test Output Logs Console (Fine print and scrollable) -->
+      <div id="diagnostics-console-box" class="border border-white/5 rounded-lg bg-black/95 p-1.5 flex flex-col gap-0.5 overflow-hidden" style="height: 150px; min-height: 150px; display: flex !important; flex-shrink: 0; box-sizing: border-box;">
+        <div class="flex justify-between items-center text-[5.5px] uppercase tracking-wider border-b border-white/5 pb-0.5 mb-0.5 text-white/35">
           <span>Engine Output Console</span>
           <span id="txt-diagnostics-phase-val" class="font-bold text-yellow-400">IDLE</span>
         </div>
-        <div id="diagnostics-logs-scrollbar" class="flex-1 overflow-y-auto pr-1 space-y-0.5 text-left text-white/60 scrollbar-thin select-text">
-          <div class="text-white/20">[Suite] Welcome to the Sine-Gordon Lab Pipeline Diagnostics Center. Select tests and run pipeline benchmark assertions.</div>
+        <div id="diagnostics-logs-scrollbar" class="flex-1 overflow-y-auto pr-1 space-y-0.5 text-left text-white/60 font-mono text-[6px] leading-tight scrollbar-thin select-text">
+          <div class="text-white/20 font-bold">[Suite] Welcome to the Sine-Gordon Lab Pipeline Diagnostics Center. Select tests and run pipeline benchmark assertions.</div>
         </div>
-        <div class="mt-1" id="box-diagnostics-progress-outer" style="display:none;">
-          <div style="height:4px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden;" class="w-full">
-            <div id="diagnostics-progress-fill" style="height:100%; background:linear-gradient(90deg, #4ade80, #10b981); width:0%; transition:none;"></div>
+        <div class="mt-0.5" id="box-diagnostics-progress-outer" style="display:none;">
+          <div style="height:3px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden;" class="w-full">
+            <div id="diagnostics-progress-fill" style="height:100%; background:linear-gradient(90deg, #ffffff, #9ca3af); width:0%; transition:none;"></div>
           </div>
-          <div class="flex justify-between items-center text-[6.5px] text-white/35 mt-0.5">
+          <div class="flex justify-between items-center text-[5.5px] text-white/35 mt-0.5">
             <span id="txt-diagnostics-progress-step">Processing...</span>
             <span id="txt-diagnostics-progress-percent">0%</span>
           </div>
@@ -311,17 +203,26 @@ export class DiagnosticsManager {
       </div>
 
       <!-- Bottom Actions Footer Row -->
-      <div class="flex justify-between items-center mt-3 bg-white/[0.015] border border-white/5 p-2 px-3 rounded-lg select-none text-[9.5px]">
-        <span class="text-white/30 font-mono text-[8.5px] uppercase tracking-wider pl-1">Compliance Report Actions</span>
-        <div class="flex gap-2">
-          <button id="btn-copy-test-report-bottom" class="btn-pill bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/40 py-1 px-3 rounded text-[10px] font-bold transition-all whitespace-nowrap" style="display:none;">📋 Copy Test Report</button>
-          <button id="btn-close-diagnostics-bottom" class="btn-pill bg-white/5 text-white/60 hover:bg-white/10 border border-white/10 py-1 px-3 rounded text-[10px] font-bold transition-all whitespace-nowrap">Close</button>
+      <div class="flex justify-between items-center mt-1.5 bg-white/[0.015] border border-white/5 p-1 px-1.5 rounded-lg select-none text-[7.5px]">
+        <span class="text-white/30 font-mono text-[6.5px] uppercase tracking-wider pl-1 font-bold">Compliance Report Actions</span>
+        <div class="flex gap-1">
+          <button id="btn-copy-test-report-bottom" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap cursor-pointer select-none" style="display:none;">📋 Copy Test Report</button>
+          <button id="btn-close-diagnostics-bottom" class="btn-pill bg-white/5 text-white/60 hover:bg-white/10 border border-white/10 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap cursor-pointer select-none">Close</button>
         </div>
       </div>
     `;
 
     overlay.appendChild(content);
     document.body.appendChild(overlay);
+
+    // Filter MT options dynamically if SAB is absent or browser-restricted
+    const hasSAB = typeof SharedArrayBuffer !== "undefined";
+    if (!hasSAB) {
+      const optZipMt = document.getElementById("opt-zip-mp4-mt");
+      if (optZipMt) optZipMt.remove();
+      const optFramesMt = document.getElementById("opt-frames-mp4-mt");
+      if (optFramesMt) optFramesMt.remove();
+    }
 
     // Bind event handlers
     document.getElementById("btn-close-diagnostics").onclick = () => this.hide();
@@ -336,105 +237,39 @@ export class DiagnosticsManager {
       };
     }
     
-    // Select All Checkbox logic — modified to only select visible category tests
+    // Select All Checkbox logic
     const selectAllChk = document.getElementById("chk-select-all");
-    selectAllChk.onchange = (e) => {
-      const isChecked = e.target.checked;
-      DIAGNOSTIC_TESTS.forEach(t => {
-        const itemChk = document.getElementById(`chk-test-${t.id}`);
-        if (itemChk) {
-          const groupName = t.category;
-          const groupEl = document.getElementById(`cat-group-${groupName.replace(/\s+/g, '-')}`);
-          if (groupEl && groupEl.style.display !== "none") {
+    if (selectAllChk) {
+      selectAllChk.onchange = (e) => {
+        const isChecked = e.target.checked;
+        DIAGNOSTIC_TESTS.forEach(t => {
+          const itemChk = document.getElementById(`chk-test-${t.id}`);
+          if (itemChk) {
             itemChk.checked = isChecked;
           }
-        }
-      });
-    };
-
-    // Diagnostics Filter & High-Res checks coordination
-    const levelFilterSelect = document.getElementById("sel-diagnostic-level-filter");
-    const highresChk = document.getElementById("chk-enable-highres");
-
-    const updateCategoryVisibilities = (filterVal) => {
-      const group1 = document.getElementById("cat-group-Level-1:-Quick-Compliance-Checks");
-      const group2 = document.getElementById("cat-group-Level-2:-Duration-&-Storage-Stress-Tests");
-      const group3 = document.getElementById("cat-group-Level-3:-High-Density-Stress-Tests-(Opt-In)");
-
-      if (filterVal === "level-1") {
-        if (group1) group1.style.setProperty("display", "block", "important");
-        if (group2) group2.style.setProperty("display", "none", "important");
-        if (group3) group3.style.setProperty("display", "none", "important");
-        if (highresChk) highresChk.checked = false;
-      } else if (filterVal === "level-2") {
-        if (group1) group1.style.setProperty("display", "none", "important");
-        if (group2) group2.style.setProperty("display", "block", "important");
-        if (group3) group3.style.setProperty("display", "none", "important");
-        if (highresChk) highresChk.checked = false;
-      } else if (filterVal === "level-3") {
-        if (group1) group1.style.setProperty("display", "none", "important");
-        if (group2) group2.style.setProperty("display", "none", "important");
-        if (group3) group3.style.setProperty("display", "block", "important");
-        if (highresChk) {
-          highresChk.checked = true;
-        }
-      } else if (filterVal === "all") {
-        if (group1) group1.style.setProperty("display", "block", "important");
-        if (group2) group2.style.setProperty("display", "block", "important");
-        const highresEnabled = highresChk ? highresChk.checked : false;
-        if (group3) group3.style.setProperty("display", highresEnabled ? "block" : "none", "important");
-      }
-
-      // Automatically sync checkboxes: check if they are in a visible category, uncheck if they are in a hidden category
-      const selectAllChecked = selectAllChk ? selectAllChk.checked : true;
-      DIAGNOSTIC_TESTS.forEach(t => {
-        const itemChk = document.getElementById(`chk-test-${t.id}`);
-        if (itemChk) {
-          const groupName = t.category;
-          const groupEl = document.getElementById(`cat-group-${groupName.replace(/\s+/g, '-')}`);
-          const isGroupVisible = groupEl && groupEl.style.display !== "none";
-          
-          if (isGroupVisible) {
-            if (t.highRes) {
-              itemChk.checked = highresChk ? highresChk.checked : false;
-            } else {
-              itemChk.checked = selectAllChecked;
-            }
-          } else {
-            itemChk.checked = false;
-          }
-        }
-      });
-    };
-
-    if (levelFilterSelect) {
-      levelFilterSelect.onchange = (e) => {
-        updateCategoryVisibilities(e.target.value);
+        });
       };
     }
 
-    if (highresChk) {
-      highresChk.onchange = (e) => {
-        const isChecked = e.target.checked;
-        const currentFilter = levelFilterSelect ? levelFilterSelect.value : "level-1";
+    // Mode / compression reactive updates
+    const modeSelect = document.getElementById("sel-diagnostic-mode");
+    const compressionSelect = document.getElementById("sel-diagnostic-compression");
 
-        if (isChecked && currentFilter !== "level-3" && currentFilter !== "all") {
-          if (levelFilterSelect) {
-            levelFilterSelect.value = "all";
-          }
-          updateCategoryVisibilities("all");
+    if (modeSelect) {
+      modeSelect.onchange = () => {
+        const compBox = document.getElementById("box-diagnostic-compression");
+        if (modeSelect.value === "Frames_to_Zip") {
+          if (compBox) compBox.style.display = "none";
         } else {
-          updateCategoryVisibilities(currentFilter);
+          if (compBox) compBox.style.display = "flex";
         }
+        this.rebuildTestsList();
+      };
+    }
 
-        DIAGNOSTIC_TESTS.forEach(t => {
-          if (t.highRes) {
-            const itemChk = document.getElementById(`chk-test-${t.id}`);
-            if (itemChk) {
-              itemChk.checked = isChecked;
-            }
-          }
-        });
+    if (compressionSelect) {
+      compressionSelect.onchange = () => {
+        this.rebuildTestsList();
       };
     }
 
@@ -451,17 +286,106 @@ export class DiagnosticsManager {
       copyReportBottom.onclick = () => this.copyReportToClipboard();
     }
 
-    // Bind individual run buttons
-    const btnSingles = overlay.querySelectorAll(".btn-single-test");
-    btnSingles.forEach(btn => {
+    // Initialize Tests List Reactively
+    this.rebuildTestsList();
+
+    // Load specs dynamically
+    this.updateSpecs();
+  }
+
+  rebuildTestsList() {
+    const selMode = document.getElementById("sel-diagnostic-mode") ? document.getElementById("sel-diagnostic-mode").value : "Frames_to_Zip";
+    const selCrf = document.getElementById("sel-diagnostic-compression") ? document.getElementById("sel-diagnostic-compression").value : "23";
+
+    const RESOLUTIONS = [
+      { name: "SD 360p", width: 640, height: 360, fps: 30 },
+      { name: "SD 480p", width: 852, height: 480, fps: 30 },
+      { name: "HD 720p", width: 1280, height: 720, fps: 30 },
+      { name: "FHD 1080p", width: 1920, height: 1080, fps: 30, highRes: true },
+      { name: "QHD 1440p", width: 2560, height: 1440, fps: 30, highRes: true },
+      { name: "UHD 4K 2160p", width: 3840, height: 2160, fps: 30, highRes: true }
+    ];
+
+    let threading = "ST";
+    let baseMode = selMode;
+    if (selMode.endsWith("_ST")) {
+      threading = "ST";
+      baseMode = selMode.substring(0, selMode.length - 3);
+    } else if (selMode.endsWith("_MT")) {
+      threading = "MT";
+      baseMode = selMode.substring(0, selMode.length - 3);
+    }
+
+    DIAGNOSTIC_TESTS = RESOLUTIONS.map(res => {
+      return TestSpecHelper.createSpec({
+        mode: baseMode,
+        resolution: res,
+        crf: selCrf,
+        threading: threading
+      });
+    });
+
+    const container = document.getElementById("diagnostics-tests-container");
+    if (!container) return;
+
+    const selectAllChk = document.getElementById("chk-select-all");
+    const isSelectAllChecked = selectAllChk ? selectAllChk.checked : true;
+
+    const testsGroupHtml = DIAGNOSTIC_TESTS.map(test => {
+      let description = test.description;
+      if (typeof SharedArrayBuffer === "undefined") {
+        description = description.replace(" and multi-threaded worker rendering", "");
+        description = description.replace("multi-threaded worker rendering", "single-threaded rendering");
+      }
+
+      const checkedAttr = isSelectAllChecked ? "checked" : "";
+
+      return `
+      <div class="test-item border border-white/5 bg-white/[0.015] rounded-md p-1 px-1.5 flex flex-col sm:flex-row justify-between sm:items-center gap-1.5" id="test-card-${test.id}">
+        <div class="flex-1 col-span-1 min-w-0">
+          <div class="flex items-center gap-1">
+            <input type="checkbox" id="chk-test-${test.id}" class="w-2 h-2 accent-white cursor-pointer" ${checkedAttr}>
+            <span id="test-title-${test.id}" class="text-[7.5px] font-semibold text-white/95 transition-colors">${test.name}</span>
+            <span class="text-[5px] bg-white/5 hover:bg-white/10 text-white/70 border border-white/15 px-1 py-0.1 rounded font-mono font-bold select-none flex-frames-badge" id="frames-badge-${test.id}">${test.frames} FMR</span>
+          </div>
+          <p class="text-[6.5px] text-white/40 pl-3.5 select-none leading-snug">${description}</p>
+          <div class="text-[5.5px] font-mono text-white/20 pl-3.5 mt-0.5 select-none uppercase tracking-wider font-semibold">
+            Pipeline: <span class="text-white/50">${test.pipeline}</span> | 
+            Resolution: <span class="text-white/50">${test.width}x${test.height}</span> | 
+            Format: <span class="text-white/50">${test.format}</span> ${test.crf ? `| CRF: <span class="text-white/50 font-medium">${test.crf}</span>` : ""}
+          </div>
+          <!-- Dynamic Error Box -->
+          <div id="test-error-${test.id}" class="test-error-box ml-3.5 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[5.5px] p-1 mt-0.5 rounded-md overflow-x-auto select-text hidden"></div>
+        </div>
+        <div class="flex items-center gap-1 shrink-0 justify-end pl-3.5 sm:pl-0">
+          <span class="text-[5.5px] font-sans font-bold uppercase select-none rounded px-1 py-0.2 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
+          <button class="btn-single-test bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/25 border border-white/10 py-0.5 px-1.5 rounded text-[5px] font-bold transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
+        </div>
+      </div>
+      `;
+    }).join("");
+
+    container.innerHTML = `
+    <div class="test-category-group mb-1.5">
+      <h3 class="text-[7px] uppercase font-bold tracking-wider text-white/80 mb-0.5 border-b border-white/5 pb-0.5 select-none flex items-center justify-between">
+        <span>MODE: ${selMode.replace(/_/g, " ")}</span>
+        <span class="text-[6px] opacity-30 font-normal normal-case font-mono">Sequence Batch Assertions</span>
+      </h3>
+      <div class="flex flex-col gap-1">
+        ${testsGroupHtml}
+      </div>
+    </div>
+    `;
+
+    // Rebind individual run buttons
+    container.querySelectorAll(".btn-single-test").forEach(btn => {
       btn.onclick = (e) => {
         const testId = e.target.getAttribute("data-id");
         this.runSingle(testId);
       };
     });
 
-    // Load specs dynamically
-    this.updateSpecs();
+    this.updateUIForSelectedFrameCount();
   }
 
   updateSpecs() {
@@ -476,17 +400,6 @@ export class DiagnosticsManager {
     document.getElementById("diag-mem").textContent = specs.mem;
     document.getElementById("diag-sab").textContent = specs.sab;
     document.getElementById("diag-opfs").textContent = specs.opfs;
-
-    if (specs.sab === "UNAVAILABLE") {
-      document.getElementById("diag-sab").style.color = "#ff6b6b";
-    } else {
-      document.getElementById("diag-sab").style.color = "#4ade80";
-    }
-    if (specs.opfs === "INCOMPATIBLE") {
-      document.getElementById("diag-opfs").style.color = "#ff6b6b";
-    } else {
-      document.getElementById("diag-opfs").style.color = "#4ade80";
-    }
   }
 
   show() {
@@ -503,6 +416,45 @@ export class DiagnosticsManager {
     }
   }
 
+  cleanupMainRecordingState() {
+    if (window.recorder) {
+      window.recorder.isRecording = false;
+      window.recorder.isAssembling = false;
+      window.recorder.isTesting = false;
+      window.recorder.testThreading = null;
+      if (typeof window.recorder._restoreCanvasSize === "function") {
+        try {
+          window.recorder._restoreCanvasSize();
+        } catch (e) {
+          console.warn("[Diagnostics Cleanup] Failed to restore canvas size:", e);
+        }
+      }
+    }
+    window.onTestVideoBlobGenerated = null;
+    window.onTestZipBlobGenerated = null;
+
+    const recIndicator = document.getElementById("recording-indicator");
+    if (recIndicator) {
+      recIndicator.style.display = "none";
+    }
+
+    const processingOverlay = document.getElementById("processing-overlay");
+    if (processingOverlay) {
+      processingOverlay.style.display = "none";
+    }
+
+    const txtRec = document.getElementById("txt-recording");
+    if (txtRec) {
+      txtRec.textContent = "REC: 0";
+    }
+
+    if (window.refreshUI) {
+      try {
+        window.refreshUI();
+      } catch (e) {}
+    }
+  }
+
   hide() {
     if (this.isTesting) {
       if (!confirm("A diagnostic check is active. Do you really wish to close and abort the running suite?")) {
@@ -510,28 +462,18 @@ export class DiagnosticsManager {
       }
       this.abort();
     }
+    this.cleanupMainRecordingState();
     document.getElementById(this.modalId).style.display = "none";
   }
 
   clearLogs() {
-    this.logs = [];
-    const logScroll = document.getElementById("diagnostics-logs-scrollbar");
-    if (logScroll) {
-      logScroll.innerHTML = `<div class="text-white/30">[Suite Log Cleared] Console ready.</div>`;
-    }
+    LogNexus.clearTest();
+    this.logs = LogNexus.testLogs;
   }
 
   log(msg, styleClass = "") {
-    console.log(`[Diagnostics Sandbox] ${msg}`);
-    this.logs.push(msg);
-    const logScroll = document.getElementById("diagnostics-logs-scrollbar");
-    if (logScroll) {
-      const line = document.createElement("div");
-      line.className = styleClass;
-      line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-      logScroll.appendChild(line);
-      logScroll.scrollTop = logScroll.scrollHeight;
-    }
+    LogNexus.logTest(msg);
+    this.logs = LogNexus.testLogs;
   }
 
   updateTestBadge(testId, status, isError = false) {
@@ -713,6 +655,7 @@ export class DiagnosticsManager {
   async executeSuite(tests) {
     this.isTesting = true;
     this.isAborted = false;
+    LogNexus.isTestingRunning = true;
 
     // Read user-selected frames limit factor
     const selectEl = document.getElementById("sel-test-frames-selector");
@@ -777,9 +720,12 @@ export class DiagnosticsManager {
       for (let i = 0; i < tests.length; i++) {
         const t = tests[i];
         if (this.isAborted) {
-          this.updateTestBadge(t.id, "ABORTED");
-          this.testResults[t.id] = { status: "ABORTED", failureReason: null, failureBase: null, failureFunction: null };
-          continue;
+          // Immediately mark all remaining tests in the suite as ABORTED
+          for (let j = i; j < tests.length; j++) {
+            this.updateTestBadge(tests[j].id, "ABORTED");
+            this.testResults[tests[j].id] = { status: "ABORTED", failureReason: "Suite aborted by user", failureBase: "SuiteAbort", failureFunction: "executeSuite" };
+          }
+          break;
         }
 
         const actualFrames = chosenFramesCount !== null ? chosenFramesCount : t.frames;
@@ -788,6 +734,13 @@ export class DiagnosticsManager {
         this.updateTestErrorUI(t.id, null); // Clear existing error UI
 
         let savedDirName = null;
+        let expectedW = t.width;
+        let expectedH = t.height;
+        if (t.width > 1920 || t.height > 1080) {
+          const scaleFactor = Math.min(1920 / t.width, 1080 / t.height);
+          expectedW = Math.floor((t.width * scaleFactor) / 2) * 2;
+          expectedH = Math.floor((t.height * scaleFactor) / 2) * 2;
+        }
 
         try {
           // 1. Synchronize options programmatically
@@ -805,134 +758,211 @@ export class DiagnosticsManager {
           }
 
           const testHasSab = typeof SharedArrayBuffer !== "undefined";
-          const testNeedMultiThreaded = (t.format === "mp4") && testHasSab;
+          const testNeedMultiThreaded = t.threading === "MT";
           const testThreadingLabel = t.pipeline === "zip" ? "N/A (ZIP Still Archive)" : (testNeedMultiThreaded ? "MULTI-THREADED (MT)" : "SINGLE-THREADED (ST)");
           this.log(`[Config] Pipeline=${t.pipeline}, Format=${t.format}, Target Resolution=${t.width}x${t.height}, Frames Limit=${actualFrames}, Threads=${testThreadingLabel}`);
 
           // 2. Clear previous flags and establish testers
           window.recorder.isTesting = true;
+          window.recorder.testThreading = t.threading || "ST";
           let finalOutputBlob = null;
 
-          if (t.pipeline === "zip") {
+          if (t.pipeline === "zip-to-video") {
+            this.log(`[Dual Stage] Initiating STAGE 1/2: Pre-capturing ${actualFrames} frames in-memory to build transient validation ZIP...`);
+            
+            // Re-route to standard ZIP to capture transient buffer
+            window.sgState.exportPipeline = "zip";
+            window.sgState.exportFormat = "zip";
+            if (window.refreshUI) window.refreshUI();
+
+            let transientZipBlob = null;
             window.onTestZipBlobGenerated = function(blob, err) {
-              finalOutputBlob = blob;
+              transientZipBlob = blob;
             };
-          } else {
+
+            this.log(`[Dual Stage] Instantiating frame stream capture buffer for ZIP assembly...`);
+            this.showProgress(true, `[1/2] Pre-capturing frames for ${t.id}`, 0);
+            await window.recorder.start();
+
+            // Run manual frame loop
+            for (let frameIndex = 0; frameIndex < actualFrames; frameIndex++) {
+              if (this.isAborted) {
+                const abortErr = new Error("Recording cancelled programmatically during pre-capture loop.");
+                abortErr.name = "AbortActionError";
+                throw abortErr;
+              }
+              if (window.physics) window.physics.step(2);
+              if (window.renderManualFrame) window.renderManualFrame();
+              await window.recorder.captureAndWait();
+              this.showProgress(true, `Pre-capturing frame ${frameIndex + 1}/${actualFrames}`, (frameIndex + 1) / actualFrames * 100);
+              await delay(10);
+            }
+
+            this.log(`[Dual Stage] Standard pre-capture completed. Packing frames inside JSZip...`);
+            await window.recorder.stop();
+
+            let waitZipRetries = 60;
+            while (!transientZipBlob && waitZipRetries > 0 && !this.isAborted) {
+              await delay(500);
+              waitZipRetries--;
+            }
+
+            if (!transientZipBlob || transientZipBlob.size === 0) {
+              throw new Error("Dual Stage Failed: Transit validation frame ZIP package remained empty or timed out.");
+            }
+
+            this.log(`🎉 [Dual Stage] STAGE 1 PASSED: Intermediate validation frame ZIP compiled successfully! Payload Size: ${(transientZipBlob.size / 1024).toFixed(1)} KB`, "text-green-400 font-bold");
+
+            // STAGE 2: Mock-intercept file picker and run FFmpeg conversion
+            this.log(`[Dual Stage] Initiating STAGE 2/2: Mock-intercepting browser file prompts to decompress ZIP and compile video...`);
+            
+            // Re-route to ZIP format conversion
+            window.sgState.exportPipeline = "zip"; // execute extraction block
+            window.sgState.exportFormat = t.format;
+            window.sgState.exportWidth = t.width;
+            window.sgState.exportHeight = t.height;
+            if (window.refreshUI) window.refreshUI();
+
+            const needMT = t.threading === "MT";
+            const threadingLabel = needMT ? "FFmpeg WASM Multi-Threaded (MT) worker pool" : "FFmpeg WASM Single-Threaded (ST)";
+            this.log(`[Dual Stage] Intercepting file selection. Targets: Format: ${t.format.toUpperCase()}, Threading: ${threadingLabel}, Decoded Target Canvas: ${t.width}x${t.height}`);
+
             window.onTestVideoBlobGenerated = function(blob) {
               finalOutputBlob = blob;
             };
-          }
 
-          // 3. Fire recording engine
-          this.log(`[Record] Instantiating frame stream capture buffer...`);
-          this.showProgress(true, `[1/2] Recording frames for ${t.id}`, 0);
-          await window.recorder.start();
+            // Programmatic File Picker Interceptor Mock
+            const originalFilePicker = window.showOpenFilePicker;
+            window.showOpenFilePicker = async function(opts) {
+              console.log("[Diagnostics Interceptor] Intercepted window.showOpenFilePicker call. Injecting Stage 1 zipped frames package.");
+              return [{
+                name: `sg_render_transit_${t.id}.zip`,
+                getFile: async () => transientZipBlob
+              }];
+            };
 
-          savedDirName = window.recorder._dirHandle ? window.recorder._dirHandle.name : null;
+            let assemblyOutcomeError = null;
+            let assemblyTimedOut = false;
+            let assembleTimer = null;
+            const maxAssembleTimeMs = Math.max(60000, actualFrames * 1200);
 
-          // 4. Manual frame submission loop
-          for (let frameIndex = 0; frameIndex < actualFrames; frameIndex++) {
+            try {
+              window.recorder.isAssembling = false; // Reset potential stale locks
+              this.showProgress(true, `Decompressing ZIP package and beginning transcoder threads...`, 50);
+              
+              const assemblePromise = (async () => {
+                await window.recorder.assembleFromStorage("zip");
+                
+                let checkRetries = actualFrames > 150 ? 120 : 40;
+                while (window.recorder.isAssembling && checkRetries > 0 && !this.isAborted && !assemblyTimedOut) {
+                  await delay(1000);
+                  checkRetries--;
+                  this.showProgress(true, `Transcoding (Stage 2)... Outstanding limit: ${checkRetries}s`, 75);
+                }
+                return { success: !this.isAborted };
+              })();
+
+              const timeoutPromise = new Promise((resolve) => {
+                assembleTimer = setTimeout(() => {
+                  assemblyTimedOut = true;
+                  resolve({ timeout: true });
+                }, maxAssembleTimeMs);
+              });
+
+              const raceResult = await Promise.race([assemblePromise, timeoutPromise]);
+              clearTimeout(assembleTimer);
+
+              if (raceResult && raceResult.timeout) {
+                throw new Error(`Transcoder Assembly Timeout: Thread stalled after ${(maxAssembleTimeMs / 1000).toFixed(0)}s.`);
+              }
+            } catch (err) {
+              assemblyOutcomeError = err;
+            } finally {
+              // Restore native file picker
+              window.showOpenFilePicker = originalFilePicker;
+            }
+
+            if (assemblyOutcomeError) {
+              throw assemblyOutcomeError;
+            }
+
             if (this.isAborted) {
-              const abortErr = new Error("Recording cancelled programmatically during frame loop.");
+              throw new Error("Transcoding cancelled programmatically.");
+            }
+
+          } else {
+            // Standard original single pipeline flow remains perfectly intact!
+            if (t.pipeline === "zip") {
+              window.onTestZipBlobGenerated = function(blob, err) {
+                finalOutputBlob = blob;
+              };
+            } else {
+              window.onTestVideoBlobGenerated = function(blob) {
+                finalOutputBlob = blob;
+              };
+            }
+
+            // 3. Fire recording engine
+            this.log(`[Record] Instantiating frame stream capture buffer...`);
+            this.showProgress(true, `[1/2] Recording frames for ${t.id}`, 0);
+            await window.recorder.start();
+
+            savedDirName = window.recorder._dirHandle ? window.recorder._dirHandle.name : null;
+
+            // 4. Manual frame submission loop
+            for (let frameIndex = 0; frameIndex < actualFrames; frameIndex++) {
+              if (this.isAborted) {
+                const abortErr = new Error("Recording cancelled programmatically during frame loop.");
+                abortErr.name = "AbortActionError";
+                throw abortErr;
+              }
+
+              // Advance physical pendulums sequentially to guarantee variation
+              if (window.physics) {
+                window.physics.step(2);
+              }
+
+              // Force fresh WebGL render to guarantee active non-blank frames
+              if (window.renderManualFrame) {
+                window.renderManualFrame();
+              }
+
+              // Synchronously request WebGL render frame mapping
+              await window.recorder.captureAndWait();
+              
+              this.showProgress(true, `Capturing frame ${frameIndex + 1}/${actualFrames}`, (frameIndex + 1) / actualFrames * 100);
+              await delay(10); // minor interval to let general microtasks complete
+            }
+
+            if (this.isAborted) {
+              const abortErr = new Error("Recording cancelled programmatically.");
               abortErr.name = "AbortActionError";
               throw abortErr;
             }
 
-            // Advance physical pendulums sequentially to guarantee variation
-            if (window.physics) {
-              window.physics.step(2);
-            }
-
-            // Force fresh WebGL render to guarantee active non-blank frames
-            if (window.renderManualFrame) {
-              window.renderManualFrame();
-            }
-
-            // Synchronously request WebGL render frame mapping
-            await window.recorder.captureAndWait();
+            // 4.1 Perform Intermediate Storage Integrity Audit
+            let auditSuccess = true;
+            let auditMessage = "";
             
-            this.showProgress(true, `Capturing frame ${frameIndex + 1}/${actualFrames}`, (frameIndex + 1) / actualFrames * 100);
-            await delay(10); // minor interval to let general microtasks complete
-          }
-
-          if (this.isAborted) {
-            const abortErr = new Error("Recording cancelled programmatically.");
-            abortErr.name = "AbortActionError";
-            throw abortErr;
-          }
-
-          // 4.1 Perform Intermediate Storage Integrity Audit
-          let auditSuccess = true;
-          let auditMessage = "";
-          
-          let expectedW = t.width;
-          let expectedH = t.height;
-          if (t.width > 1920 || t.height > 1080) {
-            const scaleFactor = Math.min(1920 / t.width, 1080 / t.height);
-            expectedW = Math.floor((t.width * scaleFactor) / 2) * 2;
-            expectedH = Math.floor((t.height * scaleFactor) / 2) * 2;
-          }
-
-          if (window.recorder._dirHandle) {
-            this.log("[Audit Prereq] Auditing captured frames saved inside OPFS sandboxed disk...");
-            const opfsFiles = [];
-            for await (const name of window.recorder._dirHandle.keys()) {
-              opfsFiles.push(name);
-            }
-            this.log(`[Audit Prereq] Found ${opfsFiles.length} file entries in OPFS temporary folder.`);
-            if (opfsFiles.length !== actualFrames) {
-              this.log(`⚠️ Audit Warning: Saved file count (${opfsFiles.length}) differs from expected frames (${actualFrames})!`, "text-amber-400 font-bold");
-            }
-
-            // Inspect the first saved frame binaries directly from OPFS
-            if (opfsFiles.length > 0) {
-              const fileHandle = await window.recorder._dirHandle.getFileHandle("frame_000000.png");
-              const fileBlob = await fileHandle.getFile();
-              const arrayBuffer = await fileBlob.arrayBuffer();
-              const uint8 = new Uint8Array(arrayBuffer);
-
-              // Assert standard PNG magic bytes: 137, 80, 78, 71, 13, 10, 26, 10
-              const isPngSignatureOk = uint8[0] === 137 && uint8[1] === 80 && uint8[2] === 78 && uint8[3] === 71;
-              if (isPngSignatureOk) {
-                this.log(`[Audit Prereq] PNG binary signature assertion: PASSED`, "text-green-400");
-              } else {
-                auditSuccess = false;
-                auditMessage = "frame_000000.png has invalid PNG signature.";
-                this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
+            if (window.recorder._dirHandle) {
+              this.log("[Audit Prereq] Auditing captured frames saved inside OPFS sandboxed disk...");
+              const opfsFiles = [];
+              for await (const name of window.recorder._dirHandle.keys()) {
+                opfsFiles.push(name);
+              }
+              this.log(`[Audit Prereq] Found ${opfsFiles.length} file entries in OPFS temporary folder.`);
+              if (opfsFiles.length !== actualFrames) {
+                this.log(`⚠️ Audit Warning: Saved file count (${opfsFiles.length}) differs from expected frames (${actualFrames})!`, "text-amber-400 font-bold");
               }
 
-              // Assert correct dimension inside the critical IHDR chunk
-              const view = new DataView(arrayBuffer, 16, 8);
-              const readW = view.getUint32(0);
-              const readH = view.getUint32(4);
-              this.log(`[Audit Prereq] PNG IHDR block assertion: Read dimensions are ${readW}x${readH}`);
-              if (readW !== expectedW || readH !== expectedH) {
-                auditSuccess = false;
-                auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target raw PNG expected matches ${expectedW}x${expectedH} (Simulation target logic limits active: ${t.width}x${t.height})`;
-                this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
-              } else {
-                this.log(`[Audit Prereq] PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-green-400");
-              }
-            } else {
-              auditSuccess = false;
-              auditMessage = "No files saved in directory.";
-              this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
-            }
-          } else if (window.recorder._zip) {
-            this.log("[Audit Prereq] Auditing captured frames saved inside in-memory JSZip...");
-            const frameNames = Object.keys(window.recorder._zip.files).filter(
-              name => name.startsWith("frame_") && name.endsWith(".png")
-            );
-            frameNames.sort((a, b) => a.localeCompare(b));
-            this.log(`[Audit Prereq] Found ${frameNames.length} file entries inside in-memory JSZip.`);
-            if (frameNames.length !== actualFrames) {
-              this.log(`⚠️ Audit Warning: Saved file count (${frameNames.length}) differs from expected frames (${actualFrames})!`, "text-amber-400 font-bold");
-            }
+              // Inspect the first saved frame binaries directly from OPFS
+              if (opfsFiles.length > 0) {
+                const fileHandle = await window.recorder._dirHandle.getFileHandle("frame_000000.png");
+                const fileBlob = await fileHandle.getFile();
+                const arrayBuffer = await fileBlob.arrayBuffer();
+                const uint8 = new Uint8Array(arrayBuffer);
 
-            if (frameNames.length > 0) {
-              const fileObj = window.recorder._zip.file("frame_000000.png");
-              if (fileObj) {
-                const uint8 = await fileObj.async("uint8array");
+                // Assert standard PNG magic bytes: 137, 80, 78, 71, 13, 10, 26, 10
                 const isPngSignatureOk = uint8[0] === 137 && uint8[1] === 80 && uint8[2] === 78 && uint8[3] === 71;
                 if (isPngSignatureOk) {
                   this.log(`[Audit Prereq] PNG binary signature assertion: PASSED`, "text-green-400");
@@ -942,8 +972,8 @@ export class DiagnosticsManager {
                   this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
                 }
 
-                // Assert correct dimensions inside the critical IHDR chunk
-                const view = new DataView(uint8.buffer, uint8.byteOffset + 16, 8);
+                // Assert correct dimension inside the critical IHDR chunk
+                const view = new DataView(arrayBuffer, 16, 8);
                 const readW = view.getUint32(0);
                 const readH = view.getUint32(4);
                 this.log(`[Audit Prereq] PNG IHDR block assertion: Read dimensions are ${readW}x${readH}`);
@@ -956,88 +986,130 @@ export class DiagnosticsManager {
                 }
               } else {
                 auditSuccess = false;
-                auditMessage = "Could not find frame_000000.png inside the in-memory JSZip.";
+                auditMessage = "No files saved in directory.";
                 this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
               }
-            } else {
-              auditSuccess = false;
-              auditMessage = "No files saved in JSZip.";
-              this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
+            } else if (window.recorder._zip) {
+              this.log("[Audit Prereq] Auditing captured frames saved inside in-memory JSZip...");
+              const frameNames = Object.keys(window.recorder._zip.files).filter(
+                name => name.startsWith("frame_") && name.endsWith(".png")
+              );
+              frameNames.sort((a, b) => a.localeCompare(b));
+              this.log(`[Audit Prereq] Found ${frameNames.length} file entries inside in-memory JSZip.`);
+              if (frameNames.length !== actualFrames) {
+                this.log(`⚠️ Audit Warning: Saved file count (${frameNames.length}) differs from expected frames (${actualFrames})!`, "text-amber-400 font-bold");
+              }
+
+              if (frameNames.length > 0) {
+                const fileObj = window.recorder._zip.file("frame_000000.png");
+                if (fileObj) {
+                  const uint8 = await fileObj.async("uint8array");
+                  const isPngSignatureOk = uint8[0] === 137 && uint8[1] === 80 && uint8[2] === 78 && uint8[3] === 71;
+                  if (isPngSignatureOk) {
+                    this.log(`[Audit Prereq] PNG binary signature assertion: PASSED`, "text-green-400");
+                  } else {
+                    auditSuccess = false;
+                    auditMessage = "frame_000000.png has invalid PNG signature.";
+                    this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
+                  }
+
+                  // Assert correct dimensions inside the critical IHDR chunk
+                  const view = new DataView(uint8.buffer, uint8.byteOffset + 16, 8);
+                  const readW = view.getUint32(0);
+                  const readH = view.getUint32(4);
+                  this.log(`[Audit Prereq] PNG IHDR block assertion: Read dimensions are ${readW}x${readH}`);
+                  if (readW !== expectedW || readH !== expectedH) {
+                    auditSuccess = false;
+                    auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target raw PNG expected matches ${expectedW}x${expectedH} (Simulation target logic limits active: ${t.width}x${t.height})`;
+                    this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
+                  } else {
+                    this.log(`[Audit Prereq] PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-green-400");
+                  }
+                } else {
+                  auditSuccess = false;
+                  auditMessage = "Could not find frame_000000.png inside the in-memory JSZip.";
+                  this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
+                }
+              } else {
+                auditSuccess = false;
+                auditMessage = "No files saved in JSZip.";
+                this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
+              }
+            } else if (window.recorder._recordedFrames && window.recorder._recordedFrames.length > 0) {
+              this.log("[Audit Prereq] Auditing captured frames saved in-memory...");
+              const frameBytes = window.recorder._recordedFrames[0];
+              const isPngSignatureOk = frameBytes[0] === 137 && frameBytes[1] === 80 && frameBytes[2] === 78 && frameBytes[3] === 71;
+              if (isPngSignatureOk) {
+                this.log(`[Audit Prereq] In-memory PNG signature assertion: PASSED`, "text-green-400");
+              } else {
+                auditSuccess = false;
+                auditMessage = "In-memory frame 0 has invalid PNG signature.";
+                this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
+              }
+
+              const view = new DataView(frameBytes.buffer, 16, 8);
+              const readW = view.getUint32(0);
+              const readH = view.getUint32(4);
+              this.log(`[Audit Prereq] PNG IHDR block assertion: Read dimensions are ${readW}x${readH}`);
+              if (readW !== expectedW || readH !== expectedH) {
+                auditSuccess = false;
+                auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target raw PNG expected matches ${expectedW}x${expectedH} (Simulation target logic limits active: ${t.width}x${t.height})`;
+                this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
+              } else {
+                this.log(`[Audit Prereq] In-memory PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-green-400");
+              }
             }
-          } else if (window.recorder._recordedFrames && window.recorder._recordedFrames.length > 0) {
-            this.log("[Audit Prereq] Auditing captured frames saved in-memory...");
-            const frameBytes = window.recorder._recordedFrames[0];
-            const isPngSignatureOk = frameBytes[0] === 137 && frameBytes[1] === 80 && frameBytes[2] === 78 && frameBytes[3] === 71;
-            if (isPngSignatureOk) {
-              this.log(`[Audit Prereq] In-memory PNG signature assertion: PASSED`, "text-green-400");
-            } else {
-              auditSuccess = false;
-              auditMessage = "In-memory frame 0 has invalid PNG signature.";
-              this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
+
+            if (!auditSuccess) {
+              const auditErr = new Error(`PNG Audit Checklist Failed: ${auditMessage}`);
+              auditErr.name = "AuditAssertionError";
+              throw auditErr;
             }
 
-            const view = new DataView(frameBytes.buffer, 16, 8);
-            const readW = view.getUint32(0);
-            const readH = view.getUint32(4);
-            this.log(`[Audit Prereq] PNG IHDR block assertion: Read dimensions are ${readW}x${readH}`);
-            if (readW !== expectedW || readH !== expectedH) {
-              auditSuccess = false;
-              auditMessage = `Dimensional Mismatch: read ${readW}x${readH}, target raw PNG expected matches ${expectedW}x${expectedH} (Simulation target logic limits active: ${t.width}x${t.height})`;
-              this.log(`❌ [Audit Fail] ${auditMessage}`, "text-red-400 font-bold");
-            } else {
-              this.log(`[Audit Prereq] In-memory PNG dimensional assertion: PASSED (Parsed frame size matches expected raw capture resolution)`, "text-green-400");
-            }
-          }
-
-          if (!auditSuccess) {
-            const auditErr = new Error(`PNG Audit Checklist Failed: ${auditMessage}`);
-            auditErr.name = "AuditAssertionError";
-            throw auditErr;
-          }
-
-          // 5. Trigger Stop / Frame Assembly
-          const activeMT = (t.format === "mp4") && (typeof SharedArrayBuffer !== "undefined");
-          const modeLabel = t.pipeline === "zip" ? "ZIP storage archive stream" : (activeMT ? "FFmpeg WASM Multi-Threaded (MT) worker pools (SAB enabled)" : "FFmpeg WASM Single-Threaded (ST) transcode loop");
-          this.log(`[Assemble] Direct capture completed. Bundling and transcoding via ${modeLabel}...`);
-          this.showProgress(true, `[2/2] Assembling compiled binary stream`, 50);
-          
-          let assemblyTimedOut = false;
-          let assembleTimer = null;
-          const maxAssembleTimeMs = Math.max(50000, actualFrames * 1000);
-
-          const stopPromise = (async () => {
-            await window.recorder.stop();
+            // 5. Trigger Stop / Frame Assembly
+            const activeMT = (t.format === "mp4") && (typeof SharedArrayBuffer !== "undefined");
+            const modeLabel = t.pipeline === "zip" ? "ZIP storage archive stream" : (activeMT ? "FFmpeg WASM Multi-Threaded (MT) worker pools (SAB enabled)" : "FFmpeg WASM Single-Threaded (ST) transcode loop");
+            this.log(`[Assemble] Direct capture completed. Bundling and transcoding via ${modeLabel}...`);
+            this.showProgress(true, `[2/2] Assembling compiled binary stream`, 50);
             
-            // 6. Wait for compilation thread to output finished product
-            let waitRetries = actualFrames > 150 ? 120 : 40; // longer retry scope for large stress files
-            while (window.recorder.isAssembling && waitRetries > 0 && !this.isAborted && !assemblyTimedOut) {
-              await delay(1000);
-              waitRetries--;
-              this.showProgress(true, `Assembling... Time outstanding limit: ${waitRetries}s`, 75);
+            let assemblyTimedOut = false;
+            let assembleTimer = null;
+            const maxAssembleTimeMs = Math.max(50000, actualFrames * 1000);
+
+            const stopPromise = (async () => {
+              await window.recorder.stop();
+              
+              // 6. Wait for compilation thread to output finished product
+              let waitRetries = actualFrames > 150 ? 120 : 40; // longer retry scope for large stress files
+              while (window.recorder.isAssembling && waitRetries > 0 && !this.isAborted && !assemblyTimedOut) {
+                await delay(1000);
+                waitRetries--;
+                this.showProgress(true, `Assembling... Time outstanding limit: ${waitRetries}s`, 75);
+              }
+              return { success: !this.isAborted };
+            })();
+
+            const assembleTimeoutPromise = new Promise((resolve) => {
+              assembleTimer = setTimeout(() => {
+                assemblyTimedOut = true;
+                resolve({ timeout: true });
+              }, maxAssembleTimeMs);
+            });
+
+            const assemblyOutcome = await Promise.race([stopPromise, assembleTimeoutPromise]);
+            clearTimeout(assembleTimer);
+
+            if (assemblyOutcome && assemblyOutcome.timeout) {
+              const timeoutErr = new Error(`Assembly timeout: blocked or transcoder stalled after ${(maxAssembleTimeMs / 1000).toFixed(0)} seconds!`);
+              timeoutErr.name = "TimeoutError";
+              throw timeoutErr;
             }
-            return { success: !this.isAborted };
-          })();
 
-          const assembleTimeoutPromise = new Promise((resolve) => {
-            assembleTimer = setTimeout(() => {
-              assemblyTimedOut = true;
-              resolve({ timeout: true });
-            }, maxAssembleTimeMs);
-          });
-
-          const assemblyOutcome = await Promise.race([stopPromise, assembleTimeoutPromise]);
-          clearTimeout(assembleTimer);
-
-          if (assemblyOutcome && assemblyOutcome.timeout) {
-            const timeoutErr = new Error(`Assembly timeout: blocked or transcoder stalled after ${(maxAssembleTimeMs / 1000).toFixed(0)} seconds!`);
-            timeoutErr.name = "TimeoutError";
-            throw timeoutErr;
-          }
-
-          if (this.isAborted) {
-            const abortErr = new Error("Assembly suite cancelled programmatically.");
-            abortErr.name = "AbortActionError";
-            throw abortErr;
+            if (this.isAborted) {
+              const abortErr = new Error("Assembly suite cancelled programmatically.");
+              abortErr.name = "AbortActionError";
+              throw abortErr;
+            }
           }
 
           // 6.1 Verify directory cleanup in the Origin Private File System
@@ -1136,8 +1208,8 @@ export class DiagnosticsManager {
                     const zW = view.getUint32(0);
                     const zH = view.getUint32(4);
                     this.log(`[Probe] ZIP frame 0 IHDR assertion: Extracted size is ${zW}x${zH}`);
-                    if (zW !== t.width || zH !== t.height) {
-                      const mmErr = new Error(`ZIP dimensional mismatch: Extracted size ${zW}x${zH} does not match target ${t.width}x${t.height}.`);
+                    if (zW !== expectedW || zH !== expectedH) {
+                      const mmErr = new Error(`ZIP dimensional mismatch: Extracted size ${zW}x${zH} does not match expected target ${expectedW}x${expectedH} (Target input configured: ${t.width}x${t.height}).`);
                       mmErr.name = "ZipDimensionError";
                       throw mmErr;
                     } else {
@@ -1219,6 +1291,7 @@ export class DiagnosticsManager {
           // Clear test flags and proceed to next sequential test
           if (window.recorder) {
             window.recorder.isTesting = false;
+            window.recorder.testThreading = null;
             window.recorder.isAssembling = false;
           }
           window.onTestVideoBlobGenerated = null;
@@ -1251,14 +1324,12 @@ export class DiagnosticsManager {
         if (playBtn) playBtn.textContent = "⏸ Pause";
       }
 
-      window.recorder.isTesting = false;
-      window.onTestVideoBlobGenerated = null;
-      window.onTestZipBlobGenerated = null;
-      window.recorder.isAssembling = false;
+      this.cleanupMainRecordingState();
 
       this.showProgress(false);
       
       this.isTesting = false;
+      LogNexus.isTestingRunning = false;
       document.getElementById("btn-run-all-diagnostics").style.display = "inline-block";
       document.getElementById("btn-abort-diagnostics").style.display = "none";
       document.getElementById("btn-copy-test-report").style.display = "inline-block";

@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { sgState, loadExportSettings, saveExportSettings } from "./state.js";
+import { LogNexus } from "./logger.js";
 import PhysicsEngine from "./physics.js";
 import SceneRenderer from "./scene-renderer.js";
 import RecordingEngine from "./recording.js";

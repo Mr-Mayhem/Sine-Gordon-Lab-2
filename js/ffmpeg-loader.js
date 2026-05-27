@@ -19,8 +19,16 @@ const FILENAME_KEYS = {
 var _ffmpegLogs = [];
 
 export async function loadFFmpeg(desiredFormat, recorderRef, onLog) {
-  const format = desiredFormat || "webm";
-  const needMultiThreaded = (format === "mp4") && (typeof SharedArrayBuffer !== "undefined");
+  const format = (desiredFormat && typeof desiredFormat === "string" && desiredFormat.startsWith("mp4")) ? "mp4" : (desiredFormat || "webm");
+  
+  let forceST = false;
+  let forceMT = false;
+  const tRef = recorderRef || window.recorder;
+  if (tRef && tRef.testThreading) {
+    if (tRef.testThreading === "ST") forceST = true;
+    if (tRef.testThreading === "MT") forceMT = true;
+  }
+  const needMultiThreaded = (format === "mp4") && !forceST && (typeof SharedArrayBuffer !== "undefined" || forceMT);
 
   console.log(`Loading ffmpeg.wasm (${needMultiThreaded ? "MT" : "ST"} core for ${format.toUpperCase()})...`);
   const FFmpegClass = window.FFmpegWASM && window.FFmpegWASM.FFmpeg;

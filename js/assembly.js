@@ -16,178 +16,30 @@ import {
   buildConcatArgs,
 } from "./ffmpeg-commands.js";
 // No imports needed from zip-export.js since we rely strictly on browser-native directory memory by id.
+import { LogNexus } from "./logger.js";
 
 var _assemblyStats = null;
-var _currentLogMessages = [];
 
-// Clean logs helper
+// Clean logs helper - delegates to consolidated nexus
 export function clearAssemblyLogs() {
-  _currentLogMessages = [];
-  const el = document.getElementById("assembly-log-scroll");
-  if (el) {
-    el.innerHTML =
-      '<div class="text-white/30">[System] Log cleared. Ready for assembly...</div>';
-  }
-  const countEl = document.getElementById("assembly-log-count");
-  if (countEl) {
-    countEl.textContent = "0 messages";
-  }
+  LogNexus.clearNormal();
 }
 window.clearAssemblyLogs = clearAssemblyLogs;
 
-// Append list helper
+// Append list helper - delegates to consolidated nexus
 export function appendAssemblyLog(msg) {
-  if (!msg) return;
-  const t = new Date().toLocaleTimeString();
-  const cleanMsg = msg.replace(/^\[FFmpeg\]\s*/, "");
-  _currentLogMessages.push(`[${t}] ${cleanMsg}`);
-  if (_currentLogMessages.length > 500) _currentLogMessages.shift();
-
-  const el = document.getElementById("assembly-log-scroll");
-  if (el) {
-    const row = document.createElement("div");
-    row.className = "py-0.5 border-b border-white/[0.02]";
-
-    // Nice style classification
-    if (
-      cleanMsg.toLowerCase().includes("error") ||
-      cleanMsg.toLowerCase().includes("failed")
-    ) {
-      row.style.color = "#ff6b6b";
-    } else if (
-      cleanMsg.toLowerCase().includes("warning") ||
-      cleanMsg.toLowerCase().includes("warn")
-    ) {
-      row.style.color = "#ffb24d";
-    } else if (
-      cleanMsg.startsWith("[System]") ||
-      cleanMsg.startsWith("Diagnostic")
-    ) {
-      row.style.color = "rgba(255,255,255,0.4)";
-    } else if (
-      cleanMsg.includes("Loaded") ||
-      cleanMsg.includes("Success") ||
-      cleanMsg.toLowerCase().includes("complete")
-    ) {
-      row.style.color = "#00ffcc";
-    }
-
-    row.textContent = `[${t}] ${cleanMsg}`;
-    el.appendChild(row);
-    el.scrollTop = el.scrollHeight;
-    try {
-      row.scrollIntoView({ block: "nearest" });
-    } catch (e) {}
-    setTimeout(function () {
-      el.scrollTop = el.scrollHeight;
-      try {
-        row.scrollIntoView({ block: "nearest" });
-      } catch (e) {}
-    }, 0);
-    setTimeout(function () {
-      el.scrollTop = el.scrollHeight;
-      try {
-        row.scrollIntoView({ block: "nearest" });
-      } catch (e) {}
-    }, 50);
-  }
-
-  const countEl = document.getElementById("assembly-log-count");
-  if (countEl) {
-    countEl.textContent = `${_currentLogMessages.length} messages`;
-  }
+  LogNexus.logNormal(msg);
 }
 window.appendAssemblyLog = appendAssemblyLog;
 
-// Safe global Console Hooks to auto-capture everything
-const originalLog = console.log;
-const originalWarn = console.warn;
-const originalError = console.error;
-
-console.log = function (...args) {
-  originalLog.apply(console, args);
-  const msg = args
-    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
-    .join(" ");
-  if (msg && window.appendAssemblyLog) {
-    window.appendAssemblyLog(msg);
-  }
-};
-console.warn = function (...args) {
-  originalWarn.apply(console, args);
-  const msg = args
-    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
-    .join(" ");
-  if (msg && window.appendAssemblyLog) {
-    window.appendAssemblyLog("[Warn] " + msg);
-  }
-};
-console.error = function (...args) {
-  originalError.apply(console, args);
-  const msg = args
-    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
-    .join(" ");
-  if (msg && window.appendAssemblyLog) {
-    window.appendAssemblyLog("[Error] " + msg);
-  }
-};
-
+// Copy systems helper - delegates to consolidated nexus
 export function copyAssemblyLogsToClipboard() {
-  if (!_currentLogMessages || _currentLogMessages.length === 0) {
-    const btn = document.getElementById("btn-copy-logs");
-    if (btn) {
-      const oldText = btn.textContent;
-      btn.textContent = "EMPTY";
-      btn.style.color = "#ff6b6b";
-      setTimeout(() => {
-        btn.textContent = oldText;
-        btn.style.color = "";
-      }, 1500);
-    }
-    return;
-  }
-  const textToCopy = _currentLogMessages.join("\n");
-  navigator.clipboard
-    .writeText(textToCopy)
-    .then(() => {
-      const btn = document.getElementById("btn-copy-logs");
-      if (btn) {
-        const oldText = btn.textContent;
-        btn.textContent = "COPIED!";
-        btn.style.color = "#00ffcc";
-        setTimeout(() => {
-          btn.textContent = oldText;
-          btn.style.color = "";
-        }, 1500);
-      }
-    })
-    .catch((err) => {
-      console.warn("Failed to copy clipboard direct, trying backup", err);
-      try {
-        const textArea = document.createElement("textarea");
-        textArea.value = textToCopy;
-        textArea.style.position = "fixed";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textArea);
-        const btn = document.getElementById("btn-copy-logs");
-        if (btn) {
-          const oldText = btn.textContent;
-          btn.textContent = "COPIED!";
-          btn.style.color = "#00ffcc";
-          setTimeout(() => {
-            btn.textContent = oldText;
-            btn.style.color = "";
-          }, 1500);
-        }
-      } catch (e) {
-        console.error("Backup copy logs also failed:", e);
-      }
-    });
+  LogNexus.copyNormalToClipboard();
 }
 window.copyAssemblyLogsToClipboard = copyAssemblyLogsToClipboard;
+
+// Set up console hooks to capture standard system output via LogNexus
+LogNexus.setupConsoleHooks();
 
 async function parsePngResolution(bytes) {
   if (!bytes || bytes.byteLength === 0) return null;

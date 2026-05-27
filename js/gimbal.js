@@ -131,45 +131,8 @@ export default class Gimbal {
         }
       });
 
-      // Handle continuous time and nudge decay when paused:
-      if (sgState.paused) {
-        const now = performance.now() * 0.0015;
-        if (this._lastPerfTime === undefined) {
-          this._lastPerfTime = now;
-        }
-        const dtReal = now - this._lastPerfTime;
-        this._lastPerfTime = now;
-
-        // Advance visual continuous gimbal time
-        sgState.gimbalTime += dtReal / 0.31;
-
-        // Visual frame-rate-based nudge decay and smooth acceleration (normalized to typical dt=0.01)
-        const steps = Math.min(5, Math.max(0.1, dtReal * 100)); // normalized step count
-
-        // Outer gimbal cascaded S-curve nudge filter (gentle and smooth)
-        sgState.gimbalOuterNudge1 *= Math.pow(0.95, steps);
-        sgState.gimbalOuterNudge2 += (sgState.gimbalOuterNudge1 - sgState.gimbalOuterNudge2) * Math.min(0.99, 0.08 * steps);
-        sgState.gimbalOuterNudge3 += (sgState.gimbalOuterNudge2 - sgState.gimbalOuterNudge3) * Math.min(0.99, 0.08 * steps);
-        sgState.gimbalOuterVel += sgState.gimbalOuterNudge3 * steps * 0.005;
-
-        // Apply visual damping
-        const decay = Math.exp(-(sgState.gimbalDamping || 0) * steps);
-        sgState.gimbalOuterVel *= decay;
-
-        sgState.gimbalOuterOffset += sgState.gimbalOuterVel * steps;
-
-        // Middle gimbal cascaded S-curve nudge filter (gentle and smooth)
-        sgState.gimbalMiddleNudge1 *= Math.pow(0.95, steps);
-        sgState.gimbalMiddleNudge2 += (sgState.gimbalMiddleNudge1 - sgState.gimbalMiddleNudge2) * Math.min(0.99, 0.08 * steps);
-        sgState.gimbalMiddleNudge3 += (sgState.gimbalMiddleNudge2 - sgState.gimbalMiddleNudge3) * Math.min(0.99, 0.08 * steps);
-        sgState.gimbalMiddleVel += sgState.gimbalMiddleNudge3 * steps * 0.005;
-
-        sgState.gimbalMiddleVel *= decay;
-
-        sgState.gimbalMiddleOffset += sgState.gimbalMiddleVel * steps;
-      } else {
-        this._lastPerfTime = undefined;
-      }
+      // Freeze alternative visual motion drive when paused. All updates happen via physics.step() on unpause.
+      this._lastPerfTime = undefined;
 
       // Elegant, nested astronomical-gimbal physical behavior on Y (outer) and X (middle) axes
       this.outerGroup.rotation.set(0, sgState.gimbalOuterOffset, 0);
