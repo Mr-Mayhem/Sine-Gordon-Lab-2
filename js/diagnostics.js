@@ -105,14 +105,14 @@ export class DiagnosticsManager {
     content.innerHTML = `
       <header class="flex justify-between items-center border-b border-white/10 pb-1 mb-1.5">
         <div>
-          <h1 class="text-[9.5px] font-bold tracking-wider text-white select-none uppercase font-mono">Video Pipeline Diagnostics</h1>
-          <p class="text-white/35 font-mono text-[6px] uppercase tracking-[0.12em] mt-0.5 select-none">Automated compliance checks • Frame rate integrity benchmarks</p>
+          <h1 class="text-[8px] font-bold tracking-wider text-white select-none uppercase font-mono">Video Pipeline Diagnostics</h1>
+          <p class="text-white/35 font-mono text-[5.2px] uppercase tracking-[0.12em] mt-0.5 select-none">Automated compliance checks • Frame rate integrity benchmarks</p>
         </div>
-        <button id="btn-close-diagnostics" class="btn-icon w-5 h-5 text-white hover:bg-white/10 text-[9px] border border-white/10 rounded-full transition-all flex items-center justify-center">✕</button>
+        <button id="btn-close-diagnostics" class="btn-icon w-4 h-4 text-white hover:bg-white/10 text-[7px] border border-white/10 rounded-full transition-all flex items-center justify-center">✕</button>
       </header>
 
       <!-- System Diagnostic Metadata Header -->
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-1.5 bg-white/[0.015] border border-white/5 rounded-lg p-1 mb-1.5 text-[6.5px] text-white/60">
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-1.5 bg-white/[0.015] border border-white/5 rounded-lg p-1 mb-1.5 text-[5.5px] text-white/60">
         <div><span class="text-white/35 select-none mb-0.5 font-bold uppercase tracking-wider" style="display: block;">System Cores: </span><strong id="diag-cores">Calculating...</strong></div>
         <div><span class="text-white/35 select-none mb-0.5 font-bold uppercase tracking-wider" style="display: block;">Reported Memory: </span><strong id="diag-mem">Calculating...</strong></div>
         <div><span class="text-white/35 select-none mb-0.5 font-bold uppercase tracking-wider" style="display: block;">SharedArrayBuffer: </span><strong id="diag-sab">Calculating...</strong></div>
@@ -123,9 +123,9 @@ export class DiagnosticsManager {
       <div class="flex flex-wrap items-center justify-between gap-1 bg-white/[0.02] border border-white/5 p-1 px-1.5 rounded-lg mb-1.5">
         <div class="flex flex-wrap gap-1 md:gap-2 items-center">
           <!-- Mode Selection Dropdown -->
-          <div class="flex items-center gap-1 text-[6.5px] text-white select-none uppercase font-bold tracking-wider border-r border-white/10 pr-1 lg:pr-2">
-            <span class="text-white/45 font-bold text-[6.5px]">Mode:</span>
-            <select id="sel-diagnostic-mode" class="thumb-select bg-white/5 border border-white/15 hover:border-white/45 rounded px-1 cursor-pointer !h-[16px] !py-0 !text-[6.5px] text-white font-bold focus:outline-none focus:ring-1 focus:ring-white/30">
+          <div class="flex items-center gap-1 text-[5.5px] text-white select-none uppercase font-bold tracking-wider border-r border-white/10 pr-1 lg:pr-2">
+            <span class="text-white/45 font-bold text-[5.5px]">Mode:</span>
+            <select id="sel-diagnostic-mode" class="thumb-select bg-white/5 border border-white/15 hover:border-white/45 rounded px-1 cursor-pointer !h-[16px] !py-0 !text-[5.5px] text-white font-bold focus:outline-none focus:ring-1 focus:ring-white/30">
               <option value="Frames_to_Zip" selected>Frames_to_Zip</option>
               <option value="Zip_to_Video_WebM">Zip_to_Video (WebM)</option>
               <option value="Zip_to_Video_MP4_ST">Zip_to_Video (MP4 ST)</option>
@@ -136,20 +136,20 @@ export class DiagnosticsManager {
             </select>
           </div>
           <!-- Compression Selection Dropdown -->
-          <div class="flex items-center gap-1 text-[6.5px] text-white select-none uppercase font-bold tracking-wider border-r border-white/10 pr-1 lg:pr-2" id="box-diagnostic-compression" style="display: none;">
-            <span class="text-white/45 font-bold text-[6.5px]">Compression:</span>
-            <select id="sel-diagnostic-compression" class="thumb-select bg-white/5 border border-white/15 hover:border-white/45 rounded px-1 cursor-pointer !h-[16px] !py-0 !text-[6.5px] text-white font-bold focus:outline-none focus:ring-1 focus:ring-white/30">
+          <div class="flex items-center gap-1 text-[5.5px] text-white select-none uppercase font-bold tracking-wider border-r border-white/10 pr-1 lg:pr-2" id="box-diagnostic-compression" style="display: none;">
+            <span class="text-white/45 font-bold text-[5.5px]">Compression:</span>
+            <select id="sel-diagnostic-compression" class="thumb-select bg-white/5 border border-white/15 hover:border-white/45 rounded px-1 cursor-pointer !h-[16px] !py-0 !text-[5.5px] text-white font-bold focus:outline-none focus:ring-1 focus:ring-white/30">
               <option value="18">High Quality (CRF 18)</option>
               <option value="23" selected>Standard (CRF 23)</option>
               <option value="28">Eco Space (CRF 28)</option>
               <option value="32">Extreme Space (CRF 32)</option>
             </select>
           </div>
-          <label class="flex items-center gap-1 text-[6.5px] text-white/55 select-none uppercase font-bold cursor-pointer">
+          <label class="flex items-center gap-1 text-[5.5px] text-white/55 select-none uppercase font-bold cursor-pointer">
             <input type="checkbox" id="chk-select-all" class="w-2 h-2 accent-white cursor-pointer" checked>
             Select All
           </label>
-          <label class="flex items-center gap-1 text-[6.5px] text-white/55 select-none uppercase font-bold cursor-pointer">
+          <label class="flex items-center gap-1 text-[5.5px] text-white/55 select-none uppercase font-bold cursor-pointer">
             <input type="checkbox" id="chk-enable-probing" class="w-2 h-2 accent-white cursor-pointer" checked>
             Enable Output Probing
           </label>
@@ -157,7 +157,7 @@ export class DiagnosticsManager {
         
         <!-- Dynamic Target Frame Count Range -->
         <div class="flex items-center gap-1">
-          <select id="sel-test-frames-selector" class="thumb-select bg-white/5 border border-white/15 rounded px-1 cursor-pointer !h-[16px] !py-0 !text-[6.5px]">
+          <select id="sel-test-frames-selector" class="thumb-select bg-white/5 border border-white/15 rounded px-1 cursor-pointer !h-[16px] !py-0 !text-[5.5px]">
             <option value="10">DURATION: 10 Frames (Ultra Short)</option>
             <option value="15" selected>DURATION: 15 Frames (Short Sandbox)</option>
             <option value="30">DURATION: 30 Frames (Quick Sandbox)</option>
@@ -170,10 +170,10 @@ export class DiagnosticsManager {
         </div>
 
         <div class="flex gap-1">
-          <button id="btn-run-all-diagnostics" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap">▶ Run Selected</button>
-          <button id="btn-abort-diagnostics" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap" style="display:none;">⏹ Abort Suite</button>
-          <button id="btn-copy-test-report" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap" style="display:none;">📋 Copy Test Report</button>
-          <button id="btn-clear-diagnostic-logs" class="btn-pill bg-white/5 text-white/55 hover:bg-white/10 border border-white/10 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap">🧹 Clear Logs</button>
+          <button id="btn-run-all-diagnostics" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[5.5px] font-bold transition-all whitespace-nowrap">▶ Run Selected</button>
+          <button id="btn-abort-diagnostics" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[5.5px] font-bold transition-all whitespace-nowrap" style="display:none;">⏹ Abort Suite</button>
+          <button id="btn-copy-test-report" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[5.5px] font-bold transition-all whitespace-nowrap" style="display:none;">📋 Copy Test Report</button>
+          <button id="btn-clear-diagnostic-logs" class="btn-pill bg-white/5 text-white/55 hover:bg-white/10 border border-white/10 py-0.5 px-1.5 rounded text-[5.5px] font-bold transition-all whitespace-nowrap">🧹 Clear Logs</button>
         </div>
       </div>
 
@@ -184,18 +184,18 @@ export class DiagnosticsManager {
 
       <!-- Real-time Test Output Logs Console (Fine print and scrollable) -->
       <div id="diagnostics-console-box" class="border border-white/5 rounded-lg bg-black/95 p-1.5 flex flex-col gap-0.5 overflow-hidden" style="height: 150px; min-height: 150px; display: flex !important; flex-shrink: 0; box-sizing: border-box;">
-        <div class="flex justify-between items-center text-[5.5px] uppercase tracking-wider border-b border-white/5 pb-0.5 mb-0.5 text-white/35">
+        <div class="flex justify-between items-center text-[4.6px] uppercase tracking-wider border-b border-white/5 pb-0.5 mb-0.5 text-white/35">
           <span>Engine Output Console</span>
           <span id="txt-diagnostics-phase-val" class="font-bold text-yellow-400">IDLE</span>
         </div>
-        <div id="diagnostics-logs-scrollbar" class="flex-1 overflow-y-auto pr-1 space-y-0.5 text-left text-white/60 font-mono text-[6px] leading-tight scrollbar-thin select-text">
+        <div id="diagnostics-logs-scrollbar" class="flex-1 overflow-y-auto pr-1 space-y-0.5 text-left text-white/60 font-mono text-[4.8px] leading-tight scrollbar-thin select-text">
           <div class="text-white/20 font-bold">[Suite] Welcome to the Sine-Gordon Lab Pipeline Diagnostics Center. Select tests and run pipeline benchmark assertions.</div>
         </div>
         <div class="mt-0.5" id="box-diagnostics-progress-outer" style="display:none;">
           <div style="height:3px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden;" class="w-full">
             <div id="diagnostics-progress-fill" style="height:100%; background:linear-gradient(90deg, #ffffff, #9ca3af); width:0%; transition:none;"></div>
           </div>
-          <div class="flex justify-between items-center text-[5.5px] text-white/35 mt-0.5">
+          <div class="flex justify-between items-center text-[4.6px] text-white/35 mt-0.5">
             <span id="txt-diagnostics-progress-step">Processing...</span>
             <span id="txt-diagnostics-progress-percent">0%</span>
           </div>
@@ -203,11 +203,11 @@ export class DiagnosticsManager {
       </div>
 
       <!-- Bottom Actions Footer Row -->
-      <div class="flex justify-between items-center mt-1.5 bg-white/[0.015] border border-white/5 p-1 px-1.5 rounded-lg select-none text-[7.5px]">
-        <span class="text-white/30 font-mono text-[6.5px] uppercase tracking-wider pl-1 font-bold">Compliance Report Actions</span>
+      <div class="flex justify-between items-center mt-1.5 bg-white/[0.015] border border-white/5 p-1 px-1.5 rounded-lg select-none text-[6px]">
+        <span class="text-white/30 font-mono text-[5.2px] uppercase tracking-wider pl-1 font-bold">Compliance Report Actions</span>
         <div class="flex gap-1">
-          <button id="btn-copy-test-report-bottom" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap cursor-pointer select-none" style="display:none;">📋 Copy Test Report</button>
-          <button id="btn-close-diagnostics-bottom" class="btn-pill bg-white/5 text-white/60 hover:bg-white/10 border border-white/10 py-0.5 px-1.5 rounded text-[6.5px] font-bold transition-all whitespace-nowrap cursor-pointer select-none">Close</button>
+          <button id="btn-copy-test-report-bottom" class="btn-pill bg-white/10 text-white hover:bg-white/15 border border-white/20 py-0.5 px-1.5 rounded text-[5.5px] font-bold transition-all whitespace-nowrap cursor-pointer select-none" style="display:none;">📋 Copy Test Report</button>
+          <button id="btn-close-diagnostics-bottom" class="btn-pill bg-white/5 text-white/60 hover:bg-white/10 border border-white/10 py-0.5 px-1.5 rounded text-[5.5px] font-bold transition-all whitespace-nowrap cursor-pointer select-none">Close</button>
         </div>
       </div>
     `;
@@ -345,21 +345,21 @@ export class DiagnosticsManager {
         <div class="flex-1 col-span-1 min-w-0">
           <div class="flex items-center gap-1">
             <input type="checkbox" id="chk-test-${test.id}" class="w-2 h-2 accent-white cursor-pointer" ${checkedAttr}>
-            <span id="test-title-${test.id}" class="text-[7.5px] font-semibold text-white/95 transition-colors">${test.name}</span>
-            <span class="text-[5px] bg-white/5 hover:bg-white/10 text-white/70 border border-white/15 px-1 py-0.1 rounded font-mono font-bold select-none flex-frames-badge" id="frames-badge-${test.id}">${test.frames} FMR</span>
+            <span id="test-title-${test.id}" class="text-[6px] font-semibold text-white/95 transition-colors">${test.name}</span>
+            <span class="text-[4.2px] bg-white/5 hover:bg-white/10 text-white/70 border border-white/15 px-1 py-0.1 rounded font-mono font-bold select-none flex-frames-badge" id="frames-badge-${test.id}">${test.frames} FMR</span>
           </div>
-          <p class="text-[6.5px] text-white/40 pl-3.5 select-none leading-snug">${description}</p>
-          <div class="text-[5.5px] font-mono text-white/20 pl-3.5 mt-0.5 select-none uppercase tracking-wider font-semibold">
+          <p class="text-[5px] text-white/40 pl-3.5 select-none leading-snug">${description}</p>
+          <div class="text-[4.6px] font-mono text-white/20 pl-3.5 mt-0.5 select-none uppercase tracking-wider font-semibold">
             Pipeline: <span class="text-white/50">${test.pipeline}</span> | 
             Resolution: <span class="text-white/50">${test.width}x${test.height}</span> | 
             Format: <span class="text-white/50">${test.format}</span> ${test.crf ? `| CRF: <span class="text-white/50 font-medium">${test.crf}</span>` : ""}
           </div>
           <!-- Dynamic Error Box -->
-          <div id="test-error-${test.id}" class="test-error-box ml-3.5 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[5.5px] p-1 mt-0.5 rounded-md overflow-x-auto select-text hidden"></div>
+          <div id="test-error-${test.id}" class="test-error-box ml-3.5 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[4.6px] p-1 mt-0.5 rounded-md overflow-x-auto select-text hidden"></div>
         </div>
         <div class="flex items-center gap-1 shrink-0 justify-end pl-3.5 sm:pl-0">
-          <span class="text-[5.5px] font-sans font-bold uppercase select-none rounded px-1 py-0.2 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
-          <button class="btn-single-test bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/25 border border-white/10 py-0.5 px-1.5 rounded text-[5px] font-bold transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
+          <span class="text-[4.6px] font-sans font-bold uppercase select-none rounded px-1 py-0.2 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
+          <button class="btn-single-test bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/25 border border-white/10 py-0.5 px-1.5 rounded text-[4.2px] font-bold transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
         </div>
       </div>
       `;
@@ -367,9 +367,9 @@ export class DiagnosticsManager {
 
     container.innerHTML = `
     <div class="test-category-group mb-1.5">
-      <h3 class="text-[7px] uppercase font-bold tracking-wider text-white/80 mb-0.5 border-b border-white/5 pb-0.5 select-none flex items-center justify-between">
+      <h3 class="text-[5.5px] uppercase font-bold tracking-wider text-white/80 mb-0.5 border-b border-white/5 pb-0.5 select-none flex items-center justify-between">
         <span>MODE: ${selMode.replace(/_/g, " ")}</span>
-        <span class="text-[6px] opacity-30 font-normal normal-case font-mono">Sequence Batch Assertions</span>
+        <span class="text-[5px] opacity-30 font-normal normal-case font-mono">Sequence Batch Assertions</span>
       </h3>
       <div class="flex flex-col gap-1">
         ${testsGroupHtml}
@@ -396,10 +396,48 @@ export class DiagnosticsManager {
       opfs: (typeof navigator.storage !== "undefined" && typeof navigator.storage.getDirectory === "function") ? "COMPATIBLE" : "INCOMPATIBLE"
     };
 
-    document.getElementById("diag-cores").textContent = specs.cores;
-    document.getElementById("diag-mem").textContent = specs.mem;
-    document.getElementById("diag-sab").textContent = specs.sab;
-    document.getElementById("diag-opfs").textContent = specs.opfs;
+    const coresEl = document.getElementById("diag-cores");
+    const memEl = document.getElementById("diag-mem");
+    const sabEl = document.getElementById("diag-sab");
+    const opfsEl = document.getElementById("diag-opfs");
+
+    if (coresEl) {
+      coresEl.textContent = specs.cores;
+      if (specs.cores !== "N/A" && parseInt(specs.cores) >= 2) {
+        coresEl.style.color = "#4ade80"; // Bright green for multi-core environments
+      } else {
+        coresEl.style.color = "#f87171"; // Red for single-core/N/A
+      }
+    }
+
+    if (memEl) {
+      memEl.textContent = specs.mem;
+      if (specs.mem !== "Unknown" && parseFloat(specs.mem) >= 4) {
+        memEl.style.color = "#4ade80"; // Green for sufficient memory
+      } else if (specs.mem !== "Unknown") {
+        memEl.style.color = "#facc15"; // Yellow for lower memory environments
+      } else {
+        memEl.style.color = "#f87171"; // Red for unknown / missing values
+      }
+    }
+
+    if (sabEl) {
+      sabEl.textContent = specs.sab;
+      if (specs.sab === "AVAILABLE") {
+        sabEl.style.color = "#4ade80"; // High-contrast green
+      } else {
+        sabEl.style.color = "#f87171"; // High-contrast red
+      }
+    }
+
+    if (opfsEl) {
+      opfsEl.textContent = specs.opfs;
+      if (specs.opfs === "COMPATIBLE") {
+        opfsEl.style.color = "#4ade80"; // High-contrast green
+      } else {
+        opfsEl.style.color = "#f87171"; // High-contrast red
+      }
+    }
   }
 
   show() {
@@ -422,6 +460,8 @@ export class DiagnosticsManager {
       window.recorder.isAssembling = false;
       window.recorder.isTesting = false;
       window.recorder.testThreading = null;
+      window.recorder._frameCount = 0;
+      window.recorder._recordedFrames = [];
       if (typeof window.recorder._restoreCanvasSize === "function") {
         try {
           window.recorder._restoreCanvasSize();
@@ -432,6 +472,10 @@ export class DiagnosticsManager {
     }
     window.onTestVideoBlobGenerated = null;
     window.onTestZipBlobGenerated = null;
+
+    if (window.sgState) {
+      window.sgState.isRecording = false;
+    }
 
     const recIndicator = document.getElementById("recording-indicator");
     if (recIndicator) {
@@ -481,7 +525,7 @@ export class DiagnosticsManager {
     if (!badge) return;
 
     badge.textContent = status;
-    badge.className = "text-[7px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border transition-all";
+    badge.className = "text-[4.8px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border transition-all";
     badge.classList.remove("animate-pulse");
 
     const titleEl = document.getElementById(`test-title-${testId}`);
@@ -493,7 +537,7 @@ export class DiagnosticsManager {
       badge.style.backgroundColor = "";
       if (titleEl) {
         titleEl.style.color = "";
-        titleEl.className = "text-[10px] font-semibold text-white/95 transition-colors";
+        titleEl.className = "text-[6px] font-semibold text-white/95 transition-colors";
       }
     } else {
       badge.style.display = "inline-block";
@@ -503,7 +547,7 @@ export class DiagnosticsManager {
         badge.style.backgroundColor = "rgba(74, 222, 128, 0.05)";
         if (titleEl) {
           titleEl.style.color = "#4ade80";
-          titleEl.className = "text-[10px] font-semibold transition-colors";
+          titleEl.className = "text-[6px] font-semibold transition-colors";
         }
       } else if (status === "FAIL") {
         badge.style.color = "#f87171";
@@ -511,7 +555,7 @@ export class DiagnosticsManager {
         badge.style.backgroundColor = "rgba(248, 113, 113, 0.05)";
         if (titleEl) {
           titleEl.style.color = "#f87171";
-          titleEl.className = "text-[10px] font-semibold transition-colors";
+          titleEl.className = "text-[6px] font-semibold transition-colors";
         }
       } else {
         // Typically RUNNING or anything else
@@ -520,7 +564,7 @@ export class DiagnosticsManager {
         badge.style.backgroundColor = "rgba(250, 204, 21, 0.05)";
         if (titleEl) {
           titleEl.style.color = "#facc15";
-          titleEl.className = "text-[10px] font-semibold transition-colors";
+          titleEl.className = "text-[6px] font-semibold transition-colors";
         }
         if (status === "RUNNING") {
           badge.classList.add("animate-pulse");

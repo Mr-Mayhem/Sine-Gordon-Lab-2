@@ -365,21 +365,22 @@
       <div class="widget-content flex flex-col gap-2 pl-6 pt-1 flex-1" style="pointer-events:auto;">
         
         <!-- Top Row: Play/Snap/Theory & Topology -->
-        <div class="flex items-center gap-2">
-          
-          <div id="playback-controls-container" class="flex items-center gap-1.5 border border-white/10 rounded-lg p-1 bg-white/5" style="display: none;">
-            <button id="btn-play" class="btn-pill btn-primary h-8 px-3">▶ Run</button>
-            <button id="btn-step" class="btn-icon w-6 h-6">⏭</button>
-            <button id="btn-reset" class="btn-icon w-6 h-6">↺</button>
+        <div class="flex items-center gap-2 w-full justify-between">
+          <div class="flex items-center gap-2 w-[410px] shrink-0 justify-start">
+            <div id="playback-controls-container" class="flex items-center gap-1.5 border border-white/10 rounded-lg p-1 bg-white/5" style="display: none;">
+              <button id="btn-play" class="btn-pill btn-primary h-8 px-3">▶ Run</button>
+              <button id="btn-step" class="btn-icon w-6 h-6">⏭</button>
+              <button id="btn-reset" class="btn-icon w-6 h-6">↺</button>
+            </div>
+            
+            <div class="h-6 w-px bg-white/10 mx-1"></div>
+            
+            <button id="btn-snapshot" class="btn-pill h-9 hover:bg-white/10 transition-colors">📷 Snap</button>
+            <button id="btn-diagnostics" class="btn-pill h-9">🧪 Diagnostics</button>
+            <button id="btn-theory" class="btn-pill h-9 border-purple-500/30 text-purple-400 hover:bg-white/5 transition-colors">💡 Theory</button>
           </div>
           
-          <div class="h-6 w-px bg-white/10 mx-1"></div>
-          
-          <button id="btn-snapshot" class="btn-pill h-9 hover:bg-white/10 transition-colors">📷 Snap</button>
-          <button id="btn-diagnostics" class="btn-pill h-9">🧪 Diagnostics</button>
-          <button id="btn-theory" class="btn-pill h-9 border-purple-500/30 text-purple-400 hover:bg-white/5 transition-colors">💡 Theory</button>
-          
-          <div class="flex-1"></div>
+          <div class="w-px h-7 bg-white/10 self-stretch shrink-0"></div>
           
           <div class="flex items-center gap-1.5 bg-white/5 rounded-lg p-1 border border-white/10">
             <select id="sel-topology" class="thumb-select !py-1">
@@ -419,7 +420,7 @@
             <!-- Video Subsection Header: Disk Space & Diagnostics Bar -->
             <div class="flex items-center justify-between w-full border-b border-white/10 pb-1.5 mb-0.5 px-0.5">
               <div class="flex items-center gap-2">
-                <span class="label-micro text-red-400 opacity-90 font-bold tracking-wider text-[9px]">VIDEO SETTINGS</span>
+                <span class="label-micro text-white/50 font-bold tracking-wider text-[9px] select-none">VIDEO SETTINGS</span>
                 <span class="text-white/20 select-none">•</span>
                 <div id="disk-space-container" class="flex items-center gap-1.5 text-[8px]">
                   <span class="text-white/40 label-micro select-none" style="font-size: 8px; letter-spacing: 0.05em;">STORAGE QUOTA LIMIT:</span>
@@ -432,11 +433,13 @@
             </div>
 
             <!-- Lower Action Row: Button, Separator and Settings Grid -->
-            <div class="flex items-center gap-2.5 w-full">
-              <button id="btn-video" class="btn-pill h-9 text-[11px] px-4 font-bold border-red-500/30 text-red-400 hover:bg-red-500/10 shrink-0">⏺ Record Export</button>
+            <div class="flex items-center justify-between w-full">
+              <div class="flex items-center gap-2 w-[410px] shrink-0 justify-start">
+                <button id="btn-video" class="btn-pill h-9 text-[11px] px-4 font-bold border-red-500/30 text-red-400 hover:bg-red-500/10 shrink-0">⏺ Record Export</button>
+              </div>
               <div class="w-px h-7 bg-white/10 self-stretch shrink-0"></div>
               
-              <div class="flex gap-4 items-center flex-1 justify-between">
+              <div class="flex gap-4 items-center">
                 <!-- Dropdown pair 1: Pipeline & Action -->
                 <div class="flex gap-2.5 items-center">
                   <div class="flex flex-col">
