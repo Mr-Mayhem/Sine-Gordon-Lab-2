@@ -930,3 +930,33 @@ html, body {
 .animate-pulse { animation: diagPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; }
 .hidden { display: none !important; }
 
+/* Custom scrollbar styling for the assembly log and diagnostic list */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 204, 0.25);
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 255, 204, 0.1);
+  transition: background 0.2s ease, hover 0.2s ease;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 204, 0.6);
+  box-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
+}
+
+/* Firefox compatibility support */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 255, 204, 0.25) rgba(255, 255, 255, 0.03);
+  scroll-behavior: smooth;
+}
+

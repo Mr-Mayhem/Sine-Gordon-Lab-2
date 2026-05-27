@@ -54,18 +54,50 @@ class LogNexusController {
 
       // Consistent style classification
       const lower = cleanMsg.toLowerCase();
+      let isError = false;
+      let isWarning = false;
+      let isSuccess = false;
+      let isDiagnosticSystem = false;
+
       if (lower.includes("error") || lower.includes("failed")) {
-        row.style.color = "#ff6b6b";
-      } else if (lower.includes("warning") || lower.includes("warn")) {
-        row.style.color = "#ffb24d";
-      } else if (cleanMsg.startsWith("[System]") || cleanMsg.startsWith("Diagnostic")) {
-        row.style.color = "rgba(255,255,255,0.4)";
+        // Exclude telemetry entries displaying 0 failures or empty lists
+        const isTelemetryZeroOrEmpty = /"[\w\-]*error[\w\-]*"\s*:\s*(0|false|null|\[\s*\])\s*,?/i.test(cleanMsg) ||
+                                       /"[\w\-]*failed[\w\-]*"\s*:\s*(0|false|null|\[\s*\])\s*,?/i.test(cleanMsg);
+        
+        // Exclude general bullet points and list numbers inside the Troubleshooting diagnostics
+        const isTroubleshootingGuide = cleanMsg.includes("[FFmpeg Diagnostics]") || 
+                                       cleanMsg.includes("CLUES & TROUBLESHOOTING") ||
+                                       /^\s*(\d+\.|\-)/.test(cleanMsg);
+
+        if (!isTelemetryZeroOrEmpty && !isTroubleshootingGuide) {
+          isError = true;
+        }
+      }
+
+      if (!isError && (lower.includes("warning") || lower.includes("warn"))) {
+        isWarning = true;
+      }
+
+      if (cleanMsg.startsWith("[System]") || cleanMsg.startsWith("Diagnostic") || cleanMsg.includes("=== FINAL TELEMETRY ===") || cleanMsg.includes("=== RECORDING TELEMETRY ===")) {
+        isDiagnosticSystem = true;
       } else if (
         cleanMsg.includes("Loaded") ||
         cleanMsg.includes("Success") ||
         lower.includes("complete") ||
-        lower.includes("passed")
+        lower.includes("passed") ||
+        lower.includes("[probe ok]") ||
+        lower.includes("[integrity passed]")
       ) {
+        isSuccess = true;
+      }
+
+      if (isError) {
+        row.style.color = "#ff6b6b";
+      } else if (isWarning) {
+        row.style.color = "#ffb24d";
+      } else if (isDiagnosticSystem) {
+        row.style.color = "rgba(255,255,255,0.4)";
+      } else if (isSuccess) {
         row.style.color = "#00ffcc";
       }
 

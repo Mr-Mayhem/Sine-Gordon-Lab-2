@@ -116,6 +116,16 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
       document.getElementById("sel-fps").value = sgState.exportFPS;
       if (document.getElementById("sel-crf"))
         document.getElementById("sel-crf").value = sgState.exportCRF;
+      if (document.getElementById("sel-trim"))
+        document.getElementById("sel-trim").value = sgState.exportTrim || "none";
+      var trimContainer = document.getElementById("trim-selection-container");
+      if (trimContainer) {
+        if (sgState.exportFormat === "webm") {
+          trimContainer.style.display = "flex";
+        } else {
+          trimContainer.style.display = "none";
+        }
+      }
       document.getElementById("firing-solution-list").innerHTML =
         "A:" + Math.round(sgState.posA) + " B:" + Math.round(sgState.posB);
 
@@ -526,7 +536,16 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   document.getElementById("sel-format").onchange = function () {
     sgState.exportFormat = this.value;
     updateDiskSpaceUI();
+    if (window.refreshUI) window.refreshUI();
   };
+  var selTrimObj = document.getElementById("sel-trim");
+  if (selTrimObj) {
+    selTrimObj.onchange = function () {
+      sgState.exportTrim = this.value;
+      updateDiskSpaceUI();
+      if (window.refreshUI) window.refreshUI();
+    };
+  }
   var selL = document.getElementById("sel-limit");
   if (selL)
     selL.onchange = function () {
@@ -569,6 +588,8 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
           const w = parseInt(parts[0], 10);
           const h = parseInt(parts[1], 10);
           if (w && h) {
+            sgState.exportWidth = w;
+            sgState.exportHeight = h;
             pbPrev.style.aspectRatio = `${w}/${h}`;
           }
         }
@@ -777,37 +798,89 @@ export function initAssemblyStatusObserver() {
     if (!html || html === "Ready" || html.trim() === "") {
       leftCol.innerHTML = `
         <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
-        <div><strong>Project Version:</strong> v1.5.0-hybrid-ts</div>
-        <div><strong>Mode:</strong> Idle</div>
-        <div><strong>Phase:</strong> Ready for stream compilation</div>
-        <div><strong>Frames:</strong> 0 / 0</div>
+        <div class="py-0.5 border-b border-white/[0.02]"><strong>Project Version:</strong> v1.5.0-hybrid-ts</div>
+        <div class="py-0.5 border-b border-white/[0.02]"><strong>Mode:</strong> Idle</div>
+        <div class="py-0.5 border-b border-white/[0.02]"><strong>Phase:</strong> Ready for stream compilation</div>
+        <div class="py-0.5 border-b border-white/[0.02] last:border-b-0"><strong>Resolution:</strong> ${sgState.exportWidth}x${sgState.exportHeight}</div>
       `;
+      
+      const formatLabel = sgState.exportFormat === "mp4" ? "MP4 (H.264)" : "WebM (VP8)";
+      const coopCoepSatisfied = typeof SharedArrayBuffer !== "undefined";
+      const threadingLabel = (sgState.exportFormat === "mp4" && coopCoepSatisfied) ? "Multi-Threaded (MT)" : "Single-Threaded (ST)";
+      const crfLabel = sgState.exportCRF === 0 ? "0 (Lossless)" : sgState.exportCRF === 5 ? "5 (Ultra Quality)" : sgState.exportCRF === 12 ? "12 (High Quality)" : sgState.exportCRF === 18 ? "18 (Typical Default)" : `${sgState.exportCRF}`;
+
       rightCol.innerHTML = `
         <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
-        <div class="flex justify-between border-b border-white/[0.03] pb-0.5"><span class="text-white/40">Format:</span><span class="text-white font-medium">-</span></div>
-        <div class="flex justify-between border-b border-white/[0.03] pb-0.5"><span class="text-white/40">Threading:</span><span class="text-white font-medium">-</span></div>
-        <div class="flex justify-between pb-0.5"><span class="text-white/40">COOP/COEP:</span><span class="text-white text-white/50">N/A</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Format:</span><span class="text-white font-medium">${formatLabel}</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Threading:</span><span class="text-white font-medium">${threadingLabel}</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">${sgState.exportWidth}x${sgState.exportHeight}</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Framerate:</span><span class="text-[#00aaff] font-medium font-mono font-bold">${sgState.exportFPS} FPS</span></div>
+        <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Quality / CRF:</span><span class="text-amber-400 font-medium font-mono font-bold">${crfLabel}</span></div>
       `;
       return;
     }
 
-    // Check if it's the complex vertical summary from _updateAssemblyUI()
-    if (html.includes("Diagnostic Report") || html.includes("flex")) {
+    const isZip = html.includes("stills-to-zip") || sgState.exportAction === "zip";
+
+    if (isZip) {
+      let phase = "Packaging ZIP...";
+      let framesCount = "-";
+      
+      const phaseMatch = html.match(/Phase:\s*([^<]+)/i) || html.match(/<strong>Phase:<\/strong>\s*([^<]+)/i);
+      if (phaseMatch) phase = phaseMatch[1].trim();
+
+      const framesMatch = html.match(/Frames:\s*([^<]+)/i);
+      if (framesMatch) {
+         framesCount = framesMatch[1].trim();
+      } else {
+         const pbPercent = document.getElementById("assembly-percent");
+         if (pbPercent && pbPercent.textContent && pbPercent.textContent !== "0%") {
+           framesCount = `In progress (${pbPercent.textContent})`;
+         }
+      }
+
+      leftCol.innerHTML = `
+        <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
+        <div class="py-0.5 border-b border-white/[0.02]"><strong>Project Version:</strong> v1.5.0-hybrid-ts</div>
+        <div class="py-0.5 border-b border-white/[0.02]"><strong>Mode:</strong> Stills ZIP Packaging</div>
+        <div class="py-0.5 border-b border-white/[0.02]"><strong>Phase:</strong> ${phase}</div>
+        <div class="py-0.5 border-b border-white/[0.02] last:border-b-0"><strong>Target Resolution:</strong> ${sgState.exportWidth}x${sgState.exportHeight}</div>
+      `;
+
+      rightCol.innerHTML = `
+        <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Format:</span><span class="text-white font-medium">ZIP Archive (.zip)</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Method:</span><span class="text-white font-medium">Deflate (Fast)</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">${sgState.exportWidth}x${sgState.exportHeight}</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Source Stills:</span><span class="text-[#00aaff] font-medium">PNG Sequence</span></div>
+        <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Target File:</span><span class="text-emerald-400 font-medium font-mono">sg_lab_render_*.zip</span></div>
+      `;
+    } else {
       const temp = document.createElement("div");
       temp.innerHTML = html;
       
       const textCenterDiv = temp.querySelector(".text-center") || temp;
-      let leftHtml = "";
+      let leftHtml = `<span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>`;
+      
       if (textCenterDiv) {
         const parts = textCenterDiv.innerHTML.split("<br>");
-        leftHtml = `<span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>`;
+        let hasResolution = false;
+        let hasFPS = false;
         parts.forEach(part => {
           if (part.trim() && !part.includes("Diagnostic Report") && !part.includes(" flex")) {
             leftHtml += `<div class="py-0.5 border-b border-white/[0.02] last:border-b-0">${part}</div>`;
+            if (part.includes("Resolution") || part.includes("Dim")) hasResolution = true;
+            if (part.includes("FPS") || part.includes("Framerate")) hasFPS = true;
           }
         });
+        if (!hasResolution) {
+          leftHtml += `<div class="py-0.5 border-b border-white/[0.02] last:border-b-0"><strong>Resolution:</strong> ${sgState.exportWidth}x${sgState.exportHeight}</div>`;
+        }
+        if (!hasFPS) {
+          leftHtml += `<div class="py-0.5 border-b border-white/[0.02] last:border-b-0"><strong>Framerate:</strong> ${sgState.exportFPS} FPS</div>`;
+        }
       } else {
-        leftHtml = `<span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span><div>${html}</div>`;
+        leftHtml += `<div class="py-0.5 border-b border-white/[0.02]"><strong>Resolution:</strong> ${sgState.exportWidth}x${sgState.exportHeight}</div><div class="py-0.5 border-b border-white/[0.02]"><strong>Framerate:</strong> ${sgState.exportFPS} FPS</div><div class="py-0.5 last:border-b-0">${html}</div>`;
       }
       leftCol.innerHTML = leftHtml;
 
@@ -831,33 +904,45 @@ export function initAssemblyStatusObserver() {
         }
       });
 
+      const formatLabel = sgState.exportFormat === "mp4" ? "MP4 (H.264)" : "WebM (VP8)";
+      const coopCoepSatisfied = typeof SharedArrayBuffer !== "undefined";
+      const threadingLabel = (sgState.exportFormat === "mp4" && coopCoepSatisfied) ? "Multi-Threaded (MT)" : "Single-Threaded (ST)";
+      const crfLabel = sgState.exportCRF === 0 ? "0 (Lossless)" : sgState.exportCRF === 5 ? "5 (Ultra Quality)" : sgState.exportCRF === 12 ? "12 (High Quality)" : sgState.exportCRF === 18 ? "18 (Typical Default)" : `${sgState.exportCRF}`;
+
       if (parsedRows === 0) {
-        const format = (typeof sgState !== 'undefined' && sgState.exportFormat ? sgState.exportFormat : 'webm') || 'webm';
         rightHtml += `
-          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Format:</span><span class="text-white font-medium">${format.toUpperCase()}</span></div>
-          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Threading:</span><span class="text-white font-medium">Automatic</span></div>
-          <div class="flex justify-between items-center py-0.5"><span class="text-white/40">COOP/COEP:</span><span class="text-white text-white/50">N/A</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Format:</span><span class="text-white font-medium">${formatLabel}</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Threading:</span><span class="text-white font-medium">${threadingLabel}</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">${sgState.exportWidth}x${sgState.exportHeight}</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Framerate:</span><span class="text-[#00aaff] font-medium font-mono font-bold">${sgState.exportFPS} FPS</span></div>
+          <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Quality / CRF:</span><span class="text-amber-400 font-medium font-mono font-bold">${crfLabel}</span></div>
         `;
+      } else {
+        let containsQuality = false;
+        let containsResolution = false;
+        let containsFPS = false;
+        reportRows.forEach(row => {
+          if (row.textContent.includes("Quality") || row.textContent.includes("CRF")) containsQuality = true;
+          if (row.textContent.includes("Resolution") || row.textContent.includes("Dimension")) containsResolution = true;
+          if (row.textContent.includes("FPS") || row.textContent.includes("Framerate")) containsFPS = true;
+        });
+        if (!containsQuality) {
+          rightHtml += `
+            <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Quality / CRF:</span><span class="text-amber-400 font-medium font-mono font-bold">${crfLabel}</span></div>
+          `;
+        }
+        if (!containsResolution) {
+          rightHtml += `
+            <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">${sgState.exportWidth}x${sgState.exportHeight}</span></div>
+          `;
+        }
+        if (!containsFPS) {
+          rightHtml += `
+            <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Framerate:</span><span class="text-[#00aaff] font-medium font-mono font-bold">${sgState.exportFPS} FPS</span></div>
+          `;
+        }
       }
       rightCol.innerHTML = rightHtml;
-
-    } else {
-      const parts = html.split("<br>");
-      let leftHtml = `<span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>`;
-      parts.forEach(part => {
-        if (part.trim()) {
-          leftHtml += `<div class="py-0.5 border-b border-white/[0.02] last:border-b-0">${part}</div>`;
-        }
-      });
-      leftCol.innerHTML = leftHtml;
-
-      const format = (typeof sgState !== 'undefined' && sgState.exportFormat ? sgState.exportFormat : 'webm') || 'webm';
-      rightCol.innerHTML = `
-        <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Format:</span><span class="text-white font-medium">${format.toUpperCase()}</span></div>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Threading:</span><span class="text-white font-medium">Single-Threaded</span></div>
-        <div class="flex justify-between items-center py-0.5"><span class="text-white/40">COOP/COEP:</span><span class="text-white text-white/50">N/A</span></div>
-      `;
     }
   });
 

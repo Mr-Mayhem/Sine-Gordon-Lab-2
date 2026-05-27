@@ -795,10 +795,9 @@ async function _assemble(
 
   var oc = overlay.querySelector("div");
   if (oc) {
+    // Rely on pristine and consistent index.html inline styling to prevent dynamic layout resizing jitter.
     oc.style.maxWidth = "800px";
-    oc.style.padding = "32px";
     oc.style.height = "auto";
-    oc.style.minHeight = "400px";
   }
 
   const params = getEncodingParams(alignedW, alignedH);

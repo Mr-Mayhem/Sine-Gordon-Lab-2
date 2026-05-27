@@ -57,6 +57,16 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
 export function resolveRecordingResolution() {
   var w = (typeof appState !== 'undefined' ? appState.exportWidth : 1280) || 1280;
   var h = (typeof appState !== 'undefined' ? appState.exportHeight : 720) || 720;
+
+  if (typeof appState !== 'undefined' && appState.exportFormat === "webm" && appState.exportTrim && appState.exportTrim !== "none") {
+    var cropFactor = 1.0;
+    if (appState.exportTrim === "subtle") cropFactor = 0.80;
+    else if (appState.exportTrim === "snug") cropFactor = 0.67;
+    else if (appState.exportTrim === "max") cropFactor = 0.55;
+
+    h = Math.floor((h * cropFactor) / 2) * 2;
+  }
+
   var key = w + "x" + h;
   if (FFMPEG_RESOLUTIONS_RECIPES[key]) {
     return {

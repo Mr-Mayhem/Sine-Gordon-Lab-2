@@ -55,6 +55,7 @@ export const sgState = {
   exportFPS: 30,
   exportCRF: 5,
   exportLimit: "default",
+  exportTrim: "none",
   recStepsPerFrame: 1,
   gimbalRingActive: false,
   gimbalPhysicsMode: "simplified",
