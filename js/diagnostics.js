@@ -8,6 +8,52 @@
 import { DiscSpaceEstimator } from "./disc-space-estimator.js";
 import { LogNexus } from "./logger.js";
 
+class EnvironmentDetector {
+  static detect() {
+    return {
+      cores: navigator.hardwareConcurrency || "N/A",
+      mem: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : "Unknown",
+      sab: typeof SharedArrayBuffer !== "undefined" ? "AVAILABLE" : "UNAVAILABLE",
+      opfs: (typeof navigator.storage !== "undefined" && typeof navigator.storage.getDirectory === "function") ? "COMPATIBLE" : "INCOMPATIBLE"
+    };
+  }
+}
+
+class EnvironmentStyleHelper {
+  static applyStatusDecoration(el, status, type) {
+    if (!el) return;
+    el.textContent = status;
+    
+    if (type === "cores") {
+      if (status !== "N/A" && parseInt(status) >= 2) {
+        el.style.color = "#4ade80"; // Bright green for multi-core environments
+      } else {
+        el.style.color = "#f87171"; // Red for single-core/N/A
+      }
+    } else if (type === "mem") {
+      if (status !== "Unknown" && parseFloat(status) >= 4) {
+        el.style.color = "#4ade80"; // Green for sufficient memory
+      } else if (status !== "Unknown") {
+        el.style.color = "#facc15"; // Yellow for lower memory environments
+      } else {
+        el.style.color = "#f87171"; // Red for unknown / missing values
+      }
+    } else if (type === "sab") {
+      if (status === "AVAILABLE") {
+        el.style.color = "#4ade80"; // High-contrast green
+      } else {
+        el.style.color = "#f87171"; // High-contrast red
+      }
+    } else if (type === "opfs") {
+      if (status === "COMPATIBLE") {
+        el.style.color = "#4ade80"; // High-contrast green
+      } else {
+        el.style.color = "#f87171"; // High-contrast red
+      }
+    }
+  }
+}
+
 class TestSpecHelper {
   static createSpec({ mode, resolution, crf, threading }) {
     let pipeline = "ffmpeg";
@@ -389,55 +435,12 @@ export class DiagnosticsManager {
   }
 
   updateSpecs() {
-    const specs = {
-      cores: navigator.hardwareConcurrency || "N/A",
-      mem: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : "Unknown",
-      sab: typeof SharedArrayBuffer !== "undefined" ? "AVAILABLE" : "UNAVAILABLE",
-      opfs: (typeof navigator.storage !== "undefined" && typeof navigator.storage.getDirectory === "function") ? "COMPATIBLE" : "INCOMPATIBLE"
-    };
+    const specs = EnvironmentDetector.detect();
 
-    const coresEl = document.getElementById("diag-cores");
-    const memEl = document.getElementById("diag-mem");
-    const sabEl = document.getElementById("diag-sab");
-    const opfsEl = document.getElementById("diag-opfs");
-
-    if (coresEl) {
-      coresEl.textContent = specs.cores;
-      if (specs.cores !== "N/A" && parseInt(specs.cores) >= 2) {
-        coresEl.style.color = "#4ade80"; // Bright green for multi-core environments
-      } else {
-        coresEl.style.color = "#f87171"; // Red for single-core/N/A
-      }
-    }
-
-    if (memEl) {
-      memEl.textContent = specs.mem;
-      if (specs.mem !== "Unknown" && parseFloat(specs.mem) >= 4) {
-        memEl.style.color = "#4ade80"; // Green for sufficient memory
-      } else if (specs.mem !== "Unknown") {
-        memEl.style.color = "#facc15"; // Yellow for lower memory environments
-      } else {
-        memEl.style.color = "#f87171"; // Red for unknown / missing values
-      }
-    }
-
-    if (sabEl) {
-      sabEl.textContent = specs.sab;
-      if (specs.sab === "AVAILABLE") {
-        sabEl.style.color = "#4ade80"; // High-contrast green
-      } else {
-        sabEl.style.color = "#f87171"; // High-contrast red
-      }
-    }
-
-    if (opfsEl) {
-      opfsEl.textContent = specs.opfs;
-      if (specs.opfs === "COMPATIBLE") {
-        opfsEl.style.color = "#4ade80"; // High-contrast green
-      } else {
-        opfsEl.style.color = "#f87171"; // High-contrast red
-      }
-    }
+    EnvironmentStyleHelper.applyStatusDecoration(document.getElementById("diag-cores"), specs.cores, "cores");
+    EnvironmentStyleHelper.applyStatusDecoration(document.getElementById("diag-mem"), specs.mem, "mem");
+    EnvironmentStyleHelper.applyStatusDecoration(document.getElementById("diag-sab"), specs.sab, "sab");
+    EnvironmentStyleHelper.applyStatusDecoration(document.getElementById("diag-opfs"), specs.opfs, "opfs");
   }
 
   show() {

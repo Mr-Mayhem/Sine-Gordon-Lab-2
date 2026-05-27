@@ -218,7 +218,7 @@ function _updateAssemblyUI() {
   var fill = document.getElementById("progress-fill");
   if (statusEl) {
     var lines = [];
-    lines.push("<strong>Project Version:</strong> v1.4.0-hybrid-ts");
+    lines.push("<strong>Project Version:</strong> v1.5.0-hybrid-ts");
     if (s.mode) {
       lines.push("<strong>Mode:</strong> " + s.mode);
     }
