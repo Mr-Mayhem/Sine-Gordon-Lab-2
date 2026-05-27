@@ -174,29 +174,33 @@ export class DiagnosticsManager {
         // Only Level 1 should be checked by default initially
         const isDefaultChecked = (cat.name === "Level 1: Quick Compliance Checks");
         const checkedAttr = isDefaultChecked ? "checked" : "";
+        
+        let description = test.description;
+        if (typeof SharedArrayBuffer === "undefined") {
+          description = description.replace(" and multi-threaded worker rendering", "");
+          description = description.replace("multi-threaded worker rendering", "single-threaded rendering");
+        }
+
         return `
         <div class="test-item border border-white/5 bg-white/[0.015] rounded-lg p-2 flex flex-col sm:flex-row justify-between sm:items-center gap-2.5" id="test-card-${test.id}">
           <div class="flex-1 col-span-1 min-w-0">
             <div class="flex items-center gap-2">
               <input type="checkbox" id="chk-test-${test.id}" class="w-3.5 h-3.5 accent-green-400 cursor-pointer" ${checkedAttr}>
-              <span id="test-title-${test.id}" class="text-xs font-semibold text-white/95 transition-colors">${test.name}</span>
-              <span class="text-[8.5px] bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/25 px-1.5 py-0.2 rounded font-mono font-bold select-none flex-frames-badge" data-testid="${test.id}">${test.frames} FMR</span>
+              <span id="test-title-${test.id}" class="text-[10px] font-semibold text-white/95 transition-colors">${test.name}</span>
+              <span class="text-[6.5px] bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/25 px-1.5 py-0.2 rounded font-mono font-bold select-none flex-frames-badge" data-testid="${test.id}">${test.frames} FMR</span>
             </div>
-            <p class="text-[10.5px] text-white/45 mt-0.5 pl-5.5 select-none leading-relaxed">${test.description}</p>
-            <div class="text-[9px] font-mono text-white/25 pl-5.5 mt-0.5 select-none uppercase tracking-wider font-semibold">
+            <p class="text-[8.5px] text-white/45 mt-0.5 pl-5.5 select-none leading-relaxed">${description}</p>
+            <div class="text-[7px] font-mono text-white/25 pl-5.5 mt-0.5 select-none uppercase tracking-wider font-semibold">
               Pipeline: <span class="text-green-400/80">${test.pipeline}</span> | 
               Resolution: <span class="text-white/60">${test.width}x${test.height}</span> | 
               Format: <span class="text-green-400/80">${test.format}</span> ${test.crf ? `| CRF: <span class="text-amber-400 font-bold">${test.crf}</span>` : ""}
             </div>
             <!-- Dynamic Error Box -->
-            <div id="test-error-${test.id}" class="test-error-box ml-5.5 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[9px] p-2 mt-1.5 rounded-lg overflow-x-auto select-text hidden">
-              <div class="flex items-start gap-1.5"><strong class="text-red-400 shrink-0">FAIL REASON:</strong> <span class="err-reason break-words font-medium">None</span></div>
-              <div class="mt-1 opacity-80 border-t border-white/5 pt-1.5"><strong class="text-white/40">BASE SOURCE:</strong> <span class="err-base">None</span> | <strong class="text-white/40">FUNCTION:</strong> <span class="err-function">None</span></div>
-            </div>
+            <div id="test-error-${test.id}" class="test-error-box ml-5.5 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[7px] p-2 mt-1.5 rounded-lg overflow-x-auto select-text hidden"></div>
           </div>
           <div class="flex items-center gap-2 shrink-0 justify-end pl-5.5 sm:pl-0">
-            <span class="text-[9px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
-            <button class="btn-single-test bg-white/5 text-white/70 hover:bg-green-500/10 hover:text-green-400 hover:border-green-500/30 border border-white/10 py-1 px-2.5 rounded text-[8.5px] font-bold transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
+            <span class="text-[7px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
+            <button class="btn-single-test bg-white/5 text-white/70 hover:bg-green-500/10 hover:text-green-400 hover:border-green-500/30 border border-white/10 py-1 px-2.5 rounded text-[6.5px] font-bold transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
           </div>
         </div>
         `;
@@ -226,10 +230,10 @@ export class DiagnosticsManager {
 
       <!-- System Diagnostic Metadata Header -->
       <section class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white/[0.015] border border-white/5 rounded-xl p-2.5 mb-3 text-[9px] text-white/60">
-        <div><span class="text-white/35 block select-none mb-0.5 font-bold uppercase tracking-wider">System Cores</span><strong id="diag-cores">Calculating...</strong></div>
-        <div><span class="text-white/35 block select-none mb-0.5 font-bold uppercase tracking-wider">Reported Memory</span><strong id="diag-mem">Calculating...</strong></div>
-        <div><span class="text-white/35 block select-none mb-0.5 font-bold uppercase tracking-wider">SharedArrayBuffer</span><strong id="diag-sab">Calculating...</strong></div>
-        <div><span class="text-white/35 block select-none mb-0.5 font-bold uppercase tracking-wider">OPFS Sandbox</span><strong id="diag-opfs">Calculating...</strong></div>
+        <div><span class="text-white/35 select-none mb-0.5 font-bold uppercase tracking-wider" style="display: block;">System Cores: </span><strong id="diag-cores">Calculating...</strong></div>
+        <div><span class="text-white/35 select-none mb-0.5 font-bold uppercase tracking-wider" style="display: block;">Reported Memory: </span><strong id="diag-mem">Calculating...</strong></div>
+        <div><span class="text-white/35 select-none mb-0.5 font-bold uppercase tracking-wider" style="display: block;">SharedArrayBuffer: </span><strong id="diag-sab">Calculating...</strong></div>
+        <div><span class="text-white/35 select-none mb-0.5 font-bold uppercase tracking-wider" style="display: block;">OPFS Sandbox: </span><strong id="diag-opfs">Calculating...</strong></div>
       </section>
 
       <!-- Action Control Row -->
@@ -282,13 +286,13 @@ export class DiagnosticsManager {
       </div>
 
       <!-- Main Test Suite Grid -->
-      <div class="flex flex-col gap-1.5 max-h-[320px] overflow-y-auto pr-1 select-none scrollbar-thin mb-3">
+      <div class="flex flex-col gap-1.5 pr-1 select-none scrollbar-thin mb-3" style="max-height: 250px; overflow-y: auto;">
         ${testsHtml}
       </div>
 
       <!-- Real-time Test Output Logs Console -->
-      <div id="diagnostics-console-box" class="border border-white/5 rounded-xl bg-black/95 p-3 font-mono text-[9px] flex flex-col gap-1 overflow-hidden" style="height: 180px;">
-        <div class="flex justify-between items-center text-[9px] uppercase tracking-wider border-b border-white/5 pb-1 mb-1 text-white/35">
+      <div id="diagnostics-console-box" class="border border-white/5 rounded-xl bg-black/95 p-3 font-mono text-[7px] flex flex-col gap-1 overflow-hidden" style="height: 180px; min-height: 180px; display: flex !important; flex-shrink: 0; box-sizing: border-box;">
+        <div class="flex justify-between items-center text-[7px] uppercase tracking-wider border-b border-white/5 pb-1 mb-1 text-white/35">
           <span>Engine Output Console</span>
           <span id="txt-diagnostics-phase-val" class="font-bold text-yellow-400">IDLE</span>
         </div>
@@ -299,7 +303,7 @@ export class DiagnosticsManager {
           <div style="height:4px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden;" class="w-full">
             <div id="diagnostics-progress-fill" style="height:100%; background:linear-gradient(90deg, #4ade80, #10b981); width:0%; transition:none;"></div>
           </div>
-          <div class="flex justify-between items-center text-[8.5px] text-white/35 mt-0.5">
+          <div class="flex justify-between items-center text-[6.5px] text-white/35 mt-0.5">
             <span id="txt-diagnostics-progress-step">Processing...</span>
             <span id="txt-diagnostics-progress-percent">0%</span>
           </div>
@@ -535,33 +539,46 @@ export class DiagnosticsManager {
     if (!badge) return;
 
     badge.textContent = status;
-    badge.className = "text-[9px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border transition-all";
+    badge.className = "text-[7px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border transition-all";
+    badge.classList.remove("animate-pulse");
 
     const titleEl = document.getElementById(`test-title-${testId}`);
 
     if (status === "PENDING") {
-      badge.classList.add("text-yellow-400", "border-yellow-500/20", "bg-yellow-500/5");
       badge.style.display = "none";
+      badge.style.color = "";
+      badge.style.borderColor = "";
+      badge.style.backgroundColor = "";
       if (titleEl) {
-        titleEl.className = "text-xs font-semibold text-white/95 transition-colors";
+        titleEl.style.color = "";
+        titleEl.className = "text-[10px] font-semibold text-white/95 transition-colors";
       }
     } else {
       badge.style.display = "inline-block";
       if (status === "PASS") {
-        badge.classList.add("text-green-400", "border-green-500/30", "bg-green-500/5");
+        badge.style.color = "#4ade80";
+        badge.style.borderColor = "rgba(74, 222, 128, 0.3)";
+        badge.style.backgroundColor = "rgba(74, 222, 128, 0.05)";
         if (titleEl) {
-          titleEl.className = "text-xs font-semibold text-green-400 transition-colors";
+          titleEl.style.color = "#4ade80";
+          titleEl.className = "text-[10px] font-semibold transition-colors";
         }
       } else if (status === "FAIL") {
-        badge.classList.add("text-red-500", "border-red-500/30", "bg-red-500/5");
+        badge.style.color = "#f87171";
+        badge.style.borderColor = "rgba(248, 113, 113, 0.3)";
+        badge.style.backgroundColor = "rgba(248, 113, 113, 0.05)";
         if (titleEl) {
-          titleEl.className = "text-xs font-semibold text-red-500 transition-colors";
+          titleEl.style.color = "#f87171";
+          titleEl.className = "text-[10px] font-semibold transition-colors";
         }
       } else {
-        // Anything else in yellow
-        badge.classList.add("text-yellow-400", "border-yellow-500/30", "bg-yellow-500/5");
+        // Typically RUNNING or anything else
+        badge.style.color = "#facc15";
+        badge.style.borderColor = "rgba(250, 204, 21, 0.3)";
+        badge.style.backgroundColor = "rgba(250, 204, 21, 0.05)";
         if (titleEl) {
-          titleEl.className = "text-xs font-semibold text-yellow-400 transition-colors";
+          titleEl.style.color = "#facc15";
+          titleEl.className = "text-[10px] font-semibold transition-colors";
         }
         if (status === "RUNNING") {
           badge.classList.add("animate-pulse");
@@ -632,15 +649,11 @@ export class DiagnosticsManager {
     if (!errorEl) return;
 
     if (errorDetails) {
-      errorEl.querySelector(".err-reason").textContent = errorDetails.reason || "Unknown execution challenge";
-      errorEl.querySelector(".err-base").textContent = errorDetails.base || "N/A";
-      errorEl.querySelector(".err-function").textContent = errorDetails.functionName || "N/A";
+      errorEl.innerHTML = `<div class="flex items-start gap-1.5"><strong class="text-red-400 shrink-0">ERROR:</strong> <span class="break-words font-medium text-red-300">${errorDetails.reason || "Unknown execution challenge"}</span></div>`;
       errorEl.classList.remove("hidden");
     } else {
       errorEl.classList.add("hidden");
-      errorEl.querySelector(".err-reason").textContent = "None";
-      errorEl.querySelector(".err-base").textContent = "None";
-      errorEl.querySelector(".err-function").textContent = "None";
+      errorEl.innerHTML = "";
     }
   }
 
