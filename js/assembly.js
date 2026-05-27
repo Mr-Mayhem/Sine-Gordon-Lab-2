@@ -136,7 +136,7 @@ function inspectProbeResults(ffmpegLogs, expectedFrames, fps, expectedW, expecte
     }
     
     if (msg.includes("Video:") && msg.includes("fps")) {
-      const resMatch = msg.match(/(\d+)x(\d+)/);
+      const resMatch = msg.match(/\b(\d{3,5})x(\d{3,5})\b/);
       if (resMatch) {
         resolutionStr = `${resMatch[1]}x${resMatch[2]}`;
       }

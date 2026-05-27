@@ -1312,7 +1312,7 @@ export class DiagnosticsManager {
             this.log(`🎉 SUCCESS: Compiled Blob generated! Payload: ${blobSizeKB} KB. (MIME: ${finalOutputBlob.type})`, "text-green-400 font-semibold");
             
             // Let's run structural probes to ensure compatibility
-            if (t.pipeline === "ffmpeg") {
+            if (t.pipeline === "ffmpeg" || t.pipeline === "zip-to-video") {
               if (enableProbing) {
                 this.log(`[Probe] Attempting standard HTML5 direct-to-video decode...`);
                 const probeResult = await this.probeVideoBlob(finalOutputBlob);
@@ -1538,12 +1538,7 @@ export class DiagnosticsManager {
         return resObj;
       });
 
-      const specs = {
-        cores: navigator.hardwareConcurrency || "N/A",
-        mem: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : "Unknown",
-        sab: typeof SharedArrayBuffer !== "undefined" ? "AVAILABLE" : "UNAVAILABLE",
-        opfs: (typeof navigator.storage !== "undefined" && typeof navigator.storage.getDirectory === "function") ? "COMPATIBLE" : "INCOMPATIBLE"
-      };
+      const specs = EnvironmentDetector.detect();
 
       const report = {
         title: "SINE-GORDON LAB VIDEO COMPLIANCE & PIXEL INTEGRITY DIAGNOSTIC REPORT",

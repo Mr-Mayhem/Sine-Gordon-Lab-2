@@ -49,8 +49,8 @@ export function getEncodingParams(alignedW, alignedH) {
   // For high-density scales at/above 1080p, restrict H.264 to 1 thread to avoid thread stack overhead and memory pressure.
   var x264Threads = resolutionScale > 2.0 ? "1" : "2";
 
-  // For high-density scales at/above 1080p, elevate level limit dynamically to 5.2 to avoid MB rate overflow artifacts
-  var x264Level = resolutionScale > 2.0 ? "5.2" : "5.1";
+  // For high-density scales at/above 1080p, cap-level is pinned at 5.1 to maximize device decoding and playability.
+  var x264Level = "5.1";
 
   return {
     format,
