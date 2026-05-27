@@ -803,8 +803,6 @@ export function initAssemblyStatusObserver() {
       if (html && html !== "Ready" && html.trim() !== "") {
         if (html.includes("stills-to-zip") || sgState.exportAction === "zip") {
           operation = "ZIP Packaging";
-        } else if (html.includes("test") || html.includes("Diagnostic") || html.toLowerCase().includes("diagnostics")) {
-          operation = "Pipeline Diagnostics Test";
         } else {
           const phaseMatch = html.match(/Phase:\s*([^<]+)/i) || html.match(/<strong>Phase:<\/strong>\s*([^<]+)/i);
           const modeMatch = html.match(/Mode:\s*([^<]+)/i) || html.match(/<strong>Mode:<\/strong>\s*([^<]+)/i);
