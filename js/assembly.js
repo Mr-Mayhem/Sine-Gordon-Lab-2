@@ -218,7 +218,7 @@ function _updateAssemblyUI() {
   var fill = document.getElementById("progress-fill");
   if (statusEl) {
     var lines = [];
-    lines.push("<strong>Project Version:</strong> v1.5.0-hybrid-ts");
+    lines.push("<strong>Project Version:</strong> v1.6.0-hybrid-ts");
     if (s.mode) {
       lines.push("<strong>Mode:</strong> " + s.mode);
     }
@@ -275,6 +275,15 @@ function _updateAssemblyUI() {
   }
   if (percentEl) percentEl.textContent = s.encodeProgress + "%";
   if (fill) fill.style.width = s.encodeProgress + "%";
+
+  var bottomPhaseEl = document.getElementById("assembly-bottom-phase");
+  var bottomFramesEl = document.getElementById("assembly-bottom-frames");
+  if (bottomPhaseEl && s.currentPhase) {
+    bottomPhaseEl.textContent = s.currentPhase;
+  }
+  if (bottomFramesEl && typeof s.verifiedFrames !== "undefined") {
+    bottomFramesEl.textContent = `${s.verifiedFrames} / ${s.totalFrames} frames`;
+  }
 }
 
 function shouldUseChunkedAssembly(frameCount, width, height) {
@@ -930,6 +939,12 @@ async function _assemble(
         );
         // Instant standard RAM clearing of frame buffer reference to eliminate GC burden
         doubleBuffer[activeBufferIdx][i] = null;
+
+        _assemblyStats.verifiedFrames = framesProcessed + i + 1;
+        _assemblyStats.encodeProgress = Math.round(
+          (_assemblyStats.verifiedFrames / totalFrames) * 100
+        );
+        _updateAssemblyUI();
       }
 
       let chunkName = "chunk_" + c + (format === "mp4" ? ".ts" : ".webm");
@@ -1063,12 +1078,10 @@ async function _assemble(
           }
         }
 
-        if (i % 10 === 0 || i === totalFrames - 1) {
-          _assemblyStats.encodeProgress = Math.round(
-            ((i + 1) / totalFrames) * 100,
-          );
-          _updateAssemblyUI();
-        }
+        _assemblyStats.encodeProgress = Math.round(
+          ((i + 1) / totalFrames) * 100,
+        );
+        _updateAssemblyUI();
       } catch (e) {
         missingFrames.push({ index: i });
       }

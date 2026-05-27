@@ -4,9 +4,9 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "./vendor/three/three.module.js",
-        "three/": "./vendor/three/",
-        "three/addons/": "./vendor/three/addons/"
+        "three": "/vendor/three/three.module.js",
+        "three/": "/vendor/three/",
+        "three/addons/": "/vendor/three/addons/"
       }
     }
   </script>
@@ -42,7 +42,7 @@
 
   <!-- Title Label -->
   <div id="title-label">
-    <span class="title-version">v1.5.0</span>
+    <span class="title-version">v1.6.0</span>
     <h1 class="title-main">The Sine-Gordon Lab</h1>
   </div>
 
@@ -206,43 +206,44 @@
               align-items:center;
               justify-content:center;
               z-index:200;
-              padding:16px;">
+              padding:12px;">
     <div style="background:rgba(23,23,23,0.95);
                 border:1px solid rgba(255,255,255,0.1);
-                border-radius:24px;
-                padding:24px;
-                max-width:800px;
+                border-radius:18px;
+                padding:16px;
+                max-width:760px;
                 width:100%;
-                height:auto;
-                max-height:95vh;
-                overflow-y:auto;
+                height:92vh;
+                max-height:810px;
+                overflow:hidden;
                 display:flex;
                 flex-direction:column;
-                gap:20px;
+                gap:12px;
                 position:relative;
                 box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
 
-      <button id="btn-close-processing" class="btn-icon w-8 h-8 rounded-full" style="position:absolute; top:20px; right:20px; z-index:10; background:rgba(255,255,255,0.1); border:none; color:white; font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Close">✕</button>
+      <button id="btn-close-processing" class="btn-icon w-8 h-8 rounded-full" style="position:absolute; top:12px; right:12px; z-index:10; background:rgba(255,255,255,0.1); border:none; color:white; font-size:14px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Close">✕</button>
 
-      <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-1 w-full max-w-[720px] mx-auto" style="flex-shrink:0;">
-        <span style="font-size:10px; font-weight:900; color:#00ffcc; letter-spacing:0.4em; text-transform:uppercase; filter: drop-shadow(0 0 4px rgba(0,255,204,0.35));">Assembly Engine</span>
+      <div class="flex justify-between items-baseline border-b border-white/5 pb-1.5 mb-0.5 w-full max-w-[720px] mx-auto" style="flex-shrink:0;">
+        <span style="font-size:10px; font-weight:900; color:#00ffcc; letter-spacing:0.3em; text-transform:uppercase; filter: drop-shadow(0 0 4px rgba(0,255,204,0.35));">Assembly Engine</span>
+        <span id="assembly-subheader-info" class="font-mono text-[8.5px] text-white/50 uppercase tracking-wider text-right">Operation: Idle | Res: 1280x720</span>
         <!-- Hidden legacy status node updated by other JS code, intercepted via MutationObserver -->
         <span id="assembly-status" style="display:none;">Ready</span>
       </div>
 
       <!-- Aligned Top Text Blobs (Consistent, fixed-height to prevent vertical resizing jitter) -->
-      <div id="assembly-overview-tiles" class="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto mb-1" style="height: 150px; min-height: 150px; flex-shrink:0;">
+      <div id="assembly-overview-tiles" class="grid grid-cols-2 gap-3 w-full max-w-[720px] mx-auto mb-0.5" style="height: 100px; min-height: 100px; flex-shrink:0;">
         <!-- Left Blob: Assembly Details -->
-        <div id="assembly-status-left" class="border border-white/5 bg-white/[0.02] rounded-[12px] p-3 flex flex-col gap-0.5 text-left select-none font-mono text-[9px] text-white/70 overflow-hidden justify-start h-full">
+        <div id="assembly-status-left" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left select-none font-mono text-[9px] text-white/70 overflow-hidden justify-start h-full">
           <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
-          <div><strong>Project Version:</strong> v1.5.0-hybrid-ts</div>
+          <div><strong>Project Version:</strong> v1.6.0-hybrid-ts</div>
           <div><strong>Mode:</strong> Idle</div>
           <div><strong>Phase:</strong> Ready for stream compilation</div>
           <div><strong>Frames:</strong> 0 / 0</div>
         </div>
 
         <!-- Right Blob: Diagnostic Report -->
-        <div id="assembly-status-right" class="border border-white/5 bg-white/[0.02] rounded-[12px] p-3 flex flex-col gap-0.5 text-left select-none font-mono text-[9px] text-white/70 overflow-hidden justify-start h-full">
+        <div id="assembly-status-right" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left select-none font-mono text-[9px] text-white/70 overflow-hidden justify-start h-full">
           <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
           <div class="flex justify-between border-b border-white/[0.03] pb-0.5"><span class="text-white/40">Format:</span><span class="text-white font-medium">Automatic</span></div>
           <div class="flex justify-between border-b border-white/[0.03] pb-0.5"><span class="text-white/40">Threading:</span><span class="text-white font-medium">Single-Threaded</span></div>
@@ -251,12 +252,12 @@
       </div>
 
       <!-- Preview Canvas (Thumbnail Window) -->
-      <div id="assembly-preview" class="w-full max-w-[720px] aspect-video bg-[#000] rounded-[16px] overflow-hidden border border-white/10 relative shadow-inner mx-auto mt-0" style="flex-shrink:0;">
+      <div id="assembly-preview" class="w-full max-w-[140px] aspect-video bg-[#000] rounded-[12px] overflow-hidden border border-white/10 relative shadow-inner mx-auto mt-0 animate-fade-in" style="flex-shrink:0;">
         <canvas id="preview-canvas" class="w-full h-full object-contain"></canvas>
       </div>
 
       <!-- Scrolling log window below thumbnail -->
-      <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[12px] bg-black/40 p-3 flex flex-col gap-1 overflow-hidden mx-auto" style="height: 380px; flex-shrink:0;">
+      <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[10px] bg-black/40 p-2.5 flex flex-col gap-1 overflow-hidden mx-auto flex-1 min-h-[220px]">
         <div class="flex justify-between items-center text-[9px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1">
           <span>Assembly Logs & Standard Output</span>
           <div class="flex items-center gap-2">
@@ -265,18 +266,24 @@
             <button id="btn-copy-logs" class="hover:text-white transition-colors cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded text-[8px] font-mono font-bold text-[#00ffcc] uppercase" title="Copy Assembly Logs to Clipboard">Copy Logs</button>
           </div>
         </div>
-        <div id="assembly-log-scroll" class="w-full flex-1 min-h-0 overflow-y-auto font-mono text-[9px] text-[#00ffcc]/85 space-y-0.5 text-left select-text scrollbar-thin" style="height: 330px; max-height: 330px;">
+        <div id="assembly-log-scroll" class="w-full flex-1 min-h-0 overflow-y-scroll pr-2 font-mono text-[9px] text-[#00ffcc]/85 space-y-0.5 text-left select-text scrollbar-thin">
           <div class="text-white/30">[System] Initializing Assembly Logger...</div>
         </div>
       </div>
 
-      <div style="width:100%; max-w-[720px]; flex-shrink:0;" class="flex flex-col gap-2 mx-auto">
-        <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden;">
+      <div style="width:100%; max-w-[720px]; flex-shrink:0;" class="flex flex-col gap-1.5 mx-auto mt-1">
+        <div style="height:8px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden; border: 1px solid rgba(255,255,255,0.03);">
           <div id="progress-fill" style="height:100%; background:linear-gradient(90deg, #00ffcc, #00aaff); width:0%; transition:none;"></div>
         </div>
-        <div class="flex justify-between items-center px-1">
-          <span class="label-micro" style="font-size:10px; opacity:0.6;">Encoding Progress</span>
-          <span id="assembly-percent" class="display-value" style="font-size:12px; font-weight:bold;">0%</span>
+        <div class="flex justify-between items-center px-1 font-mono text-[9px]">
+          <div class="flex items-center gap-1.5 text-white/50">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#00ffcc] animate-pulse"></span>
+            <span id="assembly-bottom-phase">Ready to launch assembly process</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span id="assembly-bottom-frames" class="text-white/60">0 / 0 frames</span>
+            <span id="assembly-percent" class="text-[#00ffcc] font-bold text-[10px]">0%</span>
+          </div>
         </div>
       </div>
 

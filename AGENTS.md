@@ -28,12 +28,12 @@ AI agents are heavily pre-trained on bundler-based pipelines (Vite, Next.js, Web
 
 ### Ultimate Rules for importmap
 1. **Absolute Peak Placement**: The `<script type="importmap">` **MUST** be the absolute first child of the `<head>` element in `index.html`, before any style link, viewport meta, preloads, or module scripts.
-2. **Duplicate Entry Mapping**: Ensure both directory-nested and absolute specifier mappings exist:
+2. **Duplicate Entry Mapping**: Ensure both directory-nested and absolute specifier mappings exist using root-relative pathing (preventing relative path resolution breakages within subdirectories):
    ```json
    "imports": {
-     "three": "./vendor/three/three.module.js",
-     "three/": "./vendor/three/",
-     "three/addons/": "./vendor/three/addons/"
+     "three": "/vendor/three/three.module.js",
+     "three/": "/vendor/three/",
+     "three/addons/": "/vendor/three/addons/"
    }
    ```
 3. **No Bare Specifier Removals**: Never alter, remove, or comment out the `importmap` from the HTML file.

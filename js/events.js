@@ -795,10 +795,55 @@ export function initAssemblyStatusObserver() {
 
   const observer = new MutationObserver(() => {
     const html = target.innerHTML;
+
+    // Synchronize subheader information bar
+    const infoSpan = document.getElementById("assembly-subheader-info");
+    if (infoSpan) {
+      let operation = "Idle";
+      if (html && html !== "Ready" && html.trim() !== "") {
+        if (html.includes("stills-to-zip") || sgState.exportAction === "zip") {
+          operation = "ZIP Packaging";
+        } else if (html.includes("test") || html.includes("Diagnostic") || html.toLowerCase().includes("diagnostics")) {
+          operation = "Pipeline Diagnostics Test";
+        } else {
+          const phaseMatch = html.match(/Phase:\s*([^<]+)/i) || html.match(/<strong>Phase:<\/strong>\s*([^<]+)/i);
+          const modeMatch = html.match(/Mode:\s*([^<]+)/i) || html.match(/<strong>Mode:<\/strong>\s*([^<]+)/i);
+          if (phaseMatch) {
+            operation = phaseMatch[1].trim();
+          } else if (modeMatch) {
+            operation = modeMatch[1].trim();
+          } else {
+            operation = "Processing";
+          }
+        }
+      }
+
+      // Read running frame count from the running process and sync to the bottom
+      if (html && html !== "Ready" && html.trim() !== "") {
+        const cleanText = html.replace(/<[^>]+>/g, " ");
+        const framesMatch = cleanText.match(/Frames?\s*:\s*([0-9]+\s*(?:\/|of)\s*[0-9]+)/i);
+        if (framesMatch) {
+          const val = framesMatch[1].trim();
+          if (val && val !== "0/0" && val !== "0 / 0" && val !== "0") {
+            const bottomFramesEl = document.getElementById("assembly-bottom-frames");
+            if (bottomFramesEl) {
+              bottomFramesEl.textContent = `${val} frames`;
+            }
+          }
+        }
+        const bottomPhaseEl = document.getElementById("assembly-bottom-phase");
+        if (bottomPhaseEl && operation && operation !== "Idle") {
+          bottomPhaseEl.textContent = operation;
+        }
+      }
+
+      infoSpan.textContent = `Operation: ${operation} | Res: ${sgState.exportWidth}x${sgState.exportHeight}`;
+    }
+
     if (!html || html === "Ready" || html.trim() === "") {
       leftCol.innerHTML = `
         <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
-        <div class="py-0.5 border-b border-white/[0.02]"><strong>Project Version:</strong> v1.5.0-hybrid-ts</div>
+        <div class="py-0.5 border-b border-white/[0.02]"><strong>Project Version:</strong> v1.6.0-hybrid-ts</div>
         <div class="py-0.5 border-b border-white/[0.02]"><strong>Mode:</strong> Idle</div>
         <div class="py-0.5 border-b border-white/[0.02]"><strong>Phase:</strong> Ready for stream compilation</div>
         <div class="py-0.5 border-b border-white/[0.02] last:border-b-0"><strong>Resolution:</strong> ${sgState.exportWidth}x${sgState.exportHeight}</div>
@@ -841,7 +886,7 @@ export function initAssemblyStatusObserver() {
 
       leftCol.innerHTML = `
         <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
-        <div class="py-0.5 border-b border-white/[0.02]"><strong>Project Version:</strong> v1.5.0-hybrid-ts</div>
+        <div class="py-0.5 border-b border-white/[0.02]"><strong>Project Version:</strong> v1.6.0-hybrid-ts</div>
         <div class="py-0.5 border-b border-white/[0.02]"><strong>Mode:</strong> Stills ZIP Packaging</div>
         <div class="py-0.5 border-b border-white/[0.02]"><strong>Phase:</strong> ${phase}</div>
         <div class="py-0.5 border-b border-white/[0.02] last:border-b-0"><strong>Target Resolution:</strong> ${sgState.exportWidth}x${sgState.exportHeight}</div>

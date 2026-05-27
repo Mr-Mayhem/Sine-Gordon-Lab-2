@@ -932,31 +932,31 @@ html, body {
 
 /* Custom scrollbar styling for the assembly log and diagnostic list */
 .scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
+  display: block !important;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(0, 255, 204, 0.25);
-  border-radius: 9999px;
-  border: 1px solid rgba(0, 255, 204, 0.1);
-  transition: background 0.2s ease, hover 0.2s ease;
+  background: rgba(0, 255, 204, 0.75);
+  border-radius: 4px;
+  border: 2px solid rgba(23, 23, 23, 0.95);
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 255, 204, 0.6);
-  box-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
+  background: rgba(0, 255, 204, 1.0);
 }
 
-/* Firefox compatibility support */
+/* Firefox compatibility support and forced scrollbar visibility */
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 255, 204, 0.25) rgba(255, 255, 255, 0.03);
+  scrollbar-color: rgba(0, 255, 204, 0.75) rgba(255, 255, 255, 0.08);
   scroll-behavior: smooth;
+  overflow-y: scroll !important;
 }
 
