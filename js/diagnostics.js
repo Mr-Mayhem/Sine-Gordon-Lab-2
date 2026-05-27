@@ -10,9 +10,26 @@ import { LogNexus } from "./logger.js";
 
 class EnvironmentDetector {
   static detect() {
+    let memStr = "Unknown";
+    let devMem = navigator.deviceMemory;
+    let heapLimit = null;
+    
+    if (window.performance && window.performance.memory && window.performance.memory.jsHeapSizeLimit) {
+      heapLimit = (window.performance.memory.jsHeapSizeLimit / (1024 * 1024 * 1024)).toFixed(1) + " GB Heap Limit";
+    }
+
+    if (devMem) {
+      memStr = `${devMem} GB RAM`;
+      if (heapLimit) {
+        memStr += ` (${heapLimit})`;
+      }
+    } else if (heapLimit) {
+      memStr = heapLimit;
+    }
+
     return {
       cores: navigator.hardwareConcurrency || "N/A",
-      mem: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : "Unknown",
+      mem: memStr,
       sab: typeof SharedArrayBuffer !== "undefined" ? "AVAILABLE" : "UNAVAILABLE",
       opfs: (typeof navigator.storage !== "undefined" && typeof navigator.storage.getDirectory === "function") ? "COMPATIBLE" : "INCOMPATIBLE"
     };
