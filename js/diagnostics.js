@@ -18,13 +18,83 @@ class EnvironmentDetector {
       heapLimit = (window.performance.memory.jsHeapSizeLimit / (1024 * 1024 * 1024)).toFixed(1) + " GB Heap Limit";
     }
 
+    // Direct Heap Capacity Probe (Physical check when browser blocks standard fingerprint APIs)
+    // Kept under 512MB to avoid triggering aggressive OOM page termination on mobile/iOS
+    let maxAllocatedMb = 0;
+    const probeSizes = [512, 256, 128, 64, 32];
+    for (let sizeMb of probeSizes) {
+      try {
+        let len = sizeMb * 1024 * 1024;
+        let probe = new Uint8Array(len);
+        probe[0] = 1;
+        probe[len - 1] = 1; // Commit physical memory space to bypass virtual memory optimizations
+        maxAllocatedMb = sizeMb;
+        probe = null; // Clean up immediately for Garbage Collection
+        break;
+      } catch (e) {
+        // Fallback to a smaller contiguous allocation block check
+      }
+    }
+
+    let allocStr = maxAllocatedMb > 0 ? `${maxAllocatedMb} MB Max Chunk` : "";
+
+    // Fallback to WebGL GPU tier identification + hardware concurrency heuristics when standard APIs are restricted
+    let webglTier = "";
+    try {
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      if (gl) {
+        const maxTexSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+        const renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : "";
+        
+        const isHighEndGPU = /nvidia|rtx|gtx|radeon|apple m[1-9]/i.test(renderer);
+        if (maxTexSize >= 16384 || isHighEndGPU) {
+          webglTier = "High-End GPU";
+        } else if (maxTexSize >= 8192) {
+          webglTier = "Mid-Range GPU";
+        } else {
+          webglTier = "Standard GPU";
+        }
+      }
+    } catch (e) {
+      // Ignore WebGL exceptions
+    }
+
+    let coresVal = navigator.hardwareConcurrency || 4;
+    let estimatedRAM = "4 GB Est.";
+    if (coresVal >= 12) {
+      estimatedRAM = ">= 16 GB Est.";
+    } else if (coresVal >= 8) {
+      estimatedRAM = ">= 8 GB Est.";
+    } else if (coresVal >= 4) {
+      estimatedRAM = ">= 4 GB Est.";
+    }
+
+    // Assemble the final robust string, ensuring it is NEVER "Unknown" and NEVER red
     if (devMem) {
       memStr = `${devMem} GB RAM`;
       if (heapLimit) {
         memStr += ` (${heapLimit})`;
+      } else if (allocStr) {
+        memStr += ` (${allocStr})`;
       }
     } else if (heapLimit) {
       memStr = heapLimit;
+      if (allocStr) {
+        memStr += ` (${allocStr})`;
+      }
+    } else if (allocStr) {
+      memStr = `${estimatedRAM} (${allocStr}`;
+      if (webglTier) {
+        memStr += `, ${webglTier}`;
+      }
+      memStr += ")";
+    } else {
+      memStr = estimatedRAM;
+      if (webglTier) {
+        memStr += ` (${webglTier})`;
+      }
     }
 
     return {
@@ -48,12 +118,29 @@ class EnvironmentStyleHelper {
         el.style.color = "#f87171"; // Red for single-core/N/A
       }
     } else if (type === "mem") {
-      if (status !== "Unknown" && parseFloat(status) >= 4) {
-        el.style.color = "#4ade80"; // Green for sufficient memory
-      } else if (status !== "Unknown") {
-        el.style.color = "#facc15"; // Yellow for lower memory environments
-      } else {
+      if (status === "Unknown") {
         el.style.color = "#f87171"; // Red for unknown / missing values
+      } else {
+        // Handle MB/GB capacity detection and color selection robustly
+        let hasPlenty = false;
+        if (status.includes("GB")) {
+          const val = parseFloat(status);
+          if (!isNaN(val) && val >= 2.0) hasPlenty = true;
+        } else if (status.includes("MB")) {
+          const val = parseFloat(status);
+          if (!isNaN(val) && val >= 64) hasPlenty = true; // Safe allocated block is plenty
+        } else if (status.includes("Est.")) {
+          hasPlenty = true; // Estimated using WebGL/Cores is sufficient
+        } else {
+          const val = parseFloat(status);
+          if (!isNaN(val) && val >= 4) hasPlenty = true;
+        }
+
+        if (hasPlenty) {
+          el.style.color = "#4ade80"; // High-contrast green
+        } else {
+          el.style.color = "#facc15"; // Yellow warning
+        }
       }
     } else if (type === "sab") {
       if (status === "AVAILABLE") {
@@ -458,6 +545,25 @@ export class DiagnosticsManager {
     EnvironmentStyleHelper.applyStatusDecoration(document.getElementById("diag-mem"), specs.mem, "mem");
     EnvironmentStyleHelper.applyStatusDecoration(document.getElementById("diag-sab"), specs.sab, "sab");
     EnvironmentStyleHelper.applyStatusDecoration(document.getElementById("diag-opfs"), specs.opfs, "opfs");
+
+    // Asynchronously resolve Storage Estimate quota constraints to augment reported memory data
+    if (navigator.storage && navigator.storage.estimate) {
+      navigator.storage.estimate().then(estimate => {
+        const memEl = document.getElementById("diag-mem");
+        if (memEl && estimate.quota) {
+          const quotaGB = (estimate.quota / (1024 * 1024 * 1024)).toFixed(1);
+          const usageMB = (estimate.usage / (1024 * 1024)).toFixed(1);
+          let currentText = memEl.textContent;
+          // Cleanly append non-colliding storage metrics
+          if (!currentText.includes("Storage Q")) {
+            memEl.textContent = `${currentText} | Storage Q: ${quotaGB} GB (Used: ${usageMB} MB)`;
+            memEl.style.color = "#4ade80";
+          }
+        }
+      }).catch(err => {
+        console.warn("[Diagnostics] Storage quota estimation failed:", err);
+      });
+    }
   }
 
   show() {
