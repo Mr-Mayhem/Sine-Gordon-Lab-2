@@ -394,7 +394,7 @@ export class DiagnosticsManager {
         const isChecked = e.target.checked;
         DIAGNOSTIC_TESTS.forEach(t => {
           const itemChk = document.getElementById(`chk-test-${t.id}`);
-          if (itemChk) {
+          if (itemChk && !itemChk.disabled) {
             itemChk.checked = isChecked;
           }
         });
@@ -481,6 +481,14 @@ export class DiagnosticsManager {
     const selectAllChk = document.getElementById("chk-select-all");
     const isSelectAllChecked = selectAllChk ? selectAllChk.checked : true;
 
+    // Tablet & mobile device boundary matching
+    const isMobileOrTablet = /Mobi|Android|iPhone|iPad|Macintosh/i.test(navigator.userAgent) && 
+                             (navigator.maxTouchPoints > 0 || window.matchMedia("(any-pointer: coarse)").matches);
+    const screenW = window.screen && window.screen.width ? window.screen.width : 1024;
+    const screenH = window.screen && window.screen.height ? window.screen.height : 768;
+    const maxScreenDim = Math.max(screenW, screenH);
+    const minScreenDim = Math.min(screenW, screenH);
+
     const testsGroupHtml = DIAGNOSTIC_TESTS.map(test => {
       let description = test.description;
       if (typeof SharedArrayBuffer === "undefined") {
@@ -488,14 +496,18 @@ export class DiagnosticsManager {
         description = description.replace("multi-threaded worker rendering", "single-threaded rendering");
       }
 
-      const checkedAttr = isSelectAllChecked ? "checked" : "";
+      // If test dimensions are wider/higher than screen dimensions
+      const isTooLarge = isMobileOrTablet && (test.width > maxScreenDim || test.height > minScreenDim);
+      const checkedAttr = (isSelectAllChecked && !isTooLarge) ? "checked" : "";
+      const disabledAttr = isTooLarge ? "disabled" : "";
+      const opacityClass = isTooLarge ? "opacity-45" : "";
 
       return `
-      <div class="test-item border border-white/5 bg-white/[0.015] rounded-md p-1 px-1.5 flex flex-col sm:flex-row justify-between sm:items-center gap-1.5" id="test-card-${test.id}">
+      <div class="test-item border border-white/5 bg-white/[0.015] rounded-md p-1 px-1.5 flex flex-col sm:flex-row justify-between sm:items-center gap-1.5 ${opacityClass}" id="test-card-${test.id}">
         <div class="flex-1 col-span-1 min-w-0">
           <div class="flex items-center gap-1">
-            <input type="checkbox" id="chk-test-${test.id}" class="w-2 h-2 accent-white cursor-pointer" ${checkedAttr}>
-            <span id="test-title-${test.id}" class="text-[6px] font-semibold text-white/95 transition-colors">${test.name}</span>
+            <input type="checkbox" id="chk-test-${test.id}" class="w-2 h-2 accent-white cursor-pointer" ${checkedAttr} ${disabledAttr}>
+            <span id="test-title-${test.id}" class="text-[6px] font-semibold text-white/95 transition-colors ${isTooLarge ? 'text-white/40 line-through' : ''}">${test.name}</span>
             <span class="text-[4.2px] bg-white/5 hover:bg-white/10 text-white/70 border border-white/15 px-1 py-0.1 rounded font-mono font-bold select-none flex-frames-badge" id="frames-badge-${test.id}">${test.frames} FMR</span>
           </div>
           <p class="text-[5px] text-white/40 pl-3.5 select-none leading-snug">${description}</p>
@@ -504,12 +516,17 @@ export class DiagnosticsManager {
             Resolution: <span class="text-white/50">${test.width}x${test.height}</span> | 
             Format: <span class="text-white/50">${test.format}</span> ${test.crf ? `| CRF: <span class="text-white/50 font-medium">${test.crf}</span>` : ""}
           </div>
+          ${isTooLarge ? `<div class="ml-3.5 mt-0.5 text-amber-500/70 font-mono text-[4.6px] font-semibold select-none uppercase">⚠ Omitted: Format Too Large for Device Screen (${screenW}x${screenH})</div>` : ""}
           <!-- Dynamic Error Box -->
           <div id="test-error-${test.id}" class="test-error-box ml-3.5 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[4.6px] p-1 mt-0.5 rounded-md overflow-x-auto select-text hidden"></div>
         </div>
         <div class="flex items-center gap-1 shrink-0 justify-end pl-3.5 sm:pl-0">
-          <span class="text-[4.6px] font-sans font-bold uppercase select-none rounded px-1 py-0.2 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
-          <button class="btn-single-test bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/25 border border-white/10 py-0.5 px-1.5 rounded text-[4.2px] font-bold transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
+          ${isTooLarge ? `
+            <span class="text-[4.6px] font-sans font-bold uppercase select-none rounded px-1.5 py-0.5 tracking-wider border border-amber-500/20 bg-amber-500/10 text-amber-300">Format Too Large</span>
+          ` : `
+            <span class="text-[4.6px] font-sans font-bold uppercase select-none rounded px-1 py-0.2 tracking-wider border text-white/40 border-white/10" id="status-badge-${test.id}" style="display: none;">PENDING</span>
+            <button class="btn-single-test bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/25 border border-white/10 py-0.5 px-1.5 rounded text-[4.2px] font-bold transition-all uppercase tracking-wider whitespace-nowrap cursor-pointer select-none" data-id="${test.id}">▶ Run Base</button>
+          `}
         </div>
       </div>
       `;
