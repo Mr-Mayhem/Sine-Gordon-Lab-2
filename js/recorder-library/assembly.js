@@ -831,6 +831,10 @@ async function _assemble(
         URL.revokeObjectURL(tUrl);
         recorderRef._firstFrameBytes = null;
       };
+      tImg.onerror = function () {
+        URL.revokeObjectURL(tUrl);
+        recorderRef._firstFrameBytes = null;
+      };
       tImg.src = tUrl;
     } catch (err) {
       console.error(
@@ -951,6 +955,9 @@ async function _assemble(
             var tImg = new Image();
             tImg.onload = function () {
               ctx.drawImage(tImg, 0, 0, alignedW, alignedH);
+              URL.revokeObjectURL(tUrl);
+            };
+            tImg.onerror = function () {
               URL.revokeObjectURL(tUrl);
             };
             tImg.src = tUrl;
@@ -1108,6 +1115,9 @@ async function _assemble(
             var tImg = new Image();
             tImg.onload = function () {
               ctx.drawImage(tImg, 0, 0, alignedW, alignedH);
+              URL.revokeObjectURL(tUrl);
+            };
+            tImg.onerror = function () {
               URL.revokeObjectURL(tUrl);
             };
             tImg.src = tUrl;

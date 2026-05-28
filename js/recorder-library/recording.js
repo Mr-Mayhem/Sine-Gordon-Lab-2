@@ -456,14 +456,21 @@ export default class RecordingEngine {
       if (frameIndex % 5 === 0) {
         var previewCanvas = document.getElementById("preview-canvas");
         if (previewCanvas) {
+          var tUrl = URL.createObjectURL(blob);
           var tImg = new Image();
           tImg.onload = function() {
             var tCtx = previewCanvas.getContext("2d");
-            previewCanvas.width = tgtW;
-            previewCanvas.height = tgtH;
-            tCtx.drawImage(tImg, 0, 0, tgtW, tgtH);
+            if (tCtx) {
+              previewCanvas.width = tgtW;
+              previewCanvas.height = tgtH;
+              tCtx.drawImage(tImg, 0, 0, tgtW, tgtH);
+            }
+            URL.revokeObjectURL(tUrl);
           };
-          tImg.src = URL.createObjectURL(blob);
+          tImg.onerror = function() {
+            URL.revokeObjectURL(tUrl);
+          };
+          tImg.src = tUrl;
         }
       }
       

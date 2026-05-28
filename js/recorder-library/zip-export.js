@@ -107,7 +107,11 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
                     console.log("[ZIP Export] Returning canvas size back to normal viewing resolution.");
                     recorderRef._restoreCanvasSize();
                 }
-                if (recorderRef) recorderRef.isAssembling = false;
+                if (recorderRef) {
+             recorderRef.isAssembling = false;
+             recorderRef._zip = null;
+             recorderRef._recordedFrames = [];
+         }
                 const overlay = document.getElementById("processing-overlay");
                 if (overlay) overlay.style.display = "none";
                 setTimeout(function() { if (refreshUI) refreshUI(); }, 2000);
@@ -323,7 +327,11 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
           } catch(e) {}
       }
       
-      if (recorderRef) recorderRef.isAssembling = false;
+      if (recorderRef) {
+          recorderRef.isAssembling = false;
+          recorderRef._zip = null;
+          recorderRef._recordedFrames = [];
+      }
       if (btnVideo) {
           btnVideo.textContent = "✓ Saved!";
           btnVideo.classList.remove("btn-warn");
@@ -337,7 +345,11 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
       }
     } catch (e) {
         console.error("ZIP Generation error:", e);
-        if (recorderRef) recorderRef.isAssembling = false;
+        if (recorderRef) {
+            recorderRef.isAssembling = false;
+            recorderRef._zip = null;
+            recorderRef._recordedFrames = [];
+        }
         if (btnVideo) btnVideo.textContent = "Error!";
         if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
             console.log("[ZIP Export] Returning canvas size back to normal viewing resolution on error.");
@@ -484,7 +496,11 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
       if (btnVideo) {
         btnVideo.textContent = "✓ Saved!";
         btnVideo.classList.remove("btn-warn");
-        if (recorderRef) recorderRef.isAssembling = false;
+        if (recorderRef) {
+          recorderRef.isAssembling = false;
+          recorderRef._zip = null;
+          recorderRef._recordedFrames = [];
+        }
         if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
           console.log("[ZIP Export] Returning canvas size back to normal viewing resolution.");
           recorderRef._restoreCanvasSize();
@@ -495,7 +511,11 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
       }
     }).catch(function(err) {
       console.error("ZIP Generation error:", err);
-      if (recorderRef) recorderRef.isAssembling = false;
+      if (recorderRef) {
+        recorderRef.isAssembling = false;
+        recorderRef._zip = null;
+        recorderRef._recordedFrames = [];
+      }
       if (btnVideo) btnVideo.textContent = "Error!";
       if (recorderRef && typeof recorderRef._restoreCanvasSize === "function") {
         console.log("[ZIP Export] Returning canvas size back to normal viewing resolution on error.");
