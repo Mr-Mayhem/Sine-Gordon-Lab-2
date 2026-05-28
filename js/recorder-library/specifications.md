@@ -205,7 +205,13 @@ Cross-Origin-Opener-Policy: same-origin
 ```
 
 #### Q: I resized the browser during recording but the final video aspect is perfect. How?
-**A**: The compiler decouples recording dimensions from viewport bounds. When starting, the viewport's original bounds are cached inside `this._preRecordingWidth` and `this._preRecordingHeight`, and the viewport listener is paused. The physical canvas dimensions are set to standard values (e.g., 1080p). During rendering, frames are captured at this locked high resolution. Once complete, the canvas size is restored, and a global `resize` event is dispatched across the main thread to completely align and adjust Three.js responsive containers cleanly.
+**A**: The compiler decouples layout preservation from rendering size. When starting, the viewport's original bounds are cached inside `this._preRecordingWidth` and `this._preRecordingHeight`, and the viewport resize listener is paused. The physical canvas's pixel buffer is set to the target resolution (e.g. 4K, 1080p, etc.) for high-speed offline capture. Symmetrically, the canvas's visual displays are anchored using inline CSS width and height mappings (`canvas.style.width`, `canvas.style.height`) matching the original layout. This ensures that the canvas never visibly shifts, jumps or contracts during active recording, maintaining full UI consistency.
+
+#### Q: How does the library handle Chromium workspace directory memory on file dialogues?
+**A**: To prevent the browser dialog from resetting to generic system folders on subsequent saves/opens, the library assigns a strictly matching native ID string (`id: 'zip-export'`) to options passed into `window.showSaveFilePicker` and `window.showOpenFilePicker`. Supported browsers recognize matching IDs and natively anchor the active file dialogs back into the user's previously-selected host directory automatically.
+
+#### Q: How is Canvas Context isolation managed during raw frame capturing?
+**A**: To avoid canvas flashing or coordinate horizontal clipping, the engine avoids self-drawing operations on a single surface. It reads raw WebGL pixels directly into a structured GPU buffer, performs y-flip operations, and projects those frames onto a completely isolated, target-sized 2D 2-buffer pipeline context (`_rawCanvas`) for thread-safe compilation.
 
 #### Q: Are exported filenames (video/ZIP/frames) customizable?
 **A**: Yes, completely! You can set the custom output name prefix by passing the `exportFilename` property inside the initialization config, or by modifying `window.sgState.exportFilename` dynamically in the active session. If this parameter is empty, the engine automatically extracts the parent project name directly from the DOM `<title>` (or defaults to `the_sine_gordon_lab`), sanitizes it to safe filesystem snake_case (e.g., `the_sine_gordon_lab`), and appends a clean unique millisecond timestamp:

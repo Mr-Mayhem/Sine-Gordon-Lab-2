@@ -143,8 +143,10 @@ export function changeCanvasToRecordingResolution(canvas, renderer, camera, conf
       camera.updateProjectionMatrix();
     }
   }
-  canvas.width = captureW;
-  canvas.height = captureH;
+
+  // Preserve the visual display bounds using CSS so that the canvas size on screen never shifts or shrinks
+  canvas.style.width = preW + "px";
+  canvas.style.height = preH + "px";
 
   console.log("Canvas physically scaled to target format:", captureW + "x" + captureH, "(target output render: " + aw + "x" + ah + ", was logical preset: " + preW + "x" + preH + ")");
 

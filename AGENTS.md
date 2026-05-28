@@ -80,16 +80,22 @@ sine-gordon-lab/
 │   ├── physics.js                   # Discrete Runge-Kutta / leapfrog physical integrator
 │   ├── pipeline.js                  # Processing pipeline compiling physics into render-ready frames
 │   ├── scene-renderer.js            # Three.js 3D viewport, lighting, and camera management
-│   ├── recording.js                 # Frame grabbing and background compilation orchestration
-│   ├── ffmpeg-commands.js           # FFmpeg command builder and progress parser
-│   ├── video-filters.js             # Resolution recipes and FFmpeg scale/crop filters
 │   ├── snapshot.js                  # Standalone client-side web image generator
 │   ├── ui-thumbs.js                 # UI counter widgets and thumbs event controllers
 │   ├── telemetry.js                 # Metric collection and telemetry formatting
 │   ├── events.js                    # Core event loop bindings and button interactions
 │   ├── animation.js                 # Central requestAnimationFrame tick pipeline
 │   ├── gimbal.js                    # Nested 3-axis visual gimbal rings
-│   └── zip-export.js                # Optimized, low-memory streamed JSZip packaging
+│   │
+│   └── recorder-library/            # Self-contained browser recording and rendering assembly engine
+│       ├── specifications.md        # Technical FAQ, API reference, and integration workflows
+│       ├── recording.js             # Central class orchestrating frame capturing loop and pixel readback
+│       ├── assembly.js              # Main video rendering supervisor delegating chunked conversions
+│       ├── video-filters.js         # Modulus grid matching formulas, Aspect resizing formulas
+│       ├── ffmpeg-loader.js         # Async worker bootstrapping loader, supporting fallback networks
+│       ├── ffmpeg-commands.js       # CLI command compiler for WebAssembly-aligned H.264 & WebM tasks
+│       ├── zip-export.js            # High-performance, streaming zip packager using JSZip
+│       └── fetch-from-cdn.js        # Resilient fetching algorithm with automatic retry routines
 │
 └── vendor/                          # Fully self-hosted third-party assets
     ├── three/
@@ -169,114 +175,12 @@ Where:
 
 ## 4. CRITICAL PITFALLS, SOLUTIONS, & RESOLVER BLUEPRINTS
 
-### 4.1 Non-Widescreen Aspect Stretching
-* **The Pitfall**: Video recordings or canvas outputs being stretched or containing black letterboxes/pillarboxes when resolution defaults to rigid dimensions.
-* **The Resolution**: Use standard modulo-2 dimensions (`Math.floor(value / 2) * 2`) instead of modulo-16. Introduce a dynamic crop-to-fit filter in the FFmpeg assembly phase using:
-  `scale=W:H:force_original_aspect_ratio=increase,crop=W:H`
-  This ensures the exported canvas matches modern standard aspect ratios beautifully without distorting the simulated physics visual grid.
+### 4.1 Canvas Recording, Frame Packing & Video Synthesis (The `recorder-library` Engine)
+* **The Architecture**: All operational pipelines for in-browser recording (WebGL frame capturing, CSS layout size preservation, 4K/1080p canvas transformations, OPFS filesystem buffers, and WebAssembly chunks compression) have been structured as a fully decoupled entity located under the `/js/recorder-library/` directory.
+* **The Resolution (Single Source of Truth)**: Future maintainers **MUST NOT** write, dupe, or maintain technical pitfalls concerning libx264 boundaries, H.264 profiles under WASM, single vs multi-threaded assets, memory-saving chunk boundaries, or ZIP/FileSaver buffers inside this core project blueprint. 
+* **Action Required**: Refer strictly to the **`/js/recorder-library/specifications.md`** file for exhaustive details, math calculations, API definitions, and debug FAQ related to the recorder system.
 
-### 4.2 H.264 Macroblock Boundaries & Widescreen Remapping
-* **The Pitfall**: Standard 480p is commonly listed as 854x480. However, the number `854` is not divisible by 4 (nor 8 or 16), which triggers H.264 (libx264) macroblock alignment errors or decoders rendering ugly green boundary stripes or crashing entirely on export.
-* **The Precision Recipe**: Remap standard resolutions to strictly compliant Mod-8 or Mod-16 boundaries:
-  - Remap **854x480** to exact Mod-4 widescreen **852x480** (aspect ratio 1.775:1), which compiles perfectly inside standard H.264 video streams.
-  - Employ square pixel output properties (`setsar=1`) and standard Lanczos scale/crop-to-fit parameters inside the filters to prevent canvas pixel distortion.
-
-```js
-export const FFMPEG_RESOLUTIONS_RECIPES = {
-  "640x360": {
-    width: 640,
-    height: 360,
-    filter: "scale=640:360:force_original_aspect_ratio=increase:flags=lanczos,crop=640:360,setsar=1"
-  },
-  "854x480": {
-    width: 852,
-    height: 480,
-    filter: "scale=852:480:force_original_aspect_ratio=increase:flags=lanczos,crop=852:480,setsar=1"
-  },
-  "1280x720": {
-    width: 1280,
-    height: 720,
-    filter: "scale=1280:720:force_original_aspect_ratio=increase:flags=lanczos,crop=1280:720,setsar=1"
-  },
-  "1920x1080": {
-    width: 1920,
-    height: 1080,
-    filter: "scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos,crop=1920:1080,setsar=1"
-  },
-  "2560x1440": {
-    width: 2560,
-    height: 1440,
-    filter: "scale=2560:1440:force_original_aspect_ratio=increase:flags=lanczos,crop=2560:1440,setsar=1"
-  },
-  "3840x2160": {
-    width: 3840,
-    height: 2160,
-    filter: "scale=3840:2160:force_original_aspect_ratio=increase:flags=lanczos,crop=3840:2160,setsar=1"
-  }
-};
-```
-
-### 4.3 Canvas Context Self-Draw Collision
-* **The Pitfall**: Reusing a single temporary canvas for both pixel reading and coordinate vertical inversion (y-flip) causes browser horizontal clipping or blank frame compilation.
-* **The Resolution**: Keep separate source and destination canvas buffers in GPU storage. Draw the active WebGL canvas raw frames onto a `_rawCanvas` (for pristine pixel capture with no interface scaling or thread blocking), and project it onto the destination context inversion matrix cleanly.
-
-### 4.4 Multi-threaded FFmpeg.wasm Re-entry Crash & RAM Saturation (Unified OPFS Architecture)
-* **The Pitfall**: Capturing high-resolution canvas frames at 60fps easily saturates RAM inside the browser tab, leading to abrupt page crashes (OOM errors) or memory leaks. Furthermore, passing raw references of `Uint8Array` byte buffers directly to FFmpeg memory transfers can detach arrays or freeze multi-threaded background workers, crashing sequential assemblies. Additionally, writing hundreds of high-resolution (e.g. 1440p or 4K) raw uncompressed frames to MEMFS and running single-pass assembly easily exceeds the 2GB WebAssembly heap restriction, triggering instant VM crashes.
-* **The Resolution (Unified Safe Stream & Dynamic Bounds)**:
-  1. **Unified OPFS Storage Loop**: Both the "direct" video-rendering (MP4/WebM) and standard "ZIP export" pipelines use the exact same file-streaming model. Rather than holding huge frame arrays in main RAM, frames are written immediately to a temporary sub-directory via the high-speed, sandboxed **Origin Private File System (OPFS)** (`navigator.storage.getDirectory()`).
-  2. **Zero-leak Lifetime Management**: When FFmpeg assembly completes or is aborted, the temporary directory is recursively deleted (`root.removeEntry(tempDir, { recursive: true })`) to completely eliminate storage waste.
-  3. **Resolution-Aware Pipeline Router (`shouldUseChunkedAssembly`)**: Instead of a hardcoded 1500-frame threshold for all videos, the system evaluates the frame pixel overhead. If the resolution is extremely high, we route to the chunked memory-safe pipeline much sooner to protect the WASM heap:
-     - **4K (3840x2160)**: Chunked assembly is triggered if the recording exceeds **30 frames**.
-     - **1440p (2560x1440)**: Chunked assembly is triggered if the recording exceeds **60 frames**.
-     - **1080p (1920x1080)**: Chunked assembly is triggered if the recording exceeds **120 frames**.
-     - **720p and below**: Uses the default **1500 frames** threshold.
-  4. **Dynamic Chunk Size Boundaries**: In the chunked assembly phase, `CHUNK_SIZE` scales dynamically based on the rendering resolution to keep peak allocations under ~150MB of heap:
-     - **4K**: `CHUNK_SIZE = 40` frames
-     - **1440p**: `CHUNK_SIZE = 75` frames
-     - **1080p**: `CHUNK_SIZE = 100` frames
-     - **720p and below**: `CHUNK_SIZE = 150` frames
-  5. **Low-Weight Processing Profiles**: To avoid CPU bottlenecks that crash browser worker thresholds, WebM (VP8) videos are built with the high-speed `-deadline realtime` profile and `-cpu-used 4/5` flags. MP4 (H.264) videos rendered in high density (1440p/4K) automatically swap the heavy default preset for `-preset veryfast` to maintain pristine performance on a single-threaded WebAssembly execution.
-
-### 4.5 Persistent Save/Open Directories (Chromium Native ID Association)
-* **The Pitfall**: In web apps with rich export and offline assembly workflows, every time a user triggers a ZIP save or wants to open/upload a zip file, standard browser fallbacks force the local system's directory dialogue to reset to the computer's generic default directory (such as `/Downloads` or `/Documents`). This breaks continuity during laboratory sessions where users export sequentially or load files from a designated project workspace.
-* **The Resolution (Shared Native Browser Picker IDs)**:
-  1. **Strictly Shared Identifiers**: We assign the exact same `id: 'zip-export'` parameter across all invocations of `showSaveFilePicker` and `showOpenFilePicker`.
-  2. **Native Path Tracking**: Chromium-based browsers recognize matching IDs and natively anchor the active file prompts (whether saving or opening) back into the user's exact host folder (e.g., standard Windows File Explorer or macOS Finder directories) from the previous action. This guarantees elegant, zero-overhead offline continuity without complex security exceptions:
-     ```js
-     const pickerOpts = {
-       id: 'zip-export',
-       types: [{ description: 'ZIP Files', accept: { 'application/zip': ['.zip'] } }]
-     };
-     const handle = await window.showSaveFilePicker(pickerOpts);
-     ```
-
-### 4.6 Direct ZIP Assembly Layout Alignment (Jitter-Free Stacking)
-* **The Pitfall**: Coupling export, record, and offline assembly actions specifically to the `zip` pipeline selection option can cause layout shifting, dropdown misalignment, or sudden element jumps if the action dropdown is toggled with aggressive display layout changes.
-* **The Resolution (Jitter-Free Visibility & Stacked Alignment Control)**:
-  1. **Clean Stacked Hierarchy**: In the UI, structure the main export pipeline format dropdown (FFmpeg, OPFS, ZIP) directly on top, and place the Record/Assemble action dropdown directly below it.
-  2. **Jitter-Free State Toggles**: Symmetrically manage the action select dropdown state with `visibility: hidden; pointer-events: none` when non-zip pipelines are active. This retains the exact spatial dimensions and prevents components from jumping or popping vertically.
-  3. **Secure Action Binding**: Symmetrically disable user controls and update state indicators (`isAssembling: true`) when assembly or extraction pipelines are busy, locking potential state conflicts.
-
-### 4.7 Resolution-Aware Frame Discovery & UI Synchronization
-* **The Pitfall**: Direct Assembly or Offline ZIP extraction pipelines must parse arbitrary, unpredictable custom resolutions of stored frames. If the assembler blindly operates on default dropdown dimensions, high-resolution imported archives (e.g. 1440p or 4K PNG frames) will be distorted, cropped, stretched, or generate invalid MP4 streams.
-* **The Resolution**:
-  1. **Binary Metadata Reading**: When opening an archive or loading from OPFS, the system extracts the first frame PNG bytes and uses standard binary chunk analysis to parse its exact physical dimensions (`width` and `height`) directly from the IHDR chunk.
-  2. **State & UI Back-Syncing**: Once parsed, the simulation's state (`appState`) updates its target output dimensions automatically to match.
-  3. **Programmatic Dropdown Insertion**: Symmetrically sync the resolution selector (`#sel-res`) dropdown. If the imported resolution does not match any current options, a placeholder is dynamically generated, injected, and selected (e.g., `"3840x2160 (Detected from Import)"`), guaranteeing pixel-perfect scaling alignment without manual intervention.
-
-### 4.8 Unified Filename Consistency Across Pipelines
-* **The Pitfall**: Unaligned file-saving and zip-packaging pipelines lead to mismatched export nomenclature (`frames_[Date].zip` vs `output.mp4`), hindering workspace cohesion and tracking.
-* **The Resolution**: Symmetrically override all naming utilities to output consistent, recognizable filenames starting with the specific simulation laboratory prefix: `sg_lab_render_${Date.now()}`. This applies uniformly to direct MP4 compilations, WebM videos, and structured ZIP file downloads.
-
-### 4.9 High-Density Thread & Stream Tuning for H.264 WebAssembly
-* **The Pitfall**: Standard Web Assembly decoders crash (VM Abort / OOM) under large resolution frames during intermediate containerization tasks. For instance, concatenating raw sub-sequences of high-density streams at 4K resolution using standard macroblock boundaries leaks heap metadata if processed standard threads overlap.
-* **The Resolution**:
-  1. **Single-Thread Bottleneck Management**: Limit `-threads 1` for H.264 encoding when the resolution scale exceeds modern 1080p thresholds to keep heap usage extremely low.
-  2. **Lookahead Optimization**: Reduce encoder buffer complexity dynamically using `-rc-lookahead 5` (down from standard `15`) for high density scales.
-  3. **Standard Level Enforcement**: Apply dynamic level constraints (auto-scaling to `-level:v 5.2` above 1080p, and `-level:v 5.1` for standard density streams) to comply with H.264 macroblock rate caps. Strictly enforce constant frame rates (`-r`) on all chunks and inject `-fflags +genpts` during concat stages to bypass keyframe artifacts, timing stutters, and visual shifts. Use format-compliant MPEG-Transport streams (`.ts`) for chunk-level compilation instead of sub-nested `.mp4` containers. Raw `.ts` envelopes concatenate instantaneously without structural parses, preventing thread crashes on final containerization.
-  4. **Dynamic Atom Repositioning**: Append `-movflags +faststart` during single-chunk optimization, placing the index metadata (`moov` atom) at the head of the output stream instantly.
-
-### 4.10 Over-Engineering, Tech-Larping, & "AI-Slop"
+### 4.2 Over-Engineering, Tech-Larping, & "AI-Slop"
 * **The Pitfall**: Adding unrequested technical decorations (e.g., "CORE_NODE_ONLINE", "PORT: 3000", custom grid coordinates) to make the simulation look more "complex."
 * **The Resolution**: Keep labels literal, human, and modest. If the user asks for a simple mathematical control, implement ONLY that control cleanly, utilizing generous white space and high-contrast styling.
 
