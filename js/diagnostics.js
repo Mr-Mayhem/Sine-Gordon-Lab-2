@@ -1463,11 +1463,35 @@ export class DiagnosticsManager {
             window.recorder.isTesting = false;
             window.recorder.testThreading = null;
             window.recorder.isAssembling = false;
+
+            if (window.recorder._ffmpeg) {
+              try {
+                this.log(`🧹 Offloading FFmpeg WebAssembly worker to completely free memory heap...`, "text-white/40");
+                if (typeof window.recorder._ffmpeg.terminate === "function") {
+                  window.recorder._ffmpeg.terminate();
+                } else if (typeof window.recorder._ffmpeg.exit === "function") {
+                  window.recorder._ffmpeg.exit();
+                }
+              } catch (tErr) {
+                console.warn("[Cooldown Cleanup] Worker termination warning:", tErr);
+              }
+              window.recorder._ffmpeg = null;
+            }
+
+            window.recorder._recordedFrames = [];
           }
           window.onTestVideoBlobGenerated = null;
           window.onTestZipBlobGenerated = null;
           
-          await delay(500); // cooldown padding between sequential runs
+          // Apple tablet, mobile, or touch devices check
+          const isCoarseOrTablet = /Mobi|Android|iPhone|iPad|Macintosh/i.test(navigator.userAgent) && (navigator.maxTouchPoints > 0 || window.matchMedia("(any-pointer: coarse)").matches);
+          const cooldownMs = isCoarseOrTablet ? 3000 : 800; // longer pause (3s) for mobile/tablet to let GC reclaim heap
+          if (isCoarseOrTablet) {
+            this.log(`📱 Hardware limits detected: Pausing for ${cooldownMs}ms between tests to run browser Garbage Collection...`, "text-amber-300/80");
+          } else {
+            this.log(`⏱️ Pausing for ${cooldownMs}ms to stabilize state...`, "text-white/30");
+          }
+          await delay(cooldownMs);
         }
       }
     } catch (e) {
