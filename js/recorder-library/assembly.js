@@ -250,7 +250,7 @@ function _updateAssemblyUI() {
   var fill = document.getElementById("progress-fill");
   if (statusEl) {
     var lines = [];
-    lines.push("<strong>Project Version:</strong> v1.6.0-hybrid-ts");
+    lines.push("<strong>Project Version:</strong> v1.7.0-hybrid-ts");
     if (s.mode) {
       lines.push("<strong>Mode:</strong> " + s.mode);
     }
@@ -805,16 +805,9 @@ async function _assemble(
   );
 
   var ctx = null;
-  const pbPrev = document.getElementById("assembly-preview");
-  if (pbPrev) {
-    pbPrev.style.aspectRatio = `${alignedW} / ${alignedH}`;
-  }
   if (previewCanvas) {
     previewCanvas.width = alignedW;
     previewCanvas.height = alignedH;
-    previewCanvas.style.width = "100%";
-    previewCanvas.style.height = "auto";
-    previewCanvas.style.aspectRatio = `${alignedW} / ${alignedH}`;
     ctx = previewCanvas.getContext("2d");
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, alignedW, alignedH);
@@ -847,11 +840,11 @@ async function _assemble(
     }
   }
 
+  // Keep standard modal height and width from index.html and style.css to prevent layout degradation during compilation
   if (overlay) {
     var oc = overlay.querySelector("div");
     if (oc) {
-      oc.style.maxWidth = "800px";
-      oc.style.height = "auto";
+      // styles are cleanly managed by index.html and style.css
     }
   }
 

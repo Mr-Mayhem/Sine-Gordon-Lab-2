@@ -1,8 +1,16 @@
 # Recorder Library Specification — `recorder-library/`
 
+**Active Version: v1.7.0-hybrid-ts**
+
 This document details the architecture, capabilities, design philosophy, API contracts, and integration workflows of the self-contained browser recording and rendering assembly engine. 
 
 Designed for high-performance in-browser rendering pipelines, this library is crafted to handle ultra-high resolution captures (such as 1080p, 1440p, or 4K) directly inside sandboxed browser frames using modern standards including WebGL, standard ES Modules (ESM), WebAssembly (FFmpeg.wasm), and fast sandboxed storage via the **Origin Private File System (OPFS)**.
+
+### Recent Updates in v1.7.0
+1. **Dynamic Target Aspect Ratio Locking**: Remaps capturing dimensions dynamically to match the exact target aspect ratio of the requested export resolution across all formats. This prevents dimensional discrepancy errors during in-memory and OPFS storage ZIP extraction and video rendering workflows.
+2. **Integrated Log Window & HUD HUD Box**: A dedicated 380px terminal console tracks operations, compiling steps, and thread configurations dynamically with visual tracking and message grouping.
+3. **Diagnostic Utility (Clipboard Copy)**: Introduces a robust clipboard action featuring dual-tier fallback mechanisms (`navigator.clipboard.writeText` and a hidden temporary textarea node) to grab complete diagnostic reports seamlessly inside iframes or sandboxed origins.
+4. **Clean Production Mode Layout**: The test buttons and runner nodes are encapsulated and kept clean, maximizing negative space around standard metrics and preview structures.
 
 ---
 

@@ -57,8 +57,12 @@ export default class SnapshotEngine {
         return;
       }
   
-      const width = this._canvas.width;
-      const height = this._canvas.height;
+      var width = this._canvas.width;
+      var height = this._canvas.height;
+      if (!width || width <= 0 || !height || height <= 0) {
+        width = 1280;
+        height = 720;
+      }
   
       // Ensure buffers are sized correctly
       this._ensurePixelBuffer(width, height);

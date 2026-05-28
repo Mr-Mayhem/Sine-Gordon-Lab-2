@@ -222,13 +222,21 @@ export default class RecordingEngine {
     this.isRecording = true;
 
     var viewport = document.getElementById("viewport");
-    if (viewport) {
+    if (viewport && viewport.clientWidth > 0 && viewport.clientHeight > 0) {
       this._preRecordingWidth = Math.floor(viewport.clientWidth / 2) * 2;
       this._preRecordingHeight = Math.floor(viewport.clientHeight / 2) * 2;
     } else {
       var dpr = Math.min(window.devicePixelRatio || 1, 2);
-      this._preRecordingWidth = Math.floor((this._canvas.width / dpr) / 2) * 2;
-      this._preRecordingHeight = Math.floor((this._canvas.height / dpr) / 2) * 2;
+      var cw = this._canvas && this._canvas.width > 0 ? this._canvas.width : (1280 * dpr);
+      var ch = this._canvas && this._canvas.height > 0 ? this._canvas.height : (720 * dpr);
+      this._preRecordingWidth = Math.floor((cw / dpr) / 2) * 2;
+      this._preRecordingHeight = Math.floor((ch / dpr) / 2) * 2;
+    }
+
+    // Failsafe non-zero defaults
+    if (!this._preRecordingWidth || this._preRecordingWidth <= 0 || !this._preRecordingHeight || this._preRecordingHeight <= 0) {
+      this._preRecordingWidth = (window.sgState && window.sgState.exportWidth) || 1280;
+      this._preRecordingHeight = (window.sgState && window.sgState.exportHeight) || 720;
     }
 
     // Refresh configurations dynamically right at start of capture
@@ -371,6 +379,10 @@ export default class RecordingEngine {
     var capStart = performance.now();
     try {
       var width = this._canvas.width; var height = this._canvas.height;
+      var requiredLength = width * height * 4;
+      if (!this._pixelBuffer || this._pixelBuffer.length !== requiredLength) {
+        this._pixelBuffer = new Uint8Array(requiredLength);
+      }
       this._gl.finish();
       this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
       this._gl.readPixels(0, 0, width, height, this._gl.RGBA, this._gl.UNSIGNED_BYTE, this._pixelBuffer);

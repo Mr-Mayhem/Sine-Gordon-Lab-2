@@ -298,10 +298,17 @@ function refreshUI() {
   if (window.updateDiskSpaceUI) {
     window.updateDiskSpaceUI();
   }
+
+  // Sync mini play button configuration dynamically
+  const btnMiniPlay = document.getElementById("btn-mini-play");
+  if (btnMiniPlay) {
+    btnMiniPlay.textContent = sgState.paused ? "▶" : "⏸";
+    btnMiniPlay.title = sgState.paused ? "Run Simulation" : "Pause Simulation";
+  }
 }
 
 function init() {
-  console.log("=== [Sine-Gordon Lab] Project Version: 1.6.0-hybrid-ts loaded ===");
+  console.log("=== [Sine-Gordon Lab] Project Version: 1.7.0-hybrid-ts loaded ===");
   loadExportSettings();
   
   const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.matchMedia("(any-pointer: coarse)").matches;
@@ -530,6 +537,14 @@ function init() {
 
   bindEvents(physics, rendererRef, recorder, snapshotEngine);
   refreshUI();
+
+  // On mobile/tablet or narrow screen, start with both bottombar and launch panel collapsed by default
+  if (isMobile || window.innerWidth < 1024) {
+    const bottomCollapse = document.getElementById("btn-collapse-bottom");
+    if (bottomCollapse) bottomCollapse.click();
+    const launcherCollapse = document.getElementById("btn-collapse-launch");
+    if (launcherCollapse) launcherCollapse.click();
+  }
   
   // Hover Raycaster integration
   var raycaster = new THREE.Raycaster();

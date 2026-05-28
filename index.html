@@ -4,9 +4,9 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "/vendor/three/three.module.js",
-        "three/": "/vendor/three/",
-        "three/addons/": "/vendor/three/addons/"
+        "three": "./vendor/three/three.module.js",
+        "three/": "./vendor/three/",
+        "three/addons/": "./vendor/three/addons/"
       }
     }
   </script>
@@ -42,7 +42,7 @@
 
   <!-- Title Label -->
   <div id="title-label">
-    <span class="title-version">v1.6.0</span>
+    <span class="title-version">v1.7.0</span>
     <h1 class="title-main">The Sine-Gordon Lab</h1>
   </div>
 
@@ -197,57 +197,38 @@
   </div>
 
   <!-- Processing Overlay (Assembly Engine) -->
-  <div id="processing-overlay"
-       style="display:none;
-              position:fixed;
-              inset:0;
-              background:rgba(0,0,0,0.95);
-              backdrop-filter:blur(16px);
-              align-items:center;
-              justify-content:center;
-              z-index:200;
-              padding:12px;">
-    <div style="background:rgba(23,23,23,0.95);
-                border:1px solid rgba(255,255,255,0.1);
-                border-radius:18px;
-                padding:16px;
-                max-width:760px;
-                width:100%;
-                height:92vh;
-                max-height:810px;
-                overflow:hidden;
-                display:flex;
-                flex-direction:column;
-                gap:12px;
-                position:relative;
-                box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+  <div id="processing-overlay" style="display:none;">
+    <div>
 
-      <button id="btn-close-processing" class="btn-icon w-8 h-8 rounded-full" style="position:absolute; top:12px; right:12px; z-index:10; background:rgba(255,255,255,0.1); border:none; color:white; font-size:14px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Close">✕</button>
+      <button id="btn-close-processing" class="btn-icon w-8 h-8 rounded-full" style="position:absolute; top:18px; right:18px; z-index:10; background:rgba(255,255,255,0.1); border:none; color:white; font-size:14px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Close">✕</button>
 
       <div class="flex justify-between items-baseline border-b border-white/5 pb-1.5 mb-0.5 w-full max-w-[720px] mx-auto" style="flex-shrink:0;">
         <span style="font-size:10px; font-weight:900; color:#00ffcc; letter-spacing:0.3em; text-transform:uppercase; filter: drop-shadow(0 0 4px rgba(0,255,204,0.35));">Assembly Engine</span>
-        <span id="assembly-subheader-info" class="font-mono text-[8.5px] text-white/50 uppercase tracking-wider text-right">Operation: Idle | Res: 1280x720</span>
+        <span id="assembly-subheader-info" class="font-mono text-[8.5px] text-white/50 uppercase tracking-wider text-right mr-10">Operation: Idle | Res: 1280x720</span>
         <!-- Hidden legacy status node updated by other JS code, intercepted via MutationObserver -->
         <span id="assembly-status" style="display:none;">Ready</span>
       </div>
 
       <!-- Aligned Top Text Blobs (Consistent, fixed-height to prevent vertical resizing jitter) -->
-      <div id="assembly-overview-tiles" class="grid grid-cols-2 gap-3 w-full max-w-[720px] mx-auto mb-0.5" style="height: 100px; min-height: 100px; flex-shrink:0;">
+      <div id="assembly-overview-tiles" class="grid grid-cols-2 gap-3 w-full max-w-[720px] mx-auto mb-0.5" style="height: 112px; min-height: 112px; flex-shrink:0;">
         <!-- Left Blob: Assembly Details -->
         <div id="assembly-status-left" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left select-none font-mono text-[9px] text-white/70 overflow-hidden justify-start h-full">
           <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
-          <div><strong>Project Version:</strong> v1.6.0-hybrid-ts</div>
-          <div><strong>Mode:</strong> Idle</div>
-          <div><strong>Phase:</strong> Ready for stream compilation</div>
-          <div><strong>Frames:</strong> 0 / 0</div>
+          <div class="py-0.5 border-b border-white/[0.02]"><strong>Version:</strong> <span class="text-white/80 font-medium">v1.7.0-hybrid-ts</span></div>
+          <div class="py-0.5 border-b border-white/[0.02]"><strong>Export Mode:</strong> <span class="text-white/80 font-medium">Idle</span></div>
+          <div class="py-0.5 border-b border-white/[0.02]"><strong>Active Phase:</strong> <span class="text-white/80 font-medium">Ready</span></div>
+          <div class="py-0.5 border-b border-white/[0.02]"><strong>Frames Count:</strong> <span class="text-[#00ffcc] font-medium font-mono">0 / 0</span></div>
+          <div class="py-0.5 last:border-b-0"><strong>Temporal Metrics:</strong> <span class="text-[#00aaff] font-medium font-mono font-bold">N/A</span></div>
         </div>
 
         <!-- Right Blob: Diagnostic Report -->
         <div id="assembly-status-right" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left select-none font-mono text-[9px] text-white/70 overflow-hidden justify-start h-full">
           <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
-          <div class="flex justify-between border-b border-white/[0.03] pb-0.5"><span class="text-white/40">Format:</span><span class="text-white font-medium">Automatic</span></div>
-          <div class="flex justify-between border-b border-white/[0.03] pb-0.5"><span class="text-white/40">Threading:</span><span class="text-white font-medium">Single-Threaded</span></div>
-          <div class="flex justify-between pb-0.5"><span class="text-white/40">COOP/COEP:</span><span class="text-white text-white/50">N/A</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Container Format:</span><span class="text-white font-medium">Automatic</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">CPU Threading:</span><span class="text-white font-medium">Single-Threaded</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Frame Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">1280x720</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Target Framerate:</span><span class="text-[#00aaff] font-bold font-mono">30 FPS</span></div>
+          <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Quality / CRF:</span><span class="text-amber-400 font-bold font-mono">18 (Typical Default)</span></div>
         </div>
       </div>
 
@@ -262,7 +243,6 @@
           <span>Assembly Logs & Standard Output</span>
           <div class="flex items-center gap-2">
             <span id="assembly-log-count">0 messages</span>
-            <button id="btn-run-tests" class="hover:text-white transition-colors cursor-pointer border border-[#00ffcc]/35 bg-[#00ffcc]/5 hover:bg-[#00ffcc]/15 px-2 py-0.5 rounded text-[8px] font-mono font-bold text-[#00ffcc] uppercase" title="Trigger Automated Diagnostics & Pipeline Test Suite">🧪 Run Test Suite</button>
             <button id="btn-copy-logs" class="hover:text-white transition-colors cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded text-[8px] font-mono font-bold text-[#00ffcc] uppercase" title="Copy Assembly Logs to Clipboard">Copy Logs</button>
           </div>
         </div>
@@ -301,7 +281,8 @@
       <div class="flex items-center gap-1.5">
         <span class="label-micro text-accent" style="font-size:8px;">IMPULSE</span>
       </div>
-      <div class="flex gap-1">
+      <div class="flex gap-1 items-center">
+        <button id="btn-mini-fire" class="btn-pill btn-primary px-3 py-1 text-[8.5px] font-bold tracking-widest mr-1 hover:brightness-110 active:scale-95 transition-all" style="display: none; background: #ea580c; border: 1px solid #f97316; font-family: var(--font-mono, monospace); box-shadow: 0 0 10px rgba(249,115,22,0.4);">FIRE</button>
         <button id="btn-impulse-master" title="Toggle Impulse Visibility" class="btn-icon">👁️</button>
         <button id="btn-rapid-reset" title="Reset Field" class="btn-icon">↺</button>
         <button id="btn-side-play" class="btn-icon btn-primary" style="font-size:16px;">▶</button>
@@ -370,6 +351,10 @@
   <div id="bottom-bar">
     <div class="bottom-bar-inner widget flex items-start gap-4">
       <button id="btn-collapse-bottom" class="btn-collapse-widget" title="Collapse Panel">▲</button>
+      <div id="mini-bottom-actions" class="flex items-center gap-1 pl-1" style="display:none; pointer-events:auto;">
+        <button id="btn-mini-play" class="btn-icon w-6 h-6 text-[10px]" title="Run Simulation">▶</button>
+        <button id="btn-mini-reset" class="btn-icon w-6 h-6 text-[10px]" title="Reset Simulation">↺</button>
+      </div>
 
       <!-- Main Controls Area -->
       <div class="widget-content flex flex-col gap-2 pl-6 pt-1 flex-1" style="pointer-events:auto;">

@@ -116,30 +116,46 @@ export function changeCanvasToRecordingResolution(canvas, renderer, camera, conf
   var preW = null;
   var preH = null;
 
-  if (viewportEl) {
+  if (viewportEl && viewportEl.clientWidth > 0 && viewportEl.clientHeight > 0) {
     preW = Math.floor(viewportEl.clientWidth / 2) * 2;
     preH = Math.floor(viewportEl.clientHeight / 2) * 2;
   } else {
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    preW = Math.floor((canvas.width / dpr) / 2) * 2;
-    preH = Math.floor((canvas.height / dpr) / 2) * 2;
+    var cw = canvas && canvas.width > 0 ? canvas.width : (1280 * dpr);
+    var ch = canvas && canvas.height > 0 ? canvas.height : (720 * dpr);
+    preW = Math.floor((cw / dpr) / 2) * 2;
+    preH = Math.floor((ch / dpr) / 2) * 2;
   }
 
-  // Cap physical canvas size for recording to prevent WebGL overflow and lag
-  var captureW = aw;
-  var captureH = ah;
-  if (aw > 1920 || ah > 1080) {
-    var scaleFactor = Math.min(1920 / aw, 1080 / ah);
-    captureW = Math.floor((aw * scaleFactor) / 2) * 2;
-    captureH = Math.floor((ah * scaleFactor) / 2) * 2;
-    console.log(`[FFmpeg-Res-Cap] Target resolution ${aw}x${ah} is above physical capture limits. Downscaling physical recording buffer to ${captureW}x${captureH} (proportional aspect scale). Upscaling will be performed at FFmpeg synthesis step.`);
+  // Ensure positive fallback dimensions
+  if (!preW || preW <= 0 || !preH || preH <= 0) {
+    preW = aw || 1280;
+    preH = ah || 720;
   }
+
+  // We use the EXACT target aspect ratio of the requested export resolution to prevent dimensional mismatches in ZIP archives
+  var aspect = aw / ah;
+  if (!aspect || isNaN(aspect) || !isFinite(aspect) || aspect <= 0) {
+    preW = aw || 1280;
+    preH = ah || 720;
+    aspect = preW / preH;
+  }
+
+  var captureH = ah;
+  var maxPhysicalH = 1080;
+  if (captureH > maxPhysicalH) {
+    captureH = maxPhysicalH;
+  }
+  var captureW = Math.floor((captureH * aspect) / 2) * 2;
+  if (!captureW || captureW <= 0) captureW = Math.floor((captureH * (16 / 9)) / 2) * 2;
+
+  console.log(`[Recording-Resolution] Post-aspect scale: viewport aspect is ${aspect.toFixed(4)}. Physical buffer is scaled to ${captureW}x${captureH} (target output resolution specifies ${aw}x${ah}).`);
 
   if (renderer) {
     renderer.setPixelRatio(1);
     renderer.setSize(captureW, captureH, false);
     if (camera) {
-      camera.aspect = captureW / captureH;
+      camera.aspect = aspect;
       camera.updateProjectionMatrix();
     }
   }

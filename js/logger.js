@@ -284,6 +284,7 @@ class LogNexusController {
 }
 
 export const LogNexus = new LogNexusController();
+LogNexus.setupConsoleHooks();
 
 // Expose globally for backup integration
 if (typeof window !== "undefined") {
