@@ -1,35 +1,34 @@
 // =============================================================================
-// sine-gordon-lab — js/ffmpeg-commands.js
+// Browser Video Recorder Library — ffmpeg-commands.js
 // Consolidated FFmpeg command line synthesis, structures and values.
-// Decouples delicate command formulation from assembly pipeline.
 // =============================================================================
 
-import { sgState as appState } from "./state.js";
 import {
   resolveRecordingResolution,
   getVideoFilterString,
 } from "./video-filters.js";
 
 /**
- * Derives and bundles all standard synthesis parameters from current state and active configurations.
+ * Derives and bundles all standard synthesis parameters from active configurations.
  * Crucial values mapped dynamically:
  * - FPS: Frame frequency parameter.
  * - CRF: Constant Rate Factor (H.264 / VP8 quality slider mapping).
  * - Target resolution mapping.
  * - VPX-specific bitrate constraints, scheduling deadline flags, and target CPU threads.
  */
-export function getEncodingParams(alignedW, alignedH) {
-  const format = appState.exportFormat || "webm";
-  const fps = appState.exportFPS || 60;
-  const crf = String(appState.exportCRF || 18);
+export function getEncodingParams(alignedW, alignedH, config = {}) {
+  const format = config.exportFormat || "webm";
+  const fps = config.exportFPS || 60;
+  const crf = String(config.exportCRF || 18);
   const outputFile = "output." + (format === "mp4" ? "mp4" : "webm");
 
-  var targetRes = resolveRecordingResolution();
+  var targetRes = resolveRecordingResolution(config);
   var scaleFilter = getVideoFilterString(
     alignedW,
     alignedH,
     targetRes.width,
     targetRes.height,
+    config
   );
 
   var resolutionScale = (targetRes.width * targetRes.height) / (1280 * 720);
@@ -79,8 +78,9 @@ export function buildChunkArgs(
   alignedH,
   chunkName,
   framesOffset = 0,
+  config = {}
 ) {
-  const params = getEncodingParams(alignedW, alignedH);
+  const params = getEncodingParams(alignedW, alignedH, config);
   let args = [];
 
   if (params.format === "mp4") {
@@ -165,8 +165,8 @@ export function buildChunkArgs(
  * Prepares the direct single-pass or fast whole assembly arguments array.
  * Fast pipeline with < 150 frames triggers direct to final file.
  */
-export function buildAssemblyArgs(alignedW, alignedH, outputFile) {
-  const params = getEncodingParams(alignedW, alignedH);
+export function buildAssemblyArgs(alignedW, alignedH, outputFile, config = {}) {
+  const params = getEncodingParams(alignedW, alignedH, config);
   let args = [];
 
   if (params.format === "mp4") {

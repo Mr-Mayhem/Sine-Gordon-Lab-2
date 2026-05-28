@@ -1,21 +1,11 @@
 // =============================================================================
-// sine-gordon-lab — js/video-filters.js
+// Browser Video Recorder Library — video-filters.js
 // Consolidated canvas resolution scaling and FFmpeg filter utilities.
-// Prevents AI overrides by keeping delicate layout & video filters separate.
 // =============================================================================
-
-import { sgState as appState } from "./state.js";
 
 /**
  * Standard-compliant, high-performance FFmpeg resolution recipes.
  * Handles modulus constraints of H.264 (libx264) and VP8 (libvpx) to meet professional standards:
- * - 360p (640x360): Divisible by 8, keeps perfect 16:9.
- * - 480p (854x480): 854 is not a multiple of 4, causing warning/padding on some decoders. 
- *   Remapped to 852x480 which is a standard Mod-4 widescreen boundaries definition (aspect 1.775:1).
- * - 720p (1280x720): Divisible by 16, perfect 16:9.
- * - 1080p (1920x1080): Divisible by 8 (vertical macroblocks), perfect 16:9.
- * - 1440p (2560x1440): Divisible by 16, perfect 16:9.
- * - 4K (3840x2160): Divisible by 16, perfect 16:9.
  */
 export const FFMPEG_RESOLUTIONS_RECIPES = {
   "640x360": {
@@ -53,16 +43,17 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
 /**
  * Resolves the selected recording/export resolution, enforcing a dense
  * modulus configuration or utilizing the pre-defined target specs recipe.
+ * Accepts a config object: { exportWidth, exportHeight, exportFormat, exportTrim }
  */
-export function resolveRecordingResolution() {
-  var w = (typeof appState !== 'undefined' ? appState.exportWidth : 1280) || 1280;
-  var h = (typeof appState !== 'undefined' ? appState.exportHeight : 720) || 720;
+export function resolveRecordingResolution(config = {}) {
+  var w = config.exportWidth || 1280;
+  var h = config.exportHeight || 720;
 
-  if (typeof appState !== 'undefined' && appState.exportFormat === "webm" && appState.exportTrim && appState.exportTrim !== "none") {
+  if (config.exportFormat === "webm" && config.exportTrim && config.exportTrim !== "none") {
     var cropFactor = 1.0;
-    if (appState.exportTrim === "subtle") cropFactor = 0.80;
-    else if (appState.exportTrim === "snug") cropFactor = 0.67;
-    else if (appState.exportTrim === "max") cropFactor = 0.55;
+    if (config.exportTrim === "subtle") cropFactor = 0.80;
+    else if (config.exportTrim === "snug") cropFactor = 0.67;
+    else if (config.exportTrim === "max") cropFactor = 0.55;
 
     h = Math.floor((h * cropFactor) / 2) * 2;
   }
@@ -87,8 +78,8 @@ export function resolveRecordingResolution() {
  * no heavy trans-coding or Lanczos scaling is forced, boosting performance significantly.
  * Applies the precise crop-to-fit ratio to guarantee no aspect distortion on the grid.
  */
-export function getVideoFilterString(srcW, srcH, dstW, dstH) {
-  var targetRes = resolveRecordingResolution();
+export function getVideoFilterString(srcW, srcH, dstW, dstH, config = {}) {
+  var targetRes = resolveRecordingResolution(config);
   var alignedW = targetRes.width;
   var alignedH = targetRes.height;
 
@@ -114,26 +105,20 @@ export function getVideoFilterString(srcW, srcH, dstW, dstH) {
  * Physically resizes the WebGL canvas and renderer to the target video resolution
  * when commencing a recording process. Preserves the pre-recording sizes for restoration later.
  */
-export function changeCanvasToRecordingResolution(canvas, renderer, camera) {
-  var selRes = document.getElementById("sel-res");
-  if (selRes && selRes.value) {
-    var parts = selRes.value.split("x");
-    if (parts.length === 2) {
-      appState.exportWidth = Number(parts[0]);
-      appState.exportHeight = Number(parts[1]);
-    }
-  }
-  var res = resolveRecordingResolution();
-  var aw = res.width;
-  var ah = res.height;
+export function changeCanvasToRecordingResolution(canvas, renderer, camera, config = {}, viewportEl = null) {
+  var aw = config.exportWidth || 1280;
+  var ah = config.exportHeight || 720;
+  
+  var res = resolveRecordingResolution(config);
+  aw = res.width;
+  ah = res.height;
 
   var preW = null;
   var preH = null;
 
-  var viewport = document.getElementById("viewport");
-  if (viewport) {
-    preW = Math.floor(viewport.clientWidth / 2) * 2;
-    preH = Math.floor(viewport.clientHeight / 2) * 2;
+  if (viewportEl) {
+    preW = Math.floor(viewportEl.clientWidth / 2) * 2;
+    preH = Math.floor(viewportEl.clientHeight / 2) * 2;
   } else {
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     preW = Math.floor((canvas.width / dpr) / 2) * 2;
@@ -174,13 +159,12 @@ export function changeCanvasToRecordingResolution(canvas, renderer, camera) {
 /**
  * Restores the canvas, renderer, and camera to their native responsive client size.
  */
-export function restoreCanvasResolution(canvas, renderer, camera, preRecordingWidth, preRecordingHeight) {
+export function restoreCanvasResolution(canvas, renderer, camera, preRecordingWidth, preRecordingHeight, viewportEl = null) {
   if (!canvas) return;
   var w, h;
-  var viewport = document.getElementById("viewport");
-  if (viewport) {
-    w = Math.floor(viewport.clientWidth / 2) * 2;
-    h = Math.floor(viewport.clientHeight / 2) * 2;
+  if (viewportEl) {
+    w = Math.floor(viewportEl.clientWidth / 2) * 2;
+    h = Math.floor(viewportEl.clientHeight / 2) * 2;
   } else if (preRecordingWidth && preRecordingHeight) {
     w = preRecordingWidth;
     h = preRecordingHeight;

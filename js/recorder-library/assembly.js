@@ -1,12 +1,11 @@
 // =============================================================================
-// sine-gordon-lab — js/assembly.js
+// Browser Video Recorder Library — assembly.js
 // Video assembly pipeline. FFmpeg loading delegated to ffmpeg-loader.js.
 // Recordings ≤1500 frames use inline encoding (one exec, direct to output).
 // Larger recordings use double-buffered chunked assembly.
 // Thumbnails updated every 10 frames in all paths.
 // =============================================================================
 
-import { sgState as appState } from "./state.js";
 import { loadFFmpeg } from "./ffmpeg-loader.js";
 import { resolveRecordingResolution } from "./video-filters.js";
 import {
@@ -15,8 +14,12 @@ import {
   buildAssemblyArgs,
   buildConcatArgs,
 } from "./ffmpeg-commands.js";
-// No imports needed from zip-export.js since we rely strictly on browser-native directory memory by id.
-import { LogNexus } from "./logger.js";
+
+const getAppState = (recorderRef) => {
+  if (recorderRef && recorderRef.config) return recorderRef.config;
+  if (typeof window !== "undefined" && window.sgState) return window.sgState;
+  return { exportWidth: 1280, exportHeight: 720, exportFormat: "webm" };
+};
 
 var _assemblyStats = null;
 
@@ -40,26 +43,35 @@ export function onFFmpegLog(msg) {
   }
 }
 
-// Clean logs helper - delegates to consolidated nexus
+// Clean logs helper - delegates to consolidated nexus if present
 export function clearAssemblyLogs() {
-  LogNexus.clearNormal();
+  if (typeof window !== "undefined" && window.LogNexus) {
+    window.LogNexus.clearNormal();
+  } else {
+    console.log("[System] Log cleared. Ready for assembly...");
+  }
 }
 window.clearAssemblyLogs = clearAssemblyLogs;
 
-// Append list helper - delegates to consolidated nexus
+// Append list helper - delegates to consolidated nexus if present
 export function appendAssemblyLog(msg) {
-  LogNexus.logNormal(msg);
+  if (typeof window !== "undefined" && window.LogNexus) {
+    window.LogNexus.logNormal(msg);
+  } else {
+    console.log("[System Log]", msg);
+  }
 }
 window.appendAssemblyLog = appendAssemblyLog;
 
-// Copy systems helper - delegates to consolidated nexus
+// Copy systems helper - delegates to consolidated nexus if present
 export function copyAssemblyLogsToClipboard() {
-  LogNexus.copyNormalToClipboard();
+  if (typeof window !== "undefined" && window.LogNexus) {
+    window.LogNexus.copyNormalToClipboard();
+  } else {
+    console.log("[System] Copy requested of normal logs.");
+  }
 }
 window.copyAssemblyLogsToClipboard = copyAssemblyLogsToClipboard;
-
-// Set up console hooks to capture standard system output via LogNexus
-LogNexus.setupConsoleHooks();
 
 async function parsePngResolution(bytes) {
   if (!bytes || bytes.byteLength === 0) return null;
@@ -85,8 +97,10 @@ async function parsePngResolution(bytes) {
 
 function syncResolutionsToUIDropdown(width, height) {
   if (!width || !height) return;
-  appState.exportWidth = width;
-  appState.exportHeight = height;
+  if (typeof window !== "undefined" && window.sgState) {
+    window.sgState.exportWidth = width;
+    window.sgState.exportHeight = height;
+  }
   console.log(
     "[FFmpeg] Synced global export resolution from imported frame:",
     width + "x" + height,
@@ -127,11 +141,9 @@ function logBrowserMemory(prefix = "[Memory]") {
     console.log(`${prefix} Used: ${usedMB} MB / Total: ${totalMB} MB (Limit: ${limitMB} MB)`);
     return { usedMB, totalMB, limitMB };
   } else {
-    // Fallback if performance.memory API is missing (e.g. Firefox/Safari)
     try {
       if (window.performance && window.performance.getEntries) {
         const entries = window.performance.getEntries();
-        // Just log a heartbeat indicator to verify performance timers are operative
         console.log(`${prefix} Heartbeat verified (Native heap profiling unavailable in this browser engine). Performance timer count: ${entries.length}`);
       }
     } catch (e) {}
@@ -244,7 +256,6 @@ function _updateAssemblyUI() {
     }
     lines.push("Phase: " + s.currentPhase);
     
-    // Display actual framesEncoded during encoding phase, otherwise folder-reading verifiedFrames
     const isEncodingPhase = s.currentPhase && s.currentPhase.startsWith("Encoding video");
     if (isEncodingPhase) {
       lines.push("Frames: " + s.framesEncoded + " / " + s.totalFrames);
@@ -264,9 +275,7 @@ function _updateAssemblyUI() {
     }
     if (s.outputSize) lines.push("Output: " + s.outputSize);
 
-    const format =
-      (typeof appState !== "undefined" ? appState.exportFormat : "webm") ||
-      "webm";
+    const format = (typeof window !== "undefined" && window.sgState ? window.sgState.exportFormat : "webm") || "webm";
     const coopCoepSatisfied = typeof SharedArrayBuffer !== "undefined";
     const needMultiThreaded = format === "mp4" && coopCoepSatisfied;
 
@@ -522,14 +531,15 @@ export async function assembleFromStorage(pipeline, recorderRef) {
     syncResolutionsToUIDropdown(detectedWidth, detectedHeight);
   }
 
-  recorderRef._recordingWidth = detectedWidth || appState.exportWidth || 1280;
-  recorderRef._recordingHeight = detectedHeight || appState.exportHeight || 720;
+  const state = getAppState(recorderRef);
+  recorderRef._recordingWidth = detectedWidth || state.exportWidth || 1280;
+  recorderRef._recordingHeight = detectedHeight || state.exportHeight || 720;
   recorderRef._firstFrameBytes = firstBytes ? firstBytes.slice() : null;
 
   const overlay = document.getElementById("processing-overlay");
   overlay.style.display = "flex";
   const ffmpeg = await loadFFmpeg(
-    (typeof appState !== "undefined" ? appState.exportFormat : null) || "webm",
+    state.exportFormat || "webm",
     recorderRef,
     onFFmpegLog,
   );
@@ -651,10 +661,11 @@ export async function assemble(
     }
   }
 
+  const state = getAppState(recorderRef);
   var finalW =
-    detectedWidth || recordingWidth || resolveRecordingResolution().width;
+    detectedWidth || recordingWidth || state.exportWidth || 1280;
   var finalH =
-    detectedHeight || recordingHeight || resolveRecordingResolution().height;
+    detectedHeight || recordingHeight || state.exportHeight || 720;
 
   const useChunked = shouldUseChunkedAssembly(frameCount, finalW, finalH);
 
@@ -783,8 +794,9 @@ async function _assemble(
   const fill = document.getElementById("progress-fill");
   const previewCanvas = document.getElementById("preview-canvas");
 
-  const targetW = recordingWidth || resolveRecordingResolution().width;
-  const targetH = recordingHeight || resolveRecordingResolution().height;
+  const state = getAppState(recorderRef);
+  const targetW = recordingWidth || state.exportWidth || 1280;
+  const targetH = recordingHeight || state.exportHeight || 720;
 
   const alignedW = Math.floor(targetW / 2) * 2;
   const alignedH = Math.floor(targetH / 2) * 2;
@@ -807,7 +819,7 @@ async function _assemble(
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, alignedW, alignedH);
   }
-  overlay.style.display = "flex";
+  if (overlay) overlay.style.display = "flex";
 
   if (
     ctx &&
@@ -835,14 +847,15 @@ async function _assemble(
     }
   }
 
-  var oc = overlay.querySelector("div");
-  if (oc) {
-    // Rely on pristine and consistent index.html inline styling to prevent dynamic layout resizing jitter.
-    oc.style.maxWidth = "800px";
-    oc.style.height = "auto";
+  if (overlay) {
+    var oc = overlay.querySelector("div");
+    if (oc) {
+      oc.style.maxWidth = "800px";
+      oc.style.height = "auto";
+    }
   }
 
-  const params = getEncodingParams(alignedW, alignedH);
+  const params = getEncodingParams(alignedW, alignedH, recorderRef?.config);
   const format = params.format;
   const fps = params.fps;
   const outputFile = params.outputFile;
@@ -936,7 +949,6 @@ async function _assemble(
     for (let c = 0; c < numChunks; c++) {
       let framesInThisChunk = doubleBufferLengths[activeBufferIdx];
 
-      // Grab and draw the first frame of each batch/chunk of the double-buffer upstream
       if (framesInThisChunk > 0 && ctx) {
         var firstChunkFrame = doubleBuffer[activeBufferIdx][0];
         if (firstChunkFrame) {
@@ -971,7 +983,6 @@ async function _assemble(
           "frame_" + String(i).padStart(6, "0") + ".png",
           frameData,
         );
-        // Instant standard RAM clearing of frame buffer reference to eliminate GC burden
         doubleBuffer[activeBufferIdx][i] = null;
 
         _assemblyStats.verifiedFrames = framesProcessed + i + 1;
@@ -988,7 +999,8 @@ async function _assemble(
         alignedW,
         alignedH,
         chunkName,
-        framesProcessed, // Continuous starting timestamp offset for sequential chunks
+        framesProcessed,
+        recorderRef?.config
       );
 
       let nextBufferIdx = (activeBufferIdx + 1) % 2;
@@ -1073,7 +1085,6 @@ async function _assemble(
       }
     }
 
-    // Release all preloaded frame array buffers and doubleBuffer structures inside JS context to prevent post-render memory stagnation
     doubleBuffer = null;
     doubleBufferLengths = null;
 
@@ -1149,7 +1160,7 @@ async function _assemble(
         }
       }
       setTimeout(() => {
-        overlay.style.display = "none";
+        if (overlay) overlay.style.display = "none";
       }, 3000);
       return;
     }
@@ -1159,7 +1170,7 @@ async function _assemble(
     _assemblyStats.encodeStartTime = performance.now();
     _updateAssemblyUI();
 
-    const args = buildAssemblyArgs(alignedW, alignedH, outputFile);
+    const args = buildAssemblyArgs(alignedW, alignedH, outputFile, recorderRef?.config);
     console.log(
       "[FFmpeg] Assembly:",
       format.toUpperCase(),
@@ -1218,30 +1229,26 @@ async function _assemble(
       console.log("======================================================================");
     }
 
-    // Diagnostic Probe of the generated output file before we do anything else
     console.log("======================================================================");
     console.log("[FFmpeg Diagnostics] STARTING METADATA PROBE OF:", outputFile);
     console.log("======================================================================");
     try {
       await ffmpeg.exec(["-i", outputFile]);
-    } catch (probeErr) {
-      // ffmpeg exits with code 1 when given -i with no output parameters, which is expected
-    }
+    } catch (probeErr) {}
     console.log("======================================================================");
     console.log("[FFmpeg Diagnostics] METADATA PROBE COMPLETED.");
     console.log("======================================================================");
 
     try {
       const logsArray = (recorderRef && recorderRef._ffmpegLogs) || [];
-      const finalW = resolveRecordingResolution().width;
-      const finalH = resolveRecordingResolution().height;
-      const params = getEncodingParams(alignedW, alignedH);
+      const finalW = resolveRecordingResolution(recorderRef?.config).width;
+      const finalH = resolveRecordingResolution(recorderRef?.config).height;
+      const params = getEncodingParams(alignedW, alignedH, recorderRef?.config);
       inspectProbeResults(logsArray, totalFrames, params.fps, finalW, finalH);
     } catch (probeParseErr) {
       console.warn("[Integrity Check] Failed to complete metadata check parser:", probeParseErr);
     }
 
-    // Detailed clues/guidelines on why certain output files might feel "broken" on some players
     console.log("[FFmpeg Diagnostics] CLUES & TROUBLESHOOTING PLAYBACK ISSUES:");
     console.log("----------------------------------------------------------------------");
     console.log("1. ULTRA HIGH RESOLUTION (e.g. 4K, 3840x2160 @ 60fps) LIMITS:");
@@ -1279,8 +1286,14 @@ async function _assemble(
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download =
-        "Sine-Gordon-Render_" + Date.now() + "." + (format === "mp4" ? "mp4" : "webm");
+      
+      let videoFilename;
+      if (recorderRef && typeof recorderRef.getExportFilename === "function") {
+        videoFilename = recorderRef.getExportFilename(format === "mp4" ? "mp4" : "webm");
+      } else {
+        videoFilename = "Sine-Gordon-Render_" + Date.now() + "." + (format === "mp4" ? "mp4" : "webm");
+      }
+      a.download = videoFilename;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     }
