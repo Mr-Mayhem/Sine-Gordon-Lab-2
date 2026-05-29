@@ -10,20 +10,17 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "/js/recorder-library/vendor/three/three.module.js",
-        "three/": "/js/recorder-library/vendor/three/",
-        "three/addons/": "/js/recorder-library/vendor/three/addons/"
+        "three": "/vendor/three/three.module.js",
+        "three/": "/vendor/three/",
+        "three/addons/": "/vendor/three/addons/"
       }
     }
   </script>
 
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Video Recording Library — Embedded Reference Example</title>
 
-  <!-- Tailwind CSS Play CDN for rich styling in the mock environment -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  
   <!-- Encapsulated styles supporting overlays, responsive HUD panels, and custom scrollbars -->
   <link rel="stylesheet" href="/js/recorder-library/ui-templates/combined-styles.css">
 
@@ -33,14 +30,232 @@
   <script src="/js/recorder-library/vendor/file-saver/FileSaver.min.js?v=fresh10"></script>
 
   <style>
-    /* Add smooth transitions and backdrop effects */
-    body {
-      background-color: #050508;
+    /* Full Tailwind Utility Mapping explicitly designed for offline/secure iframe loads */
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .grid { display: grid; }
+    .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hidden { display: none; }
+    @media (min-width: 768px) {
+      .md\:flex { display: flex; }
+      .md\:block { display: block; }
+      .md\:flex-nowrap { flex-wrap: nowrap; }
+    }
+    .items-center { align-items: center; }
+    .items-baseline { align-items: baseline; }
+    .justify-center { justify-content: center; }
+    .justify-between { justify-content: space-between; }
+    .flex-wrap { flex-wrap: wrap; }
+    .self-stretch { align-self: stretch; }
+    .shrink-0 { flex-shrink: 0; }
+    .flex-1 { flex: 1 1 0%; }
+
+    /* Position & Z-Index */
+    .absolute { position: absolute; }
+    .fixed { position: fixed; }
+    .relative { position: relative; }
+    .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+    .top-6 { top: 1.5rem; }
+    .left-6 { left: 1.5rem; }
+    .right-6 { right: 1.5rem; }
+    .bottom-6 { bottom: 1.5rem; }
+    .top-\[80px\] { top: 80px; }
+    .top-\[110px\] { top: 110px; }
+    .top-\[18px\] { top: 18px; }
+    .right-\[18px\] { right: 18px; }
+    .left-1\/2 { left: 50%; }
+    .-translate-x-1\/2 { transform: translateX(-50%); }
+    .z-0 { z-index: 0; }
+    .z-10 { z-index: 10; }
+    .z-40 { z-index: 40; }
+    .z-\[1000\] { z-index: 1000; }
+
+    /* Dimensions & Overflow */
+    .w-full { width: 100%; }
+    .h-full { height: 100%; }
+    .w-8 { width: 2rem; }
+    .h-8 { height: 2rem; }
+    .h-7 { height: 1.75rem; }
+    .h-9 { height: 2.25rem; }
+    .w-3 { width: 0.75rem; }
+    .h-3 { height: 0.75rem; }
+    .w-80 { width: 20rem; }
+    .w-24 { width: 6rem; }
+    .w-28 { width: 7rem; }
+    .w-\[50px\] { width: 50px; }
+    .w-\[45px\] { width: 45px; }
+    .w-\[calc\(100\%-3rem\)\] { width: calc(100% - 3rem); }
+    .max-w-4xl { max-width: 56rem; }
+    .max-w-\[760px\] { max-width: 760px; }
+    .max-w-\[720px\] { max-width: 720px; }
+    .max-w-\[140px\] { max-width: 140px; }
+    .h-\[88vh\] { height: 88vh; }
+    .max-h-\[820px\] { max-height: 820px; }
+    .h-\[22px\] { height: 22px; }
+    .min-h-0 { min-height: 0; }
+    .min-h-\[220px\] { min-height: 220px; }
+    .min-h-\[112px\] { min-height: 112px; }
+    .h-1 { height: 0.25rem; }
+    .aspect-video { aspect-ratio: 16 / 9; }
+    .overflow-hidden { overflow: hidden; }
+    .overflow-y-scroll { overflow-y: scroll; }
+
+    /* Margins & Paddings */
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .mt-0 { margin-top: 0px; }
+    .mt-1 { margin-top: 0.25rem; }
+    .mb-1 { margin-bottom: 0.25rem; }
+    .mr-10 { margin-right: 2.5rem; }
+    .space-y-0\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.125rem; }
+    .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.375rem; }
+    .p-2\.5 { padding: 0.625rem; }
+    .p-4 { padding: 1rem; }
+    .p-5 { padding: 1.25rem; }
+    .p-6 { padding: 1.5rem; }
+    .px-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
+    .px-2\.5 { padding-left: 0.625rem; padding-right: 0.625rem; }
+    .py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+    .px-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+    .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+    .pb-1 { padding-bottom: 0.25rem; }
+    .pb-2 { padding-bottom: 0.5rem; }
+    .pt-3 { padding-top: 0.75rem; }
+    .py-0 { padding-top: 0px; padding-bottom: 0px; }
+    .py-0\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+    .px-1\.5 { padding-left: 0.375rem; padding-right: 0.375rem; }
+    .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+
+    /* Borders & Radius */
+    .border { border: 1px solid rgba(255, 255, 255, 0.1); }
+    .border-0 { border: 0; }
+    .border-t { border-top: 1px solid rgba(255, 255, 255, 0.12); }
+    .border-b { border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+    .border-white\/10 { border-color: rgba(255, 255, 255, 0.1); }
+    .border-white\/5 { border-color: rgba(255, 255, 255, 0.05); }
+    .border-white\/15 { border-color: rgba(255, 255, 255, 0.15); }
+    .border-red-500\/30 { border-color: rgba(239, 68, 68, 0.3); }
+    .border-red-500\/60 { border-color: rgba(239, 68, 68, 0.6); }
+    .border-cyan-500\/30 { border-color: rgba(6, 182, 212, 0.3); }
+    .rounded { border-radius: 0.25rem; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .rounded-xl { border-radius: 0.75rem; }
+    .rounded-2xl { border-radius: 1rem; }
+    .rounded-full { border-radius: 9999px; }
+    .rounded-\[10px\] { border-radius: 10px; }
+    .rounded-\[12px\] { border-radius: 12px; }
+    .rounded-\[20px\] { border-radius: 20px; }
+
+    /* Colors & Backgrounds */
+    .bg-black\/50 { background-color: rgba(0, 0, 0, 0.5); }
+    .bg-black\/40 { background-color: rgba(0, 0, 0, 0.4); }
+    .bg-black\/60 { background-color: rgba(0, 0, 0, 0.6); }
+    .bg-black\/95 { background-color: rgba(0, 0, 0, 0.95); }
+    .bg-black { background-color: #000; }
+    .bg-white\/5 { background-color: rgba(255, 255, 255, 0.05); }
+    .bg-white\/10 { background-color: rgba(255, 255, 255, 0.1); }
+    .bg-white\/20 { background-color: rgba(255, 255, 255, 0.2); }
+    .bg-white\/\[0\.02\] { background-color: rgba(255, 255, 255, 0.02); }
+    .bg-cyan-500\/15 { background-color: rgba(6, 182, 212, 0.15); }
+    .bg-cyan-500\/25 { background-color: rgba(6, 182, 212, 0.25); }
+    .bg-red-500\/25 { background-color: rgba(239, 68, 68, 0.25); }
+    .bg-red-500\/5 { background-color: rgba(239, 68, 68, 0.05); }
+    .bg-zinc-800 { background-color: #27272a; }
+    .bg-zinc-900\/75 { background-color: rgba(24, 24, 27, 0.75); }
+    .bg-zinc-900\/95 { background-color: rgba(24, 24, 27, 0.95); }
+    .bg-zinc-950\/80 { background-color: rgba(9, 9, 11, 0.8); }
+
+    /* Hover States & Dynamic */
+    .hover\:bg-white\/10:hover { background-color: rgba(255, 255, 255, 0.1); }
+    .hover\:bg-white\/20:hover { background-color: rgba(255, 255, 255, 0.2); }
+    .hover\:bg-zinc-700\/80:hover { background-color: rgba(63, 63, 70, 0.8); }
+    .hover\:bg-red-500\/10:hover { background-color: rgba(239, 68, 68, 0.1); }
+    .hover\:text-white:hover { color: #fff; }
+    .active\:scale-95:active { transform: scale(0.95); }
+
+    /* Typography */
+    .text-white { color: #ffffff; }
+    .text-white\/90 { color: rgba(255, 255, 255, 0.9); }
+    .text-white\/80 { color: rgba(255, 255, 255, 0.8); }
+    .text-white\/70 { color: rgba(255, 255, 255, 0.7); }
+    .text-white\/60 { color: rgba(255, 255, 255, 0.6); }
+    .text-white\/50 { color: rgba(255, 255, 255, 0.5); }
+    .text-white\/40 { color: rgba(255, 255, 255, 0.4); }
+    .text-white\/30 { color: rgba(255, 255, 255, 0.3); }
+    .text-red-500 { color: #ef4444; }
+    .text-red-400 { color: #f87171; }
+    .text-\[\#00ffcc\] { color: #00ffcc; }
+    .text-cyan-400 { color: #22d3ee; }
+    .text-amber-300 { color: #fcd34d; }
+    .text-amber-400 { color: #fbbf24; }
+    .font-sans { font-family: ui-sans-serif, system-ui, sans-serif; }
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .text-md { font-size: 1.125rem; }
+    .text-xs { font-size: 0.75rem; }
+    .text-\[9px\] { font-size: 9px; }
+    .text-\[9\.5px\] { font-size: 9.5px; }
+    .text-\[8px\] { font-size: 8px; }
+    .text-\[8\.5px\] { font-size: 8.5px; }
+    .text-\[10px\] { font-size: 10px; }
+    .font-bold { font-weight: 700; }
+    .font-black { font-weight: 900; }
+    .font-medium { font-weight: 500; }
+    .uppercase { text-transform: uppercase; }
+    .tracking-tight { letter-spacing: -0.025em; }
+    .tracking-wider { letter-spacing: 0.05em; }
+    .tracking-widest { letter-spacing: 0.1em; }
+    .tracking-\[0\.3em\] { letter-spacing: 0.3em; }
+    .leading-relaxed { line-style-type: none; line-height: 1.625; }
+    .list-disc { list-style-type: disc; }
+    .list-inside { list-style-position: inside; }
+
+    /* Grid Gaps */
+    .gap-0\.5 { gap: 0.125rem; }
+    .gap-1 { gap: 0.25rem; }
+    .gap-1\.5 { gap: 0.375rem; }
+    .gap-2 { gap: 0.5rem; }
+    .gap-3 { gap: 0.75rem; }
+    .gap-3\.5 { gap: 0.875rem; }
+    .gap-4 { gap: 1rem; }
+
+    /* Miscellaneous */
+    .select-none { user-select: none; }
+    .select-text { user-select: text; }
+    .pointer-events-auto { pointer-events: auto; }
+    .pointer-events-none { pointer-events: none; }
+    .accent-\[\#00ffcc\] { accent-color: #00ffcc; }
+    .accent-\[\#00aaff\] { accent-color: #00aaff; }
+    .appearance-none { appearance: none; }
+    .cursor-pointer { cursor: pointer; }
+    .backdrop-blur-md { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .backdrop-blur-\[24px\] { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+    .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+    .shadow-inner { box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06); }
+    .object-contain { object-fit: contain; }
+    .scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 99px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+    /* Full view lock to completely prevent page/canvas scrolling */
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #050505;
       color: #e4e4e7;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     }
     .main-canvas-container {
-      background: radial-gradient(circle at center, #151520 0%, #05050a 100%);
+      background: radial-gradient(circle at center, #101015 0%, #050505 100%);
     }
     @keyframes pulse-custom {
       0%, 100% { transform: scale(1); opacity: 1; }
@@ -48,6 +263,14 @@
     }
     .indicator-pulse-dot {
       animation: pulse-custom 1s infinite ease-in-out;
+    }
+    /* Symmetrical glassmorphism theme layout borrowed from the master project */
+    .glass-panel {
+      background: rgba(10, 10, 15, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
     }
   </style>
 </head>
@@ -60,9 +283,9 @@
   </div>
 
   <!-- Floating Header (Upper-Left Corner) -->
-  <div class="absolute top-6 left-6 z-10 pointer-events-auto flex flex-col gap-0.5 bg-black/50 border border-white/10 backdrop-blur-md p-4 rounded-xl shadow-2xl">
+  <div class="absolute top-6 left-6 z-10 pointer-events-auto flex flex-col gap-0.5 glass-panel p-4 rounded-xl shadow-2xl">
     <h1 class="text-md font-bold tracking-tight text-white flex items-center gap-2 select-none">
-      📹 Recording Library Reference
+      📹 Recording Reference Reference
     </h1>
     <p class="text-[9px] text-[#00ffcc] font-mono uppercase tracking-widest select-none">
       Demonstrate Three.js canvas interception • High-Quality exports
@@ -71,13 +294,13 @@
 
   <!-- Floating Navigation & Diagnostics (Upper-Right Corner) -->
   <div class="absolute top-6 right-6 z-10 pointer-events-auto flex gap-2">
-    <a href="../README.txt" target="_blank" class="h-8 px-4 flex items-center justify-center text-[10px] font-mono font-bold uppercase tracking-wider bg-black/40 border border-white/10 hover:bg-white/10 text-white rounded-lg backdrop-blur-md transition-all active:scale-95">
+    <a href="../README.txt" target="_blank" class="h-8 px-4 flex items-center justify-center text-[10px] font-mono font-bold uppercase tracking-wider glass-panel hover:bg-white/10 text-white rounded-lg transition-all active:scale-95">
       📄 README
     </a>
     <a href="/" class="h-8 px-4 flex items-center justify-center text-[10px] font-mono font-bold uppercase tracking-wider bg-cyan-500/15 border border-cyan-500/30 hover:bg-cyan-500/25 text-[#00ffcc] rounded-lg backdrop-blur-md transition-all active:scale-95">
       🌌 Back to Main Lab
     </a>
-    <button id="btn-demo-diagnostics" class="h-8 px-4 text-[10px] font-mono font-bold uppercase tracking-wider rounded border border-white/10 bg-black/40 text-white/90 hover:bg-white/10 backdrop-blur-md transition-all active:scale-95 cursor-pointer">
+    <button id="btn-demo-diagnostics" class="h-8 px-4 text-[10px] font-mono font-bold uppercase tracking-wider rounded glass-panel text-white/90 hover:bg-white/10 transition-all active:scale-95 cursor-pointer">
       🧪 Diagnostic Suite
     </button>
   </div>
@@ -94,7 +317,7 @@
   <aside class="hidden md:flex absolute top-[110px] right-6 w-80 z-10 pointer-events-auto flex-col gap-4 select-none">
     
     <!-- Interactive Calibration Control Card -->
-    <div class="p-5 border border-white/10 bg-zinc-900/75 rounded-2xl flex flex-col gap-3.5 backdrop-blur-md shadow-2xl">
+    <div class="p-5 glass-panel rounded-2xl flex flex-col gap-3.5 shadow-2xl">
       <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
         <span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Toy Animation Settings
       </h2>
@@ -117,7 +340,7 @@
     </div>
 
     <!-- Documentation & Tips Card -->
-    <div class="p-5 border border-white/10 bg-black/60 rounded-2xl flex flex-col gap-3 text-xs leading-relaxed text-white/70 backdrop-blur-md shadow-2xl">
+    <div class="p-5 glass-panel rounded-2xl flex flex-col gap-3 text-xs leading-relaxed text-white/70 shadow-2xl">
       <h3 class="font-mono font-bold text-[#00ffcc] uppercase tracking-wider text-[10px] flex items-center gap-1.5">
         ℹ️ Integration Landmarks
       </h3>
@@ -133,16 +356,16 @@
   </aside>
 
   <!-- Embedded Watermark (Bottom-Left Corner) -->
-  <div class="absolute bottom-6 left-6 pointer-events-none select-none font-mono text-[9px] uppercase tracking-widest bg-black/60 border border-white/10 px-2.5 py-1.5 rounded-lg text-[#00ffcc]/80 backdrop-blur-sm z-10">
+  <div class="absolute bottom-6 left-6 pointer-events-none select-none font-mono text-[9px] uppercase tracking-widest glass-panel px-2.5 py-1.5 rounded-lg text-[#00ffcc]/80 z-10">
     Interactive Toy Animation • Active Capturing Viewport
   </div>
 
   <!-- Integrated Video Settings Panel (Centered Bottom Dashboard) -->
-  <div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-4xl z-10 pointer-events-auto p-4 bg-zinc-950/80 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-md">
+  <div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-4xl z-10 pointer-events-auto p-4 glass-panel rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
     <div class="flex items-center justify-between w-full flex-wrap gap-4 md:flex-nowrap">
       <!-- Action Trigger Button -->
       <div class="flex items-center gap-3 shrink-0">
-        <button id="btn-video" class="h-9 px-5 text-xs font-mono font-bold uppercase tracking-wider rounded-lg border border-red-500/30 bg-red-500/5 text-red-00 hover:bg-red-500/10 active:scale-95 transition-all cursor-pointer whitespace-nowrap">
+        <button id="btn-video" class="h-9 px-5 text-xs font-mono font-bold uppercase tracking-wider rounded-lg border border-red-500/30 bg-red-500/5 text-red-400 hover:bg-red-500/10 active:scale-95 transition-all cursor-pointer whitespace-nowrap">
           ⏺ Start Capture
         </button>
       </div>
