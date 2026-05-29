@@ -297,7 +297,15 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
                           if (fill) fill.style.width = meta.percent.toFixed(0) + "%";
                       }
                   });
-                  window.saveAs(content, zipFilename);
+                  if (recorderRef) {
+                      recorderRef._lastGeneratedBlob = content;
+                      if (typeof recorderRef._onBlobGenerated === "function") {
+                          recorderRef._onBlobGenerated(content);
+                      }
+                  }
+                  if (!(recorderRef && recorderRef._returnBlobDirectly)) {
+                      window.saveAs(content, zipFilename);
+                  }
               }
           }
       } else {
@@ -308,7 +316,15 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
                   if (fill) fill.style.width = meta.percent.toFixed(0) + "%";
               }
           });
-          window.saveAs(content, zipFilename);
+          if (recorderRef) {
+              recorderRef._lastGeneratedBlob = content;
+              if (typeof recorderRef._onBlobGenerated === "function") {
+                  recorderRef._onBlobGenerated(content);
+              }
+          }
+          if (!(recorderRef && recorderRef._returnBlobDirectly)) {
+              window.saveAs(content, zipFilename);
+          }
       }
       
       if (recorderRef && recorderRef._pipeline === "local") {

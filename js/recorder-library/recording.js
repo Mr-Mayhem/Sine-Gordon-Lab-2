@@ -63,6 +63,42 @@ export default class RecordingEngine {
   setProgressCallback(callback) { this._onProgress = callback; }
   setFrameLimit(limit) { this._frameLimit = limit; }
 
+  startRecording() {
+    this._returnBlobDirectly = true;
+    this._lastGeneratedBlob = null;
+    this._blobPromise = new Promise((resolve, reject) => {
+      this._resolveBlob = resolve;
+      this._rejectBlob = reject;
+    });
+    this._onBlobGenerated = (blob) => {
+      if (this._resolveBlob) {
+        this._resolveBlob(blob);
+        this._resolveBlob = null;
+        this._rejectBlob = null;
+      }
+    };
+    this._onAssemblyError = (err) => {
+      if (this._rejectBlob) {
+        this._rejectBlob(err);
+        this._resolveBlob = null;
+        this._rejectBlob = null;
+      }
+    };
+    return this.start();
+  }
+
+  async stopRecording() {
+    await this.stop();
+    if (this._blobPromise) {
+      return this._blobPromise;
+    }
+    return null;
+  }
+
+  async captureFrame() {
+    return await this.captureAndWait();
+  }
+
   getExportFilename(extension) {
     let name = this.config.exportFilename;
     if (!name) {

@@ -1280,11 +1280,20 @@ async function _assemble(
       type: format === "mp4" ? "video/mp4" : "video/webm",
     });
 
+    if (recorderRef) {
+      recorderRef._lastGeneratedBlob = blob;
+      if (typeof recorderRef._onBlobGenerated === "function") {
+        recorderRef._onBlobGenerated(blob);
+      }
+    }
+
     if (recorderRef && recorderRef.isTesting) {
       console.log("[FFmpeg Test] Intercepted video compilation in automated test mode!");
       if (window.onTestVideoBlobGenerated) {
         window.onTestVideoBlobGenerated(blob);
       }
+    } else if (recorderRef && recorderRef._returnBlobDirectly) {
+      console.log("[FFmpeg API] Intercepted video compilation for direct return!");
     } else {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1307,6 +1316,9 @@ async function _assemble(
     _updateAssemblyUI();
   } catch (e) {
     console.error("Download failed:", e.message || e);
+    if (recorderRef && typeof recorderRef._onAssemblyError === "function") {
+      recorderRef._onAssemblyError(e);
+    }
     _assemblyStats.currentPhase =
       "Download failed: " + (e.message || "unknown error");
     _updateAssemblyUI();
