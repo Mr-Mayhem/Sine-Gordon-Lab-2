@@ -219,6 +219,8 @@ function initThree() {
     exportFilename: "recorded_threejs_toy"
   });
 
+  window.recorder = recorder;
+
   // Attach renderer
   recorder.init(canvas, renderer);
 
