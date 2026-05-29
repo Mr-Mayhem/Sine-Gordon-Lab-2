@@ -1363,8 +1363,8 @@ export class DiagnosticsManager {
                   }
                 }
 
-                if (probeResult.width !== t.width || probeResult.height !== t.height) {
-                  const mmErr = new Error(`Video output resolution mismatch: parsed ${probeResult.width}x${probeResult.height}, configured ${t.width}x${t.height}.`);
+                if (probeResult.width !== expectedW || probeResult.height !== expectedH) {
+                  const mmErr = new Error(`Video output resolution mismatch: parsed ${probeResult.width}x${probeResult.height}, configured ${expectedW}x${expectedH} (target aligned).`);
                   mmErr.name = "ResolutionMismatchError";
                   throw mmErr;
                 }
