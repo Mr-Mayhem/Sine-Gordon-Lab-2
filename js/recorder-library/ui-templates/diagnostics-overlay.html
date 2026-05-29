@@ -1,0 +1,150 @@
+<!-- 
+  ==========================================================================
+  DIAGNOSTICS & SYSTEM COMPLIANCE OVERLAY — BLUEPRINT MARKUP
+  ==========================================================================
+  Description: Fullscreen diagnostics and testing suite used to run 
+  isolated rendering benchmarks, memory profiling, and compliance tests.
+  Storable: Append to HTML document body. Mount triggers asynchronously.
+  Z-Index: Elevated at 300 to float over main control layers.
+-->
+<div id="diagnostics-overlay" class="fixed inset-0 bg-black/95 backdrop-blur-[12px] z-[300] overflow-y-auto padding-[20px_16px] select-none">
+  
+  <div class="theory-content max-w-[880px] margin-[10px_auto] bg-neutral-950/85 border border-white/10 rounded-xl p-4 md:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+    
+    <!-- Header Diagnostics Bar -->
+    <header class="flex justify-between items-center border-b border-white/10 pb-2 mb-3">
+      <div>
+        <h1 class="text-xs font-mono font-bold tracking-wider text-white uppercase select-none">
+          Video Pipeline Diagnostics
+        </h1>
+        <p class="text-white/35 font-mono text-[6px] md:text-[7px] uppercase tracking-[0.12em] mt-0.5 select-none">
+          Automated compliance checks • Frame rate integrity benchmarks
+        </p>
+      </div>
+      <!-- ID: #btn-close-diagnostics (Closes panel and sweeps heap memory allocations) -->
+      <button id="btn-close-diagnostics" class="w-5 h-5 text-white hover:bg-white/15 text-[8px] border border-white/10 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-95">✕</button>
+    </header>
+
+    <!-- System Diagnostic Hardware Metadata Panel -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-2 bg-white/[0.015] border border-white/5 rounded-lg p-2 mb-3 text-[7px] font-mono text-white/60">
+      <div>
+        <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block select-none">System Cores:</span>
+        <strong id="diag-cores" class="text-white">8 Cores</strong>
+      </div>
+      <div>
+        <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block select-none">Reported Memory:</span>
+        <strong id="diag-mem" class="text-white">8.00 GB RAM</strong>
+      </div>
+      <div>
+        <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block select-none">SharedArrayBuffer:</span>
+        <!-- Green indicator means support is active (Multi-threaded possible) -->
+        <strong id="diag-sab" class="text-[#00ffcc]">SUPPORTED (MT Enabled)</strong>
+      </div>
+      <div>
+        <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block select-none">OPFS Sandbox:</span>
+        <strong id="diag-opfs" class="text-[#00ffcc]">AVAILABLE</strong>
+      </div>
+    </section>
+
+    <!-- Action Filter Control Row -->
+    <div class="flex flex-wrap items-center justify-between gap-2.5 bg-white/[0.02] border border-white/5 p-2 px-3 rounded-lg mb-3">
+      <div class="flex flex-wrap gap-2 md:gap-4 items-center">
+        <!-- Selector 1: Diagnostic Assembly Target Mode -->
+        <div class="flex items-center gap-1.5 text-[6.5px] font-mono text-white uppercase font-bold tracking-wider border-r border-white/10 pr-2 md:pr-4">
+          <span class="text-white/45">Mode:</span>
+          <select id="sel-diagnostic-mode" class="h-5 py-0 text-[7px] font-mono font-bold bg-white/5 border border-white/15 rounded text-white focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer transition-colors">
+            <option value="Frames_to_Zip" selected>Frames_to_Zip</option>
+            <option value="Zip_to_Video_WebM">Zip_to_Video (WebM)</option>
+            <option value="Zip_to_Video_MP4_ST">Zip_to_Video (MP4 ST)</option>
+            <option value="Zip_to_Video_MP4_MT" id="opt-zip-mp4-mt">Zip_to_Video (MP4 MT)</option>
+            <option value="Frames_to_Video_WebM">Frames_to_Video (WebM)</option>
+            <option value="Frames_to_Video_MP4_ST">Frames_to_Video (MP4 ST)</option>
+            <option value="Frames_to_Video_MP4_MT" id="opt-frames-mp4-mt">Frames_to_Video (MP4 MT)</option>
+          </select>
+        </div>
+
+        <!-- Selector 2: Target CRF Compression Factor -->
+        <div class="flex items-center gap-1.5 text-[6.5px] font-mono text-white uppercase font-bold tracking-wider border-r border-white/10 pr-2 md:pr-4" id="box-diagnostic-compression" style="display: none;">
+          <span class="text-white/45">Compression:</span>
+          <select id="sel-diagnostic-compression" class="h-5 py-0 text-[7px] font-mono font-bold bg-white/5 border border-white/15 rounded text-white focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer transition-colors">
+            <option value="18">High Quality (CRF 18)</option>
+            <option value="23" selected>Standard (CRF 23)</option>
+            <option value="28">Eco Space (CRF 28)</option>
+            <option value="32">Extreme Space (CRF 32)</option>
+          </select>
+        </div>
+
+        <!-- Checkbox: Toggle Mass Selection -->
+        <label class="flex items-center gap-1.5 text-[6.5px] font-mono text-white/55 uppercase font-bold cursor-pointer select-none">
+          <input type="checkbox" id="chk-select-all" class="w-2.5 h-2.5 accent-white cursor-pointer" checked>
+          Select All
+        </label>
+      </div>
+
+      <!-- Action Button Group (Run Checked list or Cancel current loop) -->
+      <div class="flex items-center gap-1.5 self-end">
+        <button id="btn-cancel-suite" class="hidden text-red-400 bg-red-500/10 hover:bg-red-500/15 border border-red-500/25 px-2 py-0.5 rounded text-[7px] font-mono font-bold uppercase transition-transform cursor-pointer select-none active:scale-95">
+          🛑 Cancel Suite
+        </button>
+        <button id="btn-run-suite" class="bg-emerald-500/15 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3.5 py-0.5 rounded text-[7px] font-mono font-bold uppercase transition-all tracking-wider cursor-pointer select-none active:scale-95 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+          🧪 Execute Checked Tests
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Diagnostic Suite Tests Feed -->
+    <div id="diagnostics-test-feed" class="flex flex-col gap-2 overflow-y-auto pr-1 select-none max-h-[440px] scrollbar-thin">
+      
+      <!-- ITEM CARD 1: Standard Accessible Test -->
+      <div id="test-card-HD-30" class="border border-white/5 bg-white/[0.015] rounded-md p-2 flex flex-col md:flex-row justify-between md:items-center gap-1.5 transition-colors">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1.5">
+            <input type="checkbox" id="chk-test-HD-30" class="w-2.5 h-2.5 accent-white cursor-pointer" checked>
+            <span id="test-title-HD-30" class="text-[8px] font-mono font-bold text-white/95">HD WebM Render (30 FPS)</span>
+            <span class="text-[6px] bg-white/5 hover:bg-white/10 text-white/70 border border-white/15 px-1 py-0.1 rounded font-mono font-bold select-none whitespace-nowrap">45 FMR</span>
+          </div>
+          <p class="text-[6.5px] text-white/40 pl-4 leading-normal">
+            Compiles a 45-frame sequence into standard HD container format utilizing multithreaded pipelines.
+          </p>
+          <div class="pl-4 mt-1 font-mono text-[5.8px] text-white/35">
+            Resolution: <span class="text-white/50">1280x720</span> | Format: <span class="text-white/50">webm</span>
+          </div>
+          <!-- Real-Time Error Box (Revealed upon core execution failure) -->
+          <div id="test-error-HD-30" class="hidden ml-4 border border-red-500/20 bg-red-500/5 text-red-300 font-mono text-[6px] p-2 mt-1.5 rounded-md text-left select-text"></div>
+        </div>
+        <div class="flex items-center justify-end gap-2 pr-1 ml-4 md:ml-0">
+          <span class="text-[6px] font-mono font-medium uppercase select-none rounded px-1.5 py-0.5 border text-emerald-400 bg-emerald-500/10 border-emerald-500/20" id="status-badge-HD-30">COMPLETED</span>
+          <button class="bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/25 border border-white/10 py-0.5 px-2 rounded text-[6px] font-mono font-bold transition-all uppercase cursor-pointer select-none whitespace-nowrap" data-id="HD-30">▶ Run Base</button>
+        </div>
+      </div>
+
+      <!-- ITEM CARD 2: Formatted / Omitted Test Large Resolution Bounds on Handheld Devices -->
+      <!-- Note: Opacity-45 signifies restriction. The checkbox is programmatically disabled -->
+      <div id="test-card-UHD-4K" class="border border-white/5 bg-white/[0.015] rounded-md p-2 flex flex-col md:flex-row justify-between md:items-center gap-1.5 transition-colors opacity-45">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1.5">
+            <input type="checkbox" id="chk-test-UHD-4K" class="w-2.5 h-2.5 accent-white cursor-pointer" disabled>
+            <span id="test-title-UHD-4K" class="text-[8px] font-mono font-bold text-white/40 line-through">UHD Ultra-4K MP4 (60 FPS)</span>
+            <span class="text-[6px] bg-white/5 hover:bg-white/10 text-white/70 border border-white/15 px-1 py-0.1 rounded font-mono font-bold select-none whitespace-nowrap">90 FMR</span>
+          </div>
+          <p class="text-[6.5px] text-white/30 pl-4 leading-normal">
+            Stress-test compiling a massive 4K resolution benchmark video. Highly resource intensive.
+          </p>
+          <div class="pl-4 mt-1 font-mono text-[5.8px] text-white/35">
+            Resolution: <span class="text-white/50">3840x2160</span> | Format: <span class="text-white/50">mp4</span>
+          </div>
+          <!-- Omission Notice Banner -->
+          <div class="ml-4 mt-1 text-amber-500/70 font-mono text-[6px] font-bold select-none uppercase">
+            ⚠ Omitted: Format Too Large for Device Screen (834x1112)
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 pr-1 ml-4 md:ml-0">
+          <!-- Omitted status badge replacement -->
+          <span class="text-[6px] font-mono font-bold uppercase select-none rounded px-2 py-0.5 border border-amber-500/20 bg-amber-500/10 text-amber-300">Format Too Large</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
