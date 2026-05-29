@@ -7,6 +7,7 @@
 
 import { DiscSpaceEstimator } from "./disc-space-estimator.js";
 import { LogNexus } from "./logger.js";
+import { resolveRecordingResolution } from "./recorder-library/video-filters.js";
 
 class EnvironmentDetector {
   static detect() {
@@ -449,7 +450,7 @@ export class DiagnosticsManager {
 
     const RESOLUTIONS = [
       { name: "SD 360p", width: 640, height: 360, fps: 30 },
-      { name: "SD 480p", width: 852, height: 480, fps: 30 },
+      { name: "SD 480p", width: 854, height: 480, fps: 30 },
       { name: "HD 720p", width: 1280, height: 720, fps: 30 },
       { name: "FHD 1080p", width: 1920, height: 1080, fps: 30, highRes: true },
       { name: "QHD 1440p", width: 2560, height: 1440, fps: 30, highRes: true },
@@ -921,12 +922,13 @@ export class DiagnosticsManager {
         this.updateTestErrorUI(t.id, null); // Clear existing error UI
 
         let savedDirName = null;
-        let expectedW = t.width;
-        let expectedH = t.height;
-        if (t.width > 1920 || t.height > 1080) {
-          const scaleFactor = Math.min(1920 / t.width, 1080 / t.height);
-          expectedW = Math.floor((t.width * scaleFactor) / 2) * 2;
-          expectedH = Math.floor((t.height * scaleFactor) / 2) * 2;
+        const res = resolveRecordingResolution({ exportWidth: t.width, exportHeight: t.height });
+        let expectedW = res.width;
+        let expectedH = res.height;
+        if (expectedW > 1920 || expectedH > 1080) {
+          const scaleFactor = Math.min(1920 / expectedW, 1080 / expectedH);
+          expectedW = Math.floor((expectedW * scaleFactor) / 2) * 2;
+          expectedH = Math.floor((expectedH * scaleFactor) / 2) * 2;
         }
 
         try {
