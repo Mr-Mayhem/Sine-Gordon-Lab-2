@@ -19,51 +19,81 @@ let recorder = null;
 
 // Initialize minimal sgState mock for diagnostics compatibility
 window.sgState = {
+  _exportWidth: 1280,
+  _exportHeight: 720,
+  _exportFormat: "mp4",
+  _exportFPS: 30,
+  _exportPipeline: "ffmpeg",
   get isRecording() { return recorder ? recorder.isRecording : false; },
   set isRecording(v) { if (recorder) recorder.isRecording = v; },
-  get exportPipeline() { return document.getElementById("sel-pipeline")?.value || "ffmpeg"; },
+  get exportPipeline() { return this._exportPipeline; },
   set exportPipeline(v) { 
+    this._exportPipeline = v;
     const el = document.getElementById("sel-pipeline");
     if (el) el.value = v; 
     if (recorder) recorder._pipeline = v;
   },
-  get exportFormat() { return document.getElementById("sel-format")?.value || "mp4"; },
+  get exportFormat() { return this._exportFormat; },
   set exportFormat(v) { 
+    this._exportFormat = v;
     const el = document.getElementById("sel-format");
     if (el) el.value = v; 
     if (recorder) recorder.config.exportFormat = v;
   },
-  get exportFPS() { return Number(document.getElementById("sel-fps")?.value || 30); },
+  get exportFPS() { return this._exportFPS; },
   set exportFPS(v) { 
+    this._exportFPS = Number(v);
     const el = document.getElementById("sel-fps");
     if (el) el.value = String(v); 
     if (recorder) recorder.config.exportFPS = Number(v);
   },
-  get exportWidth() { 
-    const val = document.getElementById("sel-res")?.value || "1280x720";
-    return Number(val.split("x")[0]);
-  },
+  get exportWidth() { return this._exportWidth; },
   set exportWidth(v) {
-    const el = document.getElementById("sel-res");
-    if (el) {
-      const h = window.sgState.exportHeight;
-      el.value = `${v}x${h}`;
-    }
+    this._exportWidth = Number(v);
     if (recorder) recorder.config.exportWidth = Number(v);
+    syncResolutionUI();
   },
-  get exportHeight() {
-    const val = document.getElementById("sel-res")?.value || "1280x720";
-    return Number(val.split("x")[1]);
-  },
+  get exportHeight() { return this._exportHeight; },
   set exportHeight(v) {
-    const el = document.getElementById("sel-res");
-    if (el) {
-      const w = window.sgState.exportWidth;
-      el.value = `${w}x${v}`;
-    }
+    this._exportHeight = Number(v);
     if (recorder) recorder.config.exportHeight = Number(v);
+    syncResolutionUI();
   },
   paused: true
+};
+
+function syncResolutionUI() {
+  const el = document.getElementById("sel-res");
+  if (!el) return;
+  const tgtVal = `${window.sgState._exportWidth}x${window.sgState._exportHeight}`;
+  let optionExists = false;
+  for (let i = 0; i < el.options.length; i++) {
+    if (el.options[i].value === tgtVal) {
+      el.selectedIndex = i;
+      optionExists = true;
+      break;
+    }
+  }
+  if (!optionExists) {
+    const opt = document.createElement("option");
+    opt.value = tgtVal;
+    opt.textContent = tgtVal + " (Custom)";
+    el.appendChild(opt);
+    el.value = tgtVal;
+  }
+}
+
+window.refreshUI = function() {
+  const selPipeline = document.getElementById("sel-pipeline");
+  if (selPipeline) selPipeline.value = window.sgState._exportPipeline;
+  
+  const selFormat = document.getElementById("sel-format");
+  if (selFormat) selFormat.value = window.sgState._exportFormat;
+  
+  const selFps = document.getElementById("sel-fps");
+  if (selFps) selFps.value = String(window.sgState._exportFPS);
+  
+  syncResolutionUI();
 };
 
 // UI State Configurations
@@ -297,7 +327,7 @@ function animate(time) {
   renderer.render(scene, camera);
 
   // SOURCING VITAL CAPTURE STEP
-  if (recorder && recorder.isRecording) {
+  if (recorder && recorder.isRecording && !recorder.isTesting) {
     recorder.captureFrame();
   }
 }
@@ -321,6 +351,32 @@ function wireUI() {
   const btnCloseProc = document.getElementById("btn-close-processing");
   const btnCopyLogs = document.getElementById("btn-copy-logs");
   const btnDemoDiag = document.getElementById("btn-demo-diagnostics");
+
+  // Sync changes in dropdowns back to sgState properties
+  selPipeline.addEventListener("change", (e) => {
+    window.sgState._exportPipeline = e.target.value;
+    if (recorder) recorder._pipeline = e.target.value;
+  });
+  
+  selFormat.addEventListener("change", (e) => {
+    window.sgState._exportFormat = e.target.value;
+    if (recorder) recorder.config.exportFormat = e.target.value;
+  });
+  
+  selFps.addEventListener("change", (e) => {
+    window.sgState._exportFPS = Number(e.target.value);
+    if (recorder) recorder.config.exportFPS = Number(e.target.value);
+  });
+  
+  selRes.addEventListener("change", (e) => {
+    const [w, h] = e.target.value.split("x").map(Number);
+    window.sgState._exportWidth = w;
+    window.sgState._exportHeight = h;
+    if (recorder) {
+      recorder.config.exportWidth = w;
+      recorder.config.exportHeight = h;
+    }
+  });
 
   // Bind speed & density inputs
   paramSpeed.addEventListener("input", (e) => {
