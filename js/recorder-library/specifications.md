@@ -190,6 +190,11 @@ document.getElementById("btn-stop").addEventListener("click", async () => {
 #### Q: The browser console shows `SharedArrayBuffer is not defined`. Will recording crash?
 **A**: No. If `SharedArrayBuffer` is blocked (e.g. your application's proxy server is not configured with necessary Cross-Origin headers), the system automatically degrades gracefully. It falls back dynamically to the **Single-Threaded (ST)** transcode loop. If MP4 format is requested in high-resolutions under simple thread pipelines, it will intelligently switch to **WebM format** which complies beautifully with single-thread compression speeds.
 
+#### Q: Do 720p (or other resolutions) WebM videos play on Apple mobile devices (iPads, iPhones)?
+**A**: No, standard Safari and native WebKit browsers on iPadOS and iOS do not natively support playback of WebM video files in standard `<video>` containers or the native Photos roll, even on modern, high-spec iPads. 
+- **The Resolution**: For perfect native compatibility on Apple hardware (such as Apple tablets and phones), **always select the MP4 format** in the application exports panel. 
+- **Alternative**: If a WebM is downloaded, you must use a third-party media player app such as VLC for Mobile to view the video stream, or transcode it to MP4 on a desktop machine.
+
 #### Q: What are the necessary Cross-Origin Headers to enable Multi-Threading (COEP/COOP)?
 **A**: To allow high-speed multithreaded WASM workers, your static file server (`server.js`) must inject the following headers on document loads:
 ```http
