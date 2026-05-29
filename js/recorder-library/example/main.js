@@ -251,6 +251,17 @@ function initThree() {
 
   window.recorder = recorder;
 
+  window.renderManualFrame = function() {
+    if (renderer && scene && camera) {
+      if (toyKnotMesh) {
+        toyKnotMesh.rotation.x += 0.02;
+        toyKnotMesh.rotation.y += 0.04;
+        updateColors(performance.now());
+      }
+      renderer.render(scene, camera);
+    }
+  };
+
   // Attach renderer
   recorder.init(canvas, renderer);
 
