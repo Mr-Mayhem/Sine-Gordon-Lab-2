@@ -6,7 +6,7 @@
 
 // Hashes matched to @ffmpeg/core@0.12.6 / @ffmpeg/core-mt@0.12.6 from CDN
 export const TRUSTED_HASHES = {
-  "ffmpeg-core- mt-wasm": [
+  "ffmpeg-core-mt-wasm": [
     "6a6863fa9f08ee79c47363547421e12a90624b9bbbd8c10ebf7d5967cab14649"
   ],
   "ffmpeg-core-st-wasm": [
@@ -146,7 +146,7 @@ export async function fetchWithCDNFallback(url, mimeType) {
       const arrayBuffer = await resp.arrayBuffer();
 
       if (isHtmlFallback(arrayBuffer) || arrayBuffer.byteLength < 5000) {
-        throw new Error(`CDN HTML fallback (${arrayBuffer.byteLength} bytes).`);
+         throw new Error(`CDN HTML fallback (${arrayBuffer.byteLength} bytes).`);
       }
 
       if (mimeType === "application/wasm" && arrayBuffer.byteLength < 20000000) {

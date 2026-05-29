@@ -1,16 +1,17 @@
 # Recorder Library Specification — `recorder-library/`
 
-**Active Version: v1.7.0-hybrid-ts**
+**Active Version: v1.8.0-modular-hybrid**
 
-This document details the architecture, capabilities, design philosophy, API contracts, and integration workflows of the self-contained browser recording and rendering assembly engine. 
+This document details the architecture, capabilities, design philosophy, API contracts, directories, and integration workflows of the self-contained browser recording and rendering assembly engine. 
 
 Designed for high-performance in-browser rendering pipelines, this library is crafted to handle ultra-high resolution captures (such as 1080p, 1440p, or 4K) directly inside sandboxed browser frames using modern standards including WebGL, standard ES Modules (ESM), WebAssembly (FFmpeg.wasm), and fast sandboxed storage via the **Origin Private File System (OPFS)**.
 
-### Recent Updates in v1.7.0
-1. **Dynamic Target Aspect Ratio Locking**: Remaps capturing dimensions dynamically to match the exact target aspect ratio of the requested export resolution across all formats. This prevents dimensional discrepancy errors during in-memory and OPFS storage ZIP extraction and video rendering workflows.
-2. **Integrated Log Window & HUD HUD Box**: A dedicated 380px terminal console tracks operations, compiling steps, and thread configurations dynamically with visual tracking and message grouping.
-3. **Diagnostic Utility (Clipboard Copy)**: Introduces a robust clipboard action featuring dual-tier fallback mechanisms (`navigator.clipboard.writeText` and a hidden temporary textarea node) to grab complete diagnostic reports seamlessly inside iframes or sandboxed origins.
-4. **Clean Production Mode Layout**: The test buttons and runner nodes are encapsulated and kept clean, maximizing negative space around standard metrics and preview structures.
+### Recent Updates in v1.8.0
+1. **Fully Encapsulated Vendor Directory**: Moves all external non-downloadable scripts (`ffmpeg.js`, `814.ffmpeg.js`, `jszip.min.js`, `FileSaver.min.js`) into an isolated `vendor/` subfolder within the module itself to make it a portable drag-and-drop package.
+2. **Atomic CDN & Sandbox Transaction Fallback**: Fixes single-threaded WASM URL resolution bugs and details how fallbacks and SHA-256 cryptographic hashes operate to satisfy secure origin policies.
+3. **Dynamic Target Aspect Ratio Locking**: Remaps capturing dimensions dynamically to match the exact target aspect ratio of the requested export resolution across all formats. This prevents dimensional discrepancy errors during in-memory and OPFS storage ZIP extraction and video rendering workflows.
+4. **Integrated Log Window & HUD Tool**: A dedicated terminal console tracks operations, compiling steps, and thread configurations dynamically with visual tracking and message grouping.
+5. **Diagnostic Utility (Clipboard Copy)**: Introduces a robust clipboard action featuring dual-tier fallback mechanisms (`navigator.clipboard.writeText` and a hidden temporary textarea node) to grab complete diagnostic reports seamlessly inside iframes or sandboxed origins.
 
 ---
 
@@ -19,7 +20,7 @@ Designed for high-performance in-browser rendering pipelines, this library is cr
 During development, it is common to bounce between the simplicity of a raw API and the speed of fully populated diagnostic UI components. To prevent reinventing the wheel while maintaining architectural modularity, the library functions in a **hybrid, dual-mode fashion**:
 
 1. **API-First Engine (Decoupled Mode)**: The core modules (`RecordingEngine` inside `recording.js`, and `assemble` inside `assembly.js`) operate on pure standard JavaScript and WebGL canvases. You can initiate, step, stop, package, and transcribe video completely programmatically by feeding configuration objects and listening to standard callbacks and promises.
-2. **Built-in HUD & UI Contract Hooks (Integrated Mode)**: If recognizable DOM elements (or globally registered helpers like `window.LogNexus` and `#processing-overlay`) are present in your application, the engine automatically hooks into them, driving full-screen modal overlays, rich diagnostic graphs, progress bars, frame count ticks, and scrolling diagnostics. 
+2. **Built-in HUD & UI Contract Hooks (Integrated Mode)**: If recognizable DOM elements (or globally registered helpers like `window.LogNexus` and `#processing-overlay`) are present in your application, the engine automatically hooks into them, driving full-screen modal overlays, progress bars, frame count ticks, and scrolling diagnostics. 
 
 *If these elements do not exist, the engine gracefully fallbacks directly to console routines or standard developer warnings without throwing exceptions*, leaving you free to design a bespoke dashboard for your new system.
 
@@ -27,30 +28,66 @@ During development, it is common to bounce between the simplicity of a raw API a
 
 ## 2. Directory Map & Component Ledger
 
-The engine is modularized across flat standard ES files within the `/js/recorder-library/` directory:
+The recording module is fully self-supporting and encapsulated. The folder structure inside `./js/recorder-library/` is organized as follows:
 
 ```
 recorder-library/
-├── recording.js         # Central class orchestrating frame capturing loop and pixel readback
-├── assembly.js          # Main video rendering supervisor delegating chunked conversions and assembly
-├── video-filters.js     # Modulus grid matching formulas, Aspect resizing formulas, and scale-to-crop settings 
-├── ffmpeg-loader.js     # Async worker bootstrapping loader, supporting fallback networks
-├── ffmpeg-commands.js   # CLI CLI command compiler formulating WebAssembly-aligned H.264 & WebM tasks  
-├── zip-export.js        # High-performance, streaming zip packager using JSZip (Zero-heap inflation)
-└── fetch-from-cdn.js    # Resilient fetching algorithm with automatic retry routines for third-party libraries
+├── recording.js            # Central class orchestrating frame capturing loop and pixel readback
+├── assembly.js             # Main video rendering supervisor delegating chunked conversions and assembly
+├── video-filters.js        # Modulus grid matching formulas, Aspect resizing formulas, and scale-to-crop settings 
+├── ffmpeg-loader.js        # Async worker bootstrapping loader with local-to-CDN priority logic
+├── ffmpeg-commands.js      # CLI command compiler formulating WebAssembly-aligned H.264 & WebM tasks  
+├── zip-export.js           # High-performance, streaming zip packager using JSZip (Zero-heap inflation)
+├── fetch-from-cdn.js       # Resilient fetching algorithm with SHA-256 cryptographic check and fallback routines
+├── README.txt              # Standard manual and troubleshooting files
+├── specifications.md       # Full technical manual and architectural spec sheets (This file)
+│
+├── example/                # COMPLETE REFERENCE DEMO PROJECT PORTAL
+│   ├── index.html          # Embedded reference layout with peak-head Three.js importmaps
+│   └── main.js             # Controls simple toy animation, wiring overlays & progress logging HUDs
+│
+├── ui-templates/           # Embedded CSS and visual layout overrides
+│   └── combined-styles.css # UI dashboard stylesheet supporting glassmorphism
+│
+└── vendor/                 # Local encapsulated vendor dependencies (fully self-supported)
+    ├── jszip/
+    │   └── jszip.min.js     # JSZip client-side zip creation module
+    ├── file-saver/
+    │   └── FileSaver.min.js # FileSaver download wrapper for client blobs
+    └── ffmpeg/
+        ├── ffmpeg.js        # FFmpeg.wasm primary UMD script loader
+        └── 814.ffmpeg.js    # FFmpeg.wasm browser worker bootstrap thread helper
 ```
 
 ---
 
-## 3. Physical Principles: The Hard Math of Video Formats
+## 3. Secure Origin Policy & Atomic CDN Caching Pipeline
 
-### 3.1 Non-Widescreen Aspect Preservation
+Loading large WebAssembly core binaries (>24MB) into browsers under strict security headers (COOP/COEP) can raise CORS blockages or sandboxed network errors. The library resolves this using a three-tier atomic loading sequence:
+
+### 3.1 Three-Tier Resolution Table
+1. **Local Server (Fastest)**: The loader looks relative to the document base URI for `./js/recorder-library/vendor/ffmpeg/`. If core files (e.g. `ffmpeg-core.js`, `ffmpeg-core.wasm`) are present, they are loaded instantly with zero outward connections.
+2. **Persistent OPFS Cache (Zero-Server-Request Fallback)**: If files are missing from the server, the loader checks the browser's persistent sandbox directory via the Origin Private File System (OPFS): `navigator.storage.getDirectory()`. If verified checkmarkers (`mt-loaded.ok` or `st-loaded.ok`) are present, files load instantly from sandboxed browser storage.
+3. **Symmetrical CDN Fetch with Cryptographic Validation (Atomic Transaction)**: If both are empty, the loader initiates a secure download to fetch matching `@ffmpeg/core@0.12.6` binary chunks from jsDelivr / unpkg.
+
+### 3.2 Symmetrical Hash Check and OPFS Cache Commit
+To prevent corrupted downloads (such as truncated files or server HTML redirect falls) and guard against security compromises, downloaded arrays undergo a fast, secure cryptographic SHA-256 validation check:
+* Calculated Array Buffer hashes are checked against the `TRUSTED_HASHES` dictionary in `fetch-from-cdn.js`.
+* If matching, variables are written as safe local blobs, and committed to OPFS.
+* Upon successful write of ALL required resources, an atomic marker (`st-loaded.ok` or `mt-loaded.ok`) is written.
+* If any step fails or is blocked, the transaction is immediately cleared to protect storage and maintain pristine, uncorrupted cache alignments.
+
+---
+
+## 4. Physical Principles: The Hard Math of Video Formats
+
+### 4.1 Non-Widescreen Aspect Preservation
 Standard WebGL graphics are generated centered in responsive divs, which often contain non-even bounds or variable aspect ratios. If raw canvases are rendered directly into H.264 formats, videos suffer from stretched visual profiles or harsh alignment black bars.
 * **Aspect Correction Formula**: The library maps resolution boundaries and utilizes a dynamic crop-to-fit filter pipeline during FFmpeg assembly:
   $$\text{Filter Recipe} = \text{scale}=W:H:\text{force\_original\_aspect\_ratio}=\text{increase},\text{crop}=W:H$$
   This ensures that whether a canvas is ultra-wide or portrait, the resulting MP4/WebM features pristine crop alignments to fill target standard scales (1080p, 2K, 4K) perfectly.
 
-### 3.2 H.264 Macroblock Alignment Constraints (The Modulo Rule)
+### 4.2 H.264 Macroblock Alignment Constraints (The Modulo Rule)
 A common crash on in-browser WebAssembly video pipelines is the mismatch between canvas dimensions and macroblock partitions:
 * **The Math**: Standard H.264 encoders slice images into macroblocks of $16 \times 16$ or $8 \times 8$ pixels. If your exported dimensional bound is not divisible by these constraints, standard libx264 will abort synthesis or output a broken container with vertical green bars.
 * **Our Resolution-Remapping Table**:
@@ -60,14 +97,14 @@ A common crash on in-browser WebAssembly video pipelines is the mismatch between
 
 ---
 
-## 4. Performance & Memory Safeguards
+## 5. Performance & Memory Safeguards
 
 Capturing canvases at high frame rates (e.g. 60 FPS) at 1080p produces roughly **480 Megabytes of raw pixels per second**. Storing those assets in main-thread RAM easily triggers page crashes (Out of Memory - OOM). The library includes several hardcoded defense layers:
 
-### 4.1 Sandboxed Stream Model via OPFS
+### 5.1 Sandboxed Stream Model via OPFS
 Instead of saving huge arrays of frame buffers in JavaScript heap memory, the engine streams files continuously to the **Origin Private File System (OPFS)**. A sandbox directory (`navigator.storage.getDirectory()`) is dynamically constructed to contain incoming frame payloads, meaning the browser's disk caches handle file management natively. Upon completion, the library automatically calls recursive eradication routines (`root.removeEntry(tempDir, { recursive: true })`) to release disk space immediately.
 
-### 4.2 Resolution-Aware Pipeline Routing
+### 5.2 Resolution-Aware Pipeline Routing
 Rather than a fixed frame limit, the library dynamically samples frame resolution dimensions to decide between a **single-step encode** or a **double-buffered chunked assembly**:
 * **4K (3840x2160)**: Triggers chunked assembly at **>30 frames**. Chunk sizing limits peak memory footprint to $\text{chunk size} = 40$ frames.
 * **1440p (2560x1440)**: Triggers chunked assembly at **>60 frames**. Chunk sizing limits to $75$ frames.
@@ -76,9 +113,9 @@ Rather than a fixed frame limit, the library dynamically samples frame resolutio
 
 ---
 
-## 5. Complete API Reference
+## 6. Complete API Reference
 
-### 5.1 `RecordingEngine` (Class)
+### 6.1 `RecordingEngine` (Class)
 The central supervisor managing canvas frames, resolution states, and recording state cycles.
 
 ```javascript
@@ -92,7 +129,7 @@ const recorder = new RecordingEngine({
   exportHeight: 720,          // Canvas scale height
   camera: cameraRef,          // Three.js Camera reference (for projection updates)
   exportTrim: 'none',         // WebM custom height trim boundaries: 'none', 'subtle', 'snug', 'max'
-  exportFilename: ''          // Optional output filename base. If empty, defaults to the parent project's sanitized name retrieved from the page title (e.g. 'the_sine_gordon_lab')
+  exportFilename: ''          // Optional output filename base. If empty, defaults to page config snake_case
 });
 ```
 
@@ -125,13 +162,9 @@ const recorder = new RecordingEngine({
 
 ---
 
-## 6. Integration Guide: Bringing the Recorder to a New Project
+## 7. Integration Guide: Bringing the Recorder to a New Project
 
-To integrate the library in a new system, you can either utilize the standard programmatic hook structure or provide the corresponding viewport overlay.
-
-### 6.1 Programmatic (Raw API) Integration Example
-
-If your new system does not use the default HUD overlays, import and instantiate the library with custom progress handlers:
+To integrate the library in a new system, import and instantiate the library with matching HTML hooks:
 
 ```javascript
 import RecordingEngine from "./js/recorder-library/recording.js";
@@ -139,7 +172,7 @@ import RecordingEngine from "./js/recorder-library/recording.js";
 // 1. Initial configuration
 const recorder = new RecordingEngine({
   exportFPS: 60,
-  exportFormat: "webm",
+  exportFormat: "mp4",
   exportWidth: 1280,
   exportHeight: 720,
   camera: camera
@@ -148,36 +181,29 @@ const recorder = new RecordingEngine({
 // 2. Attach to canvas renderer
 recorder.init(renderer.domElement, renderer);
 
-// 3. Optional programmatic progress logger
+// 3. Optional progress logger
 recorder.setProgressCallback((stage, frames, total, completedPercent) => {
-  console.log(`[Recording System] Phase: ${stage} | Progress: ${completedPercent}% (${frames}/${total} frames)`);
+  console.log(`[Recorder] Phase: ${stage} | Progress: ${completedPercent}% (${frames}/${total} frames)`);
 });
 
 // 4. Hook frame capture inside the render tick
 function tick() {
   requestAnimationFrame(tick);
-  
-  // Update physics/scene...
   renderer.render(scene, camera);
-  
-  // Call capturing system
   recorder.captureFrame();
 }
 
-// 5. Build trigger controls
+// 5. Wire action controllers
 document.getElementById("btn-start").addEventListener("click", () => {
   recorder.startRecording();
 });
 
 document.getElementById("btn-stop").addEventListener("click", async () => {
-  console.log("Stopping recording and starting in-browser video compilation...");
   const compiledBlob = await recorder.stopRecording();
-  
-  // Trigger file download helper
   const url = URL.createObjectURL(compiledBlob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `my_experimental_capture_${Date.now()}.webm`;
+  a.download = `rendered_capture_${Date.now()}.mp4`;
   a.click();
   URL.revokeObjectURL(url);
 });
@@ -185,51 +211,23 @@ document.getElementById("btn-stop").addEventListener("click", async () => {
 
 ---
 
-## 7. Operational FAQ & Diagnostic Blueprints
+## 8. Embedded Reference Example Portal
 
-#### Q: The browser console shows `SharedArrayBuffer is not defined`. Will recording crash?
-**A**: No. If `SharedArrayBuffer` is blocked (e.g. your application's proxy server is not configured with necessary Cross-Origin headers), the system automatically degrades gracefully. It falls back dynamically to the **Single-Threaded (ST)** transcode loop. If MP4 format is requested in high-resolutions under simple thread pipelines, it will intelligently switch to **WebM format** which complies beautifully with single-thread compression speeds.
+For developers looking to inspect a complete, functional setup, we have provided an interactive project under:
+`/js/recorder-library/example/`
 
-#### Q: Do 720p (or other resolutions) WebM videos play on Apple mobile devices (iPads, iPhones)?
-**A**: No, standard Safari and native WebKit browsers on iPadOS and iOS do not natively support playback of WebM video files in standard `<video>` containers or the native Photos roll, even on modern, high-spec iPads. 
-- **The Resolution**: For perfect native compatibility on Apple hardware (such as Apple tablets and phones), **always select the MP4 format** in the application exports panel. 
-- **Alternative**: If a WebM is downloaded, you must use a third-party media player app such as VLC for Mobile to view the video stream, or transcode it to MP4 on a desktop machine.
+### 8.1 Key Implementation Highlights
+- **Immediate Import Maps**: The `<script type="importmap">` is declared as the absolute first child of the `<head>` block inside `example/index.html`. This ensures that native browser ES Module speculative parsing succeeds with zero remapping type errors.
+- **Wired Progress HUD**: Connects all recorder callbacks symmetrically to update the interactive compilation status overview tiles, log lists, and progress bars.
+- **Toy Canvas Engine**: Uses Three.js to render a spinning Torus Knot with dynamic vertex and fragment-resembling phase rotations that shift colors dynamically based on user panel settings.
+- **Diagnostic Panel**: Connects modern Web API checks to verify the platform features (such as `SharedArrayBuffer` and `getDirectory` OPFS status) in the client context.
 
-#### Q: What are the necessary Cross-Origin Headers to enable Multi-Threading (COEP/COOP)?
-**A**: To allow high-speed multithreaded WASM workers, your static file server (`server.js`) must inject the following headers on document loads:
-```http
-Cross-Origin-Embedder-Policy: require-corp
-Cross-Origin-Opener-Policy: same-origin
-```
+### 8.2 Symmetrical HUD Overlay — The Recording Blurb
+To preserve design intent and provide clear real-time user feedback, the recording layout implements a high-visibility, pulsing red "recording blurb":
+- **UI Positioning**: Placed overlaying the active canvas viewport, absolute centered at `top-8` (`absolute top-8 left-1/2 -translate-x-1/2` inside `example/index.html` or `index.html`).
+- **Interactive Triggering**: Symmetrically linked to the underlying `RecordingEngine` class context:
+  - On `startRecording()`, the container element with ID `recording-indicator` is found in the DOM and toggled to `display: flex`.
+  - In each requestAnimationFrame capture loop, as frames are stored to OPFS, the script updates the internal element containing ID `txt-recording` with the current sequence state: `"REC: " + frameCount`.
+  - On `stop()`, the `recording-indicator` is hidden gracefully (`style.display = "none"`) and reset to zero.
+- **Pulsing Aesthetic**: Rendered using glassmorphism styling (`backdrop-blur-md`, alpha-backed red background bounds, and a pulsing core red indicator dot mapped via smooth infinite keyframes). This visual feedback guarantees users know that the canvas is being captured and that the application is actively processing frames.
 
-#### Q: How does the ZIP extraction pipeline preserve resolution states?
-**A**: When importing a previously recorded ZIP folder containing static PNG files, the layout pipeline reads the first few bytes of the initial frame directly. Using standard binary chunk parsing, the engine extracts the file size elements from the `IHDR` PNG header structure, automatically synchronizing your local UI aspect ratios.
-
-```
-                    PNG FILE HEADER PARSER
-┌────────────────────────────┬────────────────────────────┐
-│ PNG Magic (8 Bytes)        │ IHDR Chunk Signature (4B)   │
-│ 89 50 4E 47 0D 0A 1A 0A    │ 49 48 44 52                │
-└────────────────────────────┴──────────────────────────┬─┘
-                                                        │
-                                                        ▼
-                                             Width (4B)  → e.g., 3840px
-                                             Height (4B) → e.g., 2160px
-```
-
-#### Q: I resized the browser during recording but the final video aspect is perfect. How?
-**A**: The compiler decouples layout preservation from rendering size. When starting, the viewport's original bounds are cached inside `this._preRecordingWidth` and `this._preRecordingHeight`, and the viewport resize listener is paused. The physical canvas's pixel buffer is set to the target resolution (e.g. 4K, 1080p, etc.) for high-speed offline capture. Symmetrically, the canvas's visual displays are anchored using inline CSS width and height mappings (`canvas.style.width`, `canvas.style.height`) matching the original layout. This ensures that the canvas never visibly shifts, jumps or contracts during active recording, maintaining full UI consistency.
-
-#### Q: How does the library handle Chromium workspace directory memory on file dialogues?
-**A**: To prevent the browser dialog from resetting to generic system folders on subsequent saves/opens, the library assigns a strictly matching native ID string (`id: 'zip-export'`) to options passed into `window.showSaveFilePicker` and `window.showOpenFilePicker`. Supported browsers recognize matching IDs and natively anchor the active file dialogs back into the user's previously-selected host directory automatically.
-
-#### Q: How is Canvas Context isolation managed during raw frame capturing?
-**A**: To avoid canvas flashing or coordinate horizontal clipping, the engine avoids self-drawing operations on a single surface. It reads raw WebGL pixels directly into a structured GPU buffer, performs y-flip operations, and projects those frames onto a completely isolated, target-sized 2D 2-buffer pipeline context (`_rawCanvas`) for thread-safe compilation.
-
-#### Q: Are exported filenames (video/ZIP/frames) customizable?
-**A**: Yes, completely! You can set the custom output name prefix by passing the `exportFilename` property inside the initialization config, or by modifying `window.sgState.exportFilename` dynamically in the active session. If this parameter is empty, the engine automatically extracts the parent project name directly from the DOM `<title>` (or defaults to `the_sine_gordon_lab`), sanitizes it to safe filesystem snake_case (e.g., `the_sine_gordon_lab`), and appends a clean unique millisecond timestamp:
-```javascript
-// Filename output logic internally:
-let filename = recorder.getExportFilename("mp4"); 
-// Returns e.g. "the_sine_gordon_lab_render_1716912345678.mp4"
-```

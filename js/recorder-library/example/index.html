@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- 
+    ========================================================================
+     THE THREE.JS IMPORTMAP PITFALL RESOLUTION 
+     The importmap must rest at the absolute peak of the head element!
+    ========================================================================
+  -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three/three.module.js",
+        "three/": "/vendor/three/",
+        "three/addons/": "/vendor/three/addons/"
+      }
+    }
+  </script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Recording Library — Embedded Reference Example</title>
+
+  <!-- Tailwind CSS Play CDN for rich styling in the mock environment -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Encapsulated styles supporting overlays, responsive HUD panels, and custom scrollbars -->
+  <link rel="stylesheet" href="/js/recorder-library/ui-templates/combined-styles.css">
+
+  <!-- Core recording engine dependencies from local encapsulated vendor subfolder -->
+  <script src="/js/recorder-library/vendor/ffmpeg/ffmpeg.js?v=fresh10"></script>
+  <script src="/js/recorder-library/vendor/jszip/jszip.min.js?v=fresh10"></script>
+  <script src="/js/recorder-library/vendor/file-saver/FileSaver.min.js?v=fresh10"></script>
+
+  <style>
+    /* Add smooth transitions and backdrop effects */
+    body {
+      background-color: #0c0c0e;
+      color: #e4e4e7;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    .main-canvas-container {
+      background: radial-gradient(circle at center, #1a1a24 0%, #0a0a0f 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    @keyframes pulse-custom {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.22); opacity: 0.65; }
+    }
+    .indicator-pulse-dot {
+      animation: pulse-custom 1s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col p-4 md:p-6 lg:p-8">
+
+  <!-- Main Reference Container -->
+  <div class="w-full max-w-6xl mx-auto flex flex-col gap-6 flex-1">
+    
+    <!-- Title & Description -->
+    <header class="flex flex-col md:flex-row md:items-center justify-between border-b border-white/10 pb-4">
+      <div>
+        <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          📹 Recording Library Integration Reference
+        </h1>
+        <p class="text-xs text-white/50 mt-1 uppercase tracking-widest font-mono">
+          Demonstrate Three.js canvas interception • High-Quality exports
+        </p>
+      </div>
+      <div class="mt-4 md:mt-0 flex gap-2">
+        <a href="../README.txt" target="_blank" class="px-4 py-1.5 text-xs font-semibold bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-lg transition-colors">
+          📄 Read Library README
+        </a>
+        <a href="/" class="px-4 py-1.5 text-xs font-bold bg-cyan-500/15 border border-cyan-500/30 hover:bg-cyan-500/25 text-[#00ffcc] rounded-lg transition-colors">
+          🌌 Back to Main Lab
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Viewport and Interactive Controls Grid -->
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
+      
+      <!-- 3D Canvas rendering container (Takes 2 columns in large screens) -->
+      <div class="lg:col-span-2 flex flex-col gap-4">
+        <div class="main-canvas-container relative aspect-video w-full flex-1 min-h-[300px] md:min-h-[420px] shadow-2xl">
+          <!-- Recording Indicator overlay (pulsing red bubble) -->
+          <div id="recording-indicator"
+               style="display:none;"
+               class="absolute top-8 left-1/2 -translate-x-1/2 bg-red-500/25 border-2 border-red-500/60 text-red-500 px-6 py-2.5 rounded-full backdrop-blur-md items-center gap-3.5 z-40 shadow-[0_10px_25px_-5px_rgba(239,68,68,0.35)]">
+            <div class="w-3.5 h-3.5 rounded-full bg-red-500 indicator-pulse-dot"></div>
+            <span id="txt-recording" class="font-mono text-xs font-black tracking-widest uppercase">REC: 0</span>
+          </div>
+
+          <!-- 
+            Our live Three.js Toy canvas element 
+          -->
+          <canvas id="toy-canvas" class="w-full h-full block touch-none"></canvas>
+          
+          <!-- Embedded Watermark -->
+          <div class="absolute bottom-4 left-4 pointer-events-none select-none font-mono text-[9px] uppercase tracking-widest bg-black/60 border border-white/10 px-2.5 py-1 rounded-md text-[#00ffcc]/80 backdrop-blur-sm">
+            Interactive Toy Animation • Active Capturing Viewport
+          </div>
+
+          <!-- Quick Action Buttons overlaid on canvas -->
+          <div class="absolute top-4 right-4 flex gap-2">
+            <button id="btn-demo-diagnostics" class="h-7 px-3 text-[10px] font-bold uppercase tracking-wider rounded border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 transition-colors cursor-pointer">
+              🧪 Diagnostic Suite
+            </button>
+          </div>
+        </div>
+
+        <!-- Integrated Video Settings Panel Blueprint -->
+        <div class="w-full p-4 bg-zinc-900/95 border border-white/10 rounded-xl shadow-xl backdrop-blur-md">
+          <div class="flex items-center justify-between w-full flex-wrap gap-4 md:flex-nowrap">
+            <!-- Action Trigger Button -->
+            <div class="flex items-center gap-3 shrink-0">
+              <button id="btn-video" class="h-9 px-5 text-xs font-mono font-bold uppercase tracking-wider rounded-lg border border-red-500/30 bg-red-500/5 text-red-400 hover:bg-red-500/10 active:scale-95 transition-all cursor-pointer whitespace-nowrap">
+                ⏺ Start Capture
+              </button>
+            </div>
+
+            <div class="hidden md:block w-px h-8 bg-white/10 self-stretch shrink-0"></div>
+            
+            <!-- Settings Fields -->
+            <div class="flex flex-wrap items-center gap-4 text-left">
+              <!-- Pipeline -->
+              <div class="flex flex-col">
+                <span class="text-[8px] font-mono font-black text-white/50 mb-1 tracking-widest uppercase select-none">Pipeline</span>
+                <select id="sel-pipeline" class="h-[22px] py-0 text-[10px] w-24 bg-zinc-800 border border-white/15 text-white rounded px-1.5 focus:outline-none cursor-pointer">
+                  <option value="ffmpeg" selected>FFmpeg</option>
+                  <option value="zip">Disk (ZIP)</option>
+                </select>
+              </div>
+
+              <!-- Action -->
+              <div class="flex flex-col">
+                <span class="text-[8px] font-mono font-black text-white/50 mb-1 tracking-widest uppercase select-none">Action</span>
+                <select id="sel-action" class="h-[22px] py-0 text-[10px] w-24 bg-zinc-800 border border-white/15 text-white rounded px-1.5 focus:outline-none cursor-pointer">
+                  <option value="record" selected>⏺ Record</option>
+                </select>
+              </div>
+
+              <!-- Resolution -->
+              <div class="flex flex-col">
+                <span class="text-[8px] font-mono font-black text-white/50 mb-1 tracking-widest uppercase select-none">Resolution</span>
+                <select id="sel-res" class="h-[22px] py-0 text-[10px] w-28 bg-zinc-800 border border-white/15 text-white rounded px-1.5 focus:outline-none cursor-pointer">
+                  <option value="640x360">360p (Fast)</option>
+                  <option value="1280x720" selected>720p (HD)</option>
+                  <option value="1920x1080">1080p (FHD)</option>
+                </select>
+              </div>
+
+              <!-- Format & FPS -->
+              <div class="flex flex-col">
+                <span class="text-[8px] font-mono font-black text-white/50 mb-1 tracking-widest uppercase select-none">Format & FPS</span>
+                <div class="flex gap-1.5">
+                  <select id="sel-format" class="h-[22px] py-0 text-[10px] w-[50px] bg-zinc-800 border border-white/15 text-white rounded px-1 cursor-pointer">
+                    <option value="mp4" selected>MP4</option>
+                    <option value="webm">WEBM</option>
+                  </select>
+                  <select id="sel-fps" class="h-[22px] py-0 text-[10px] w-[45px] bg-zinc-800 border border-white/15 text-white rounded px-1 cursor-pointer">
+                    <option value="30" selected>30</option>
+                    <option value="60">60</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Quality -->
+              <div class="flex flex-col">
+                <span class="text-[8px] font-mono font-black text-white/50 mb-1 tracking-widest uppercase select-none">Quality / CRF</span>
+                <select id="sel-crf" class="h-[22px] py-0 text-[10px] w-28 bg-zinc-800 border border-white/15 text-[#00ffcc] font-mono font-bold rounded px-1.5 focus:outline-none cursor-pointer">
+                  <option value="5">5 (Ultra Quality)</option>
+                  <option value="18" selected>18 (Default)</option>
+                  <option value="28">28 (Eco Space)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Instruction Panel & Metrics Column -->
+      <aside class="flex flex-col gap-4">
+        
+        <!-- Interactive Calibration Control Card -->
+        <div class="p-5 border border-white/10 bg-white/[0.02] rounded-2xl flex flex-col gap-3.5">
+          <h2 class="text-xs font-mono font-bold text-white uppercase tracking-wider">
+            Toy Animation Settings
+          </h2>
+          <div class="flex flex-col gap-1.5">
+            <span class="text-[9.5px] text-white/50 uppercase font-mono tracking-wider">Rotation Speed:</span>
+            <input type="range" id="param-speed" min="0" max="100" value="40" class="w-full accent-[#00ffcc] bg-white/10 h-1 rounded-lg appearance-none cursor-pointer hover:bg-white/20 transition-all">
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <span class="text-[9.5px] text-white/50 uppercase font-mono tracking-wider">Torus Geometry Tube:</span>
+            <input type="range" id="param-radius" min="10" max="60" value="30" class="w-full accent-[#00aaff] bg-white/10 h-1 rounded-lg appearance-none cursor-pointer hover:bg-white/20 transition-all">
+          </div>
+          <div class="flex flex-col gap-1.5 mt-1 border-t border-white/5 pt-3">
+            <span class="text-[9.5px] text-white/50 uppercase font-mono tracking-wider">Rendering Color Palettes:</span>
+            <select id="param-palette" class="h-7 text-xs bg-zinc-800 border border-white/15 text-white rounded px-2 focus:outline-none cursor-pointer w-full font-sans transition-all hover:bg-zinc-700/80">
+              <option value="emerald-cyan" selected>Emerald & Cyber Cyan</option>
+              <option value="neon-sunset">Sunset Neon (Purple-Pink-Orange)</option>
+              <option value="matrix-monochrome">Monochrome Digital Grid</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Documentation & Tips -->
+        <div class="p-5 border border-white/10 bg-zinc-950/80 rounded-2xl flex flex-col gap-3 text-xs leading-relaxed text-white/70">
+          <h3 class="font-mono font-bold text-[#00ffcc] uppercase tracking-wider text-[10px]">
+             Integration Landmarks
+          </h3>
+          <p>
+            This example integrates the compiled, offline-enabled modules to showcase simple drag-and-drop mechanics.
+          </p>
+          <ul class="space-y-2 text-white/60 font-mono text-[9px] list-disc list-inside">
+            <li><strong class="text-white">Preserve Drawing Buffer:</strong> Initiated with <code class="text-[#00ffcc]">preserveDrawingBuffer: true</code> on WebGL layers to prevent black frame readback wipes.</li>
+            <li><code class="text-[#00ffcc]">captureFrame()</code> is placed synchronously at each requestAnimationFrame cycle.</li>
+            <li><strong class="text-white">OPFS Caching:</strong> Handles sequential image compilation efficiently.</li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  
+  <!-- ==========================================================================
+       EMBEDDED ASSEMBLY ENGINE COMPILER VIEWPORT OVERLAY (Modal blueprint)
+       ========================================================================== -->
+  <div id="processing-overlay" style="display: none;" class="fixed inset-0 bg-black/95 backdrop-blur-[24px] flex items-center justify-center p-4 z-[1000] overflow-hidden select-none">
+    <div class="relative bg-zinc-900/95 border border-white/10 rounded-[20px] p-6 w-full max-w-[760px] h-[88vh] max-h-[820px] flex flex-col gap-4 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.85)] overflow-hidden">
+      
+      <!-- Close/Abort Trigger -->
+      <button id="btn-close-processing" class="absolute top-[18px] right-[18px] z-10 w-8 h-8 rounded-full bg-white/10 border-0 text-white hover:bg-white/20 text-sm flex items-center justify-center cursor-pointer transition-all active:scale-95" title="Abort & Close">✕</button>
+
+      <header class="flex justify-between items-baseline border-b border-white/5 pb-2 shrink-0">
+        <span class="text-[10px] font-black text-[#00ffcc] tracking-[0.3em] uppercase filter drop-shadow-[0_0_4px_rgba(0,255,204,0.35)] select-none">
+          Assembly Engine
+        </span>
+        <span id="assembly-subheader-info" class="font-mono text-[8.5px] text-white/50 uppercase tracking-wider text-right mr-10 select-none">
+          Operation: Idle | Res: 1280x720
+        </span>
+        <span id="assembly-status" class="hidden">Ready</span>
+      </header>
+
+      <!-- Analytics Cards -->
+      <section id="assembly-overview-tiles" class="grid grid-cols-2 gap-3 w-full max-w-[720px] mx-auto shrink-0 select-none h-[112px] min-h-[112px]">
+        <div id="assembly-status-left" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left font-mono text-[9px] text-white/70 overflow-hidden h-full">
+          <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
+          <div class="py-0.5 border-b border-white/[0.02]"><strong>Version:</strong> <span class="text-white/80 font-medium">v1.8.0-modular</span></div>
+          <div class="py-0.5 border-b border-white/[0.02]"><strong>Active Phase:</strong> <span class="text-white/80 font-medium font-bold text-amber-300" id="current-telemetry-phase">Ready</span></div>
+          <div class="py-0.5 last:border-b-0"><strong>Frames Count:</strong> <span id="telemetry-frames" class="text-[#00ffcc] font-medium font-mono">0 / 0</span></div>
+        </div>
+
+        <div id="assembly-status-right" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left font-mono text-[9px] text-white/70 overflow-hidden h-full">
+          <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">CPU Threading:</span><span id="diagnostic-threads" class="text-white font-medium">Single-Threaded</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Frame Resolution:</span><span id="diagnostic-resolution" class="text-[#00ffcc] font-medium font-mono">1280x720</span></div>
+          <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Quality:</span><span id="diagnostic-quality" class="text-amber-400 font-bold font-mono">18</span></div>
+        </div>
+      </section>
+
+      <!-- Thumbnail Preview Canvas -->
+      <div id="assembly-preview" class="w-full max-w-[140px] aspect-video bg-black rounded-[12px] overflow-hidden border border-white/10 relative shadow-inner mx-auto mt-0 shrink-0">
+        <canvas id="preview-canvas" class="w-full h-full object-contain"></canvas>
+      </div>
+
+      <!-- Scrolling Logs Panel -->
+      <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[10px] bg-black/40 p-2.5 flex flex-col gap-1 overflow-hidden mx-auto flex-1 min-h-[220px]">
+        <div class="flex justify-between items-center text-[9px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1 shrink-0">
+          <span>Assembly Logs & Standard Output</span>
+          <div class="flex items-center gap-2">
+            <span id="assembly-log-count" class="select-none">0 messages</span>
+            <button id="btn-copy-logs" class="hover:text-white transition-colors cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded text-[8px] font-mono font-bold text-[#00ffcc] uppercase select-none" title="Copy Logs">
+              Copy Logs
+            </button>
+          </div>
+        </div>
+        <div id="assembly-log-scroll" class="w-full flex-1 min-h-0 overflow-y-scroll pr-2 font-mono text-[9px] text-[#00ffcc]/85 space-y-0.5 text-left select-text scrollbar-thin">
+          <div class="text-white/30">[System] Initializing Example Assembly Logger...</div>
+        </div>
+      </div>
+
+      <!-- Loading Tracker Line -->
+      <div style="width:100%; max-w-[720px];" class="flex flex-col gap-1.5 mx-auto mt-1 shrink-0">
+        <div style="height:8px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden; border: 1px solid rgba(255,255,255,0.03);">
+          <div id="progress-fill" style="height:100%; background:linear-gradient(90deg, #00ffcc, #00aaff); width:0%; transition:none;"></div>
+        </div>
+        <div class="flex justify-between items-center px-1 font-mono text-[9px] select-none text-white/50">
+          <div class="flex items-center gap-1.5">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#00ffcc] animate-pulse"></span>
+            <span id="assembly-bottom-phase">Awaiting capture sequences...</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span id="assembly-bottom-frames" class="text-white/60">0 / 0 frames</span>
+            <span id="assembly-percent" class="text-[#00ffcc] font-black text-[10px]">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Complete CTA actions (Injected dynamically on compile finish) -->
+      <div id="assembly-ready-actions" class="hidden gap-2 mx-auto justify-center shrink-0"></div>
+
+    </div>
+  </div>
+
+
+  <!-- ==========================================================================
+       DIAGNOSTICS & SYSTEM COMPLIANCE OVERLAY
+       ========================================================================== -->
+  <div id="diagnostics-overlay" style="display: none;" class="fixed inset-0 bg-black/95 backdrop-blur-[12px] z-[300] overflow-y-auto p-4 md:p-6 select-none">
+    <div class="theory-content max-w-[800px] margin-[10px_auto] bg-neutral-950/85 border border-white/10 rounded-xl p-4 md:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+      
+      <header class="flex justify-between items-center border-b border-white/10 pb-2 mb-3">
+        <div>
+          <h1 class="text-xs font-mono font-bold tracking-wider text-white uppercase select-none">Video Pipeline Diagnostics</h1>
+          <p class="text-white/35 font-mono text-[7px] uppercase tracking-[0.12em] mt-0.5 select-none">Example Compliance and Core Thread Checks</p>
+        </div>
+        <button id="btn-close-diagnostics" class="w-5 h-5 text-white hover:bg-white/15 text-[8px] border border-white/10 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-95">✕</button>
+      </header>
+
+      <section class="grid grid-cols-2 lg:grid-cols-4 gap-2 bg-white/[0.015] border border-white/5 rounded-lg p-2 mb-3 text-[7px] font-mono text-white/60">
+        <div>
+          <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block">System Cores:</span>
+          <strong id="diag-cores" class="text-white">8 Cores</strong>
+        </div>
+        <div>
+          <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block">Reported Memory:</span>
+          <strong id="diag-mem" class="text-white">8.00 GB RAM</strong>
+        </div>
+        <div>
+          <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block">SharedArrayBuffer:</span>
+          <strong id="diag-sab" class="text-[#00ffcc]">SUPPORTED (MT Enabled)</strong>
+        </div>
+        <div>
+          <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block">OPFS Sandbox:</span>
+          <strong id="diag-opfs" class="text-[#00ffcc]">AVAILABLE</strong>
+        </div>
+      </section>
+
+      <p class="text-[9px] font-mono text-white/40 leading-snug">
+        NOTE: In this reference setup, diagnostic simulation metrics query local host thread pools and confirm availability of local files in <code class="text-[#00ffcc]">js/recorder-library/vendor/</code>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Primary Application Controller Script -->
+  <script type="module" src="main.js"></script>
+</body>
+</html>

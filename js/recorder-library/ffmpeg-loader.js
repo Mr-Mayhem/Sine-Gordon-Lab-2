@@ -309,9 +309,9 @@ Details:`, e.message || e);
     // 2nd Priority: Load from local HTTP Server (vendor/)
     if (!loaded) {
       // Look relatively from document base URI
-      var mtCoreJsLocal = new URL("vendor/ffmpeg/ffmpeg-core-mt.js?v=fresh10", document.baseURI).href;
-      var mtWasmLocal = new URL("vendor/ffmpeg/ffmpeg-core-mt.wasm?v=fresh12", document.baseURI).href;
-      var mtWorkerLocal = new URL("vendor/ffmpeg/ffmpeg-core.worker.js?v=fresh11", document.baseURI).href;
+      var mtCoreJsLocal = new URL("js/recorder-library/vendor/ffmpeg/ffmpeg-core-mt.js?v=fresh10", document.baseURI).href;
+      var mtWasmLocal = new URL("js/recorder-library/vendor/ffmpeg/ffmpeg-core-mt.wasm?v=fresh12", document.baseURI).href;
+      var mtWorkerLocal = new URL("js/recorder-library/vendor/ffmpeg/ffmpeg-core.worker.js?v=fresh11", document.baseURI).href;
       
       var localCoreJsOk = await _isLocalFileValid(mtCoreJsLocal, 50000);
       var localWasmOk = await _isLocalFileValid(mtWasmLocal, 20000000);
@@ -423,8 +423,8 @@ Details:`, e.message || e);
     
     // 2nd Priority: Load from local HTTP Server (vendor/)
     if (!loaded) {
-      var stCoreJsLocal = new URL("vendor/ffmpeg/ffmpeg-core.js?v=fresh10", document.baseURI).href;
-      var stWasmLocal = new URL("vendor/ffmpeg/ffmpeg-core.wasm", document.baseURI).href;
+      var stCoreJsLocal = new URL("js/recorder-library/vendor/ffmpeg/ffmpeg-core.js?v=fresh10", document.baseURI).href;
+      var stWasmLocal = new URL("js/recorder-library/vendor/ffmpeg/ffmpeg-core.wasm", document.baseURI).href;
       
       var stCoreJsOk = await _isLocalFileValid(stCoreJsLocal, 50000);
       var stWasmOk = await _isLocalFileValid(stWasmLocal, 20000000);

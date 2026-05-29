@@ -1,7 +1,7 @@
 ========================================================================
     VIDEO RECORDING & ASSEMBLY LIBRARY — INTEGRATION & TROUBLESHOOTING
 ========================================================================
-Version: v1.7.0-hybrid-ts (Optimized Memory Allocation Edition)
+Version: v1.8.0-fully-encapsulated (Self-Supported Desktop/Mobile Edition)
 Date: May 2026
 
 This directory contains a self-contained, high-performance, in-browser
@@ -10,138 +10,158 @@ rendering frames (including dense WebGL scenes) and synthesizing them into
 high-quality MP4/H.264, WebM, or ZIP packages directly inside the browser
 using WebAssembly (FFmpeg.wasm) and the Origin Private File System (OPFS).
 
+All vital libraries and non-downloadable binary loaders are bundled directly
+within this folder's subdirectories, making the whole library fully portable
+and easily drag-and-drop integration-friendly!
+
 ------------------------------------------------------------------------
-1. HOW TO COPY AND USE THE RECORDING LIBRARY IN A NEW PROJECT
+1. DIRECTORY AND FILE STRUCTURE
 ------------------------------------------------------------------------
-To move this module over to a brand-new application, follow this guide:
+The recording library is fully housed inside the following flat directory structure:
 
-Step A: Copy the Library Directory
----------------------------------
-Copy the entire `js/recorder-library/` folder into your new project.
-Ensure all of the following module files are present:
-- `recording.js`       : Primary orchestrator managing capture loop & state.
-- `assembly.js`        : Background FFmpeg compiler manager.
-- `video-filters.js`   : Computes dimension alignments (modulo limits & cropping).
-- `ffmpeg-loader.js`   : Handles async WebAssembly module orchestration.
-- `ffmpeg-commands.js` : Builds optimized CLI compiling parameters.
-- `zip-export.js`      : Streams captures to client ZIP structures (packaged via JSZip).
-- `fetch-from-cdn.js`  : Retries downloading assets from fallback sources.
+recorder-library/
+├── recording.js            # Primary orchestrator managing capture loop, resizing and state.
+├── assembly.js             # Background FFmpeg compiler manager.
+├── video-filters.js        # Computes dimension alignments (modulo limits & cropping).
+├── ffmpeg-loader.js        # Handles async WebAssembly module orchestration and caching.
+├── ffmpeg-commands.js      # Builds optimized CLI compiling parameters for WebAssembly.
+├── zip-export.js           # Streams captures to client ZIP structures (powered by local JSZip).
+├── fetch-from-cdn.js       # Manages CDN fallback downloads with SHA-256 validation.
+├── README.txt              # Standard manual and troubleshooting files (This file).
+├── specifications.md       # Comprehensive technical manual and architectural spec sheets.
+│
+├── example/                # COMPACT INTERACTIVE IMPLEMENTATION MANUAL
+│   ├── index.html          # Self-contained reference layout with Three.js importmaps set at absolute peak <head>
+│   └── main.js             # Implements TorusKnot animation, wires all controls, overlays & logging HUD consoles
+│
+├── ui-templates/           # Embedded CSS and visual layout overrides
+│   └── combined-styles.css # UI dashboard stylesheet supporting glassmorphism
+│
+└── vendor/                 # Local encapsulated vendor dependencies (fully self-supported)
+    ├── jszip/
+    │   └── jszip.min.js     # JSZip client-side zip creation module
+    ├── file-saver/
+    │   └── FileSaver.min.js # FileSaver download wrapper for client blobs
+    └── ffmpeg/
+        ├── ffmpeg.js        # FFmpeg.wasm primary UMD script loader
+        └── 814.ffmpeg.js    # FFmpeg.wasm browser worker bootstrap thread helper
 
-Step B: Copy the Dependency Files (Mandatory Vendor Assets)
-----------------------------------------------------------
-The compiler relies on specific WebAssembly core blobs and helper libraries.
-To ensure full offline capabilities, copy these files into your new project's
-vendor/ assets directory (and match your project structure):
-1. JSZip Package (for ZIP packaging):
-   - Copy `vendor/jszip/jszip.min.js`
-2. FileSaver Utility (for initiating saving procedures):
-   - Copy `vendor/file-saver/FileSaver.min.js`
-3. WebAssembly FFmpeg Workers:
-   - Copy the entire `vendor/ffmpeg/` directory (which contains `ffmpeg.js`,
-     `814.ffmpeg.js`, `ffmpeg-core.js`, `ffmpeg-core-mt.js`, etc.)
+------------------------------------------------------------------------
+2. SECURE ORIGIN POLICY & INTEGRITY VERIFICATION (ATOMIC CDN FALLBACK)
+------------------------------------------------------------------------
+To meet modern browser Origin Security Policies (such as CORS, sandboxing, and safe context
+restrictions), the loading sequence for FFmpeg.wasm core binaries functions as a secure,
+atomic loading system:
 
-Step C: Code Integration Walkthrough
+1. Local Vendor Cache Lookup (Priority 1):
+   The loader tries to grab base modules locally first. If they exist on your local server 
+   under `./js/recorder-library/vendor/ffmpeg/`, they are loaded instantly with no outward network calls.
+
+2. Browser Sandboxed OPFS Cache (Priority 2):
+   If local binary files are missing or can't be hosted due to size restrictions, the loader
+   queries the browser's persistent sandboxed Origin Private File System (OPFS) directory
+   under `vendor/ffmpeg/`. If verified cache markers (`st-loaded.ok` or `mt-loaded.ok`) are present,
+   the files are loaded dynamically from sandboxed browser space with zero server requests.
+
+3. Symmetrical CDN Fallback with Signature Matching (Priority 3):
+   If both local and OPFS structures are dry (such as on first-fire onboarding), a single,
+   secure atomic network transaction pulls the matching version of `@ffmpeg/core` (0.12.6) 
+   direct from certified CDNs (jsDelivr / unpkg) in raw array buffer format. 
+   
+   To protect against network injection or routing compromises, the system performs a
+   full cryptographic SHA-256 hash checksum calculation on the binary arrays before registering
+   them. Only verified binaries are saved to OPFS, finalizing the atomic transaction.
+   
+   Note: Secure contexts (HTTPS or localhost) are required. SharedArrayBuffer requires
+   COOP/COEP headers to enable Multi-Threaded compilation. If they are blocked, the library
+   automatically degrades gracefully to Single-Threaded mode.
+
+------------------------------------------------------------------------
+3. HOW TO INTEGRATE THE RECORDING LIBRARY IN A NEW PROJECT
+========================================================================
+
+Step A: Copy the Library Folder
+-------------------------------
+Simply duplicate the entire `js/recorder-library/` folder into your new project's structure.
+
+Step B: Reference the Scripts in index.html
+------------------------------------------
+Add the base vendor JS files within your main HTML `<head>` block. Ensure paths align:
+```html
+<!-- Encapsulated Recorder Library base dependencies -->
+<script src="js/recorder-library/vendor/ffmpeg/ffmpeg.js?v=fresh10"></script>
+<script src="js/recorder-library/vendor/jszip/jszip.min.js?v=fresh10"></script>
+<script src="js/recorder-library/vendor/file-saver/FileSaver.min.js?v=fresh10"></script>
+```
+
+Step C: JS Code Integration Callouts
 ------------------------------------
-In your main script (e.g. `main.js` or standard entry module):
+In your main application script:
 
-1. Import the Recording Module at the top:
+1. Import the main engine class:
+   ```javascript
    import RecordingEngine from './js/recorder-library/recording.js';
+   ```
 
-2. Instantiate the engine inside your viewport setup function:
+2. Symmetrically instantiate the manager inside your window layout setup:
+   ```javascript
    const recorder = new RecordingEngine({
-     exportFPS: 60,              // Framing speed (e.g. 30 or 60)
-     exportFormat: 'mp4',        // Format option: 'mp4', 'webm', or 'zip'
-     exportPipeline: 'ffmpeg',   // Set to 'ffmpeg' or 'zip'
-     exportWidth: 1280,          // Recording scale target (e.g., 1280, 1920)
-     exportHeight: 720,          // Recording scale vertical
-     camera: camera,             // Three.js Camera reference (if adjusting viewports)
-     exportFilename: 'my_project_capture' // Optional filename prefix
+     exportFPS: 60,              // Framing rate (30 or 60)
+     exportFormat: 'mp4',        // Output target: 'mp4', 'webm', or 'zip'
+     exportPipeline: 'ffmpeg',   // Render pipeline: 'ffmpeg' (compiles video) or 'zip'
+     exportWidth: 1280,          // Canvas target render resolution width
+     exportHeight: 720,          // Canvas target render resolution height
+     camera: camera,             // Three.js Camera reference
+     exportTrim: 'none'          // WebM height trim bounds (default 'none')
    });
+   ```
 
-3. Initialize the renderer attachment:
+3. Initialize renderer hooks:
+   ```javascript
    recorder.init(renderer.domElement, renderer);
+   ```
 
-4. Register the hook in your RequestAnimationFrame render tick:
-   function animate() {
-     requestAnimationFrame(animate);
+4. Place the capture frames call straight inside your central animation rendering tick:
+   ```javascript
+   function tick() {
+     requestAnimationFrame(tick);
      
-     // Step your physics simulation here...
+     // Step physical models...
      
-     // Draw your 3D canvas
+     // Render Three.js viewport
      renderer.render(scene, camera);
      
-     // Intercept WebGL frames automatically
-     recorder.captureFrame(); 
+     // Automatically capture active frame metrics
+     recorder.captureFrame();
    }
+   ```
 
-5. Bind triggers to user buttons:
-   // Start capturing
+5. Coordinate user actions to starting/stopping functions:
+   ```javascript
+   // Starting recording state
    document.getElementById("btn-start").addEventListener("click", () => {
      recorder.startRecording();
    });
 
-   // Stop capture and initiate rendering download
+   // Stopping capture and compiling file download
    document.getElementById("btn-stop").addEventListener("click", async () => {
      const compiledBlob = await recorder.stopRecording();
      const url = URL.createObjectURL(compiledBlob);
      const a = document.createElement("a");
      a.href = url;
-     a.download = `rendered_capture_${Date.now()}.mp4`;
+     a.download = `rendered_session_${Date.now()}.mp4`;
      a.click();
      URL.revokeObjectURL(url);
    });
-
-
-------------------------------------------------------------------------
-2. THE APPLE IPADOS & IOS MOBILE MEMORY PITFALL (COOLDOWN STRATEGY)
-------------------------------------------------------------------------
-Mobile and tablet Safari browsers (WebKit) impose strict RAM and thread
-constraints. Running dense WebAssembly compiler loops on these devices can
-easily cause a memory spike, leading to a silent browser reload/crash.
-
-To address this, our framework includes the following mobile-specific
-optimizations when sequential tests are running in the Diagnostics suite:
-
-1. Dynamic Offloading:
-   As soon as a diagnostics test concludes, the WebAssembly worker thread is
-   immediately destroyed and freed via:
-   `window.recorder._ffmpeg.terminate()` (or `.exit()`)
-   All main thread references are set to null, and the internal frame array:
-   `window.recorder._recordedFrames = []` is cleared outright.
-
-2. Garbage Collector Breathing Padding:
-   When a touch or mobile user agent (matching Android, iPhone, iPad, macOS 
-   with maxTouchPoints > 0) is flagged, the transition delay between individual
-   consecutive runs is automatically boosted from 800ms up to **3000ms (3s)**.
-   This gives the browser's native garbage collection engine sufficient time
-   to completely flush the memory heap of WebGL textures and image blobs before
-   firing the next automated run.
-
-
-------------------------------------------------------------------------
-3. SAFARI / APPLE COMPATIBILITY: WEBM VS MP4 FOR WEB-VIDEOS
-------------------------------------------------------------------------
-A common question: "Why do 720p WebM videos not play on Apple tablets?"
-
-- **The Limitation**: Apple native devices (iOS, iPadOS) and standard Safari
-  do not support playing WebM (.webm) format natively within `<video>` tags
-  or saving them to the system Photos library. This holds true even on
-  modern, high-spec iPads and computers.
-- **The Solution**: Users on Apple mobile devices (iPads/iPhones) must select
-  **MP4** as their export format inside the application. MP4/H.264 formats have
-  excellent universal support on WebKit browsers.
-- **Alternate Route**: If a user on iPad/iPhone downloads a WebM file, they
-  will need alternative media viewers such as "VLC for Mobile" or similar apps
-  to process and render the codec, or transcode the file on a separate computer.
-
+   ```
 
 ------------------------------------------------------------------------
 4. CORE TROUBLESHOOTING CHECKLIST
 ------------------------------------------------------------------------
-If something goes wrong (errors, crashes, static captures), verify these checks:
+If experiencing visual degradation, download interruptions, or browser crashes:
 
 [ ] Are you seeing "SharedArrayBuffer is not defined" or "Fallback Active"?
-    - EXPLANATION: This occurs when the server is not serving Cross-Origin Isolation
+    - EXPLANATION: This occurs when the hosting server is not serving Cross-Origin Isolation
       headers (unlocked only in secure context). It is normal! The engine automatically
       detects this and gracefully falls back to Single Threaded (ST) WebM rendering,
       which is extremely stable.
@@ -151,25 +171,31 @@ If something goes wrong (errors, crashes, static captures), verify these checks:
         - `Cross-Origin-Opener-Policy: same-origin`
 
 [ ] Macroblock Division Errors (Video Synthesizer throws alignment errors)?
-    - WebAssembly video synthesizers require widths and heights is divisible by 2,
+    - WebAssembly video synthesizers require widths and heights divisible by 2,
       and for standard H.264, ideally divisible by 8 or 16.
-    - Check `video-filters.js` inside the code folder. It automatically forces
-      your frame sizing bounds into even, safe bounds (`Math.floor(x / 2) * 2`).
-      Ensure any custom code edits of export resolutions maintain this modular alignment.
+    - Our helper script `video-filters.js` automatically handles this by slicing canvas
+      rendering resolutions to Mod-2 widescreen alignments (`Math.floor(x / 2) * 2`).
+      Ensure custom sizing attributes maintain this division.
 
 [ ] Is the active tab crashing with Out-of-Memory (OOM) alerts on long records?
-    - If recording lots of frames, switch the pipeline. Check if ZIP Export mode is sufficient.
-    - Reduce the export size to 720p (1280x720) or 480p to lower RAM allocations, and ensure
-      that your recording does not include unneeded elements.
-    - Double-check that your render code releases temporary canvas context pointers and calls
-      `URL.revokeObjectURL(tUrl)` immediately inside image loading blocks.
+    - If recording lots of frames, switch the pipeline or utilize ZIP Export mode.
+    - Reduce the export size to 720p (1280x720) or 480p to lower RAM allocations.
+    - Remember to call `URL.revokeObjectURL()` once you've saved downloaded targets.
 
-[ ] First frame black / missing visuals?
+[ ] First frame black / missing WebGL visuals?
     - WebGL canvases wipe their drawing buffer cleanly on every monitor refresh cycle
       for performance. Ensure that in your Three.js options, you pass:
       `preserveDrawingBuffer: true` (or fetch pixels synchronously immediately within the
       same script block as the raw `.render()` call, which our Recording System handles
       impeccably).
+
+------------------------------------------------------------------------
+5. INTERACTIVE TESTING REFERENCE PORT
+------------------------------------------------------------------------
+To see all of the pieces functioning in a cohesive ecosystem:
+- Open your browser to `/js/recorder-library/example/index.html` (e.g. http://localhost:3000/js/recorder-library/example/)
+- You will find a rotating 3D Torus Knot toy scene utilizing native ES modules.
+- The import maps reside at the immediate top of index.html as standard, and all visual HUD templates, status metrics, and standard output terminals function interactively.
 
 ========================================================================
                           Enjoy the Soliton Lab!
