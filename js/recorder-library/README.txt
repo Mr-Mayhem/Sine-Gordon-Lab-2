@@ -42,9 +42,14 @@ recorder-library/
     │   └── jszip.min.js     # JSZip client-side zip creation module
     ├── file-saver/
     │   └── FileSaver.min.js # FileSaver download wrapper for client blobs
-    └── ffmpeg/
-        ├── ffmpeg.js        # FFmpeg.wasm primary UMD script loader
-        └── 814.ffmpeg.js    # FFmpeg.wasm browser worker bootstrap thread helper
+    ├── ffmpeg/
+    │   ├── ffmpeg.js        # FFmpeg.wasm primary UMD script loader
+    │   └── 814.ffmpeg.js    # FFmpeg.wasm browser worker bootstrap thread helper
+    └── three/
+        ├── three.module.js  # Dedicated Three.js modular script
+        └── addons/
+            └── controls/
+                └── OrbitControls.js # Camera orbital controls addon script
 
 ------------------------------------------------------------------------
 2. SECURE ORIGIN POLICY & INTEGRITY VERIFICATION (ATOMIC CDN FALLBACK)

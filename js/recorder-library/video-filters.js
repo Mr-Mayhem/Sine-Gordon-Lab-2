@@ -133,12 +133,16 @@ export function changeCanvasToRecordingResolution(canvas, renderer, camera, conf
     preH = ah || 720;
   }
 
-  // We use the EXACT target aspect ratio of the requested export resolution to prevent dimensional mismatches in ZIP archives
-  var aspect = aw / ah;
+  // We use the exact client viewport aspect ratio instead of forcing a target 16:9 ratio.
+  // Forcing a 16:9 aspect on a non-16:9 viewport changes the camera.aspect projection matrix,
+  // causing a visible shift in vertical/horizontal field of view (lens zoom/aperture shift) on screen,
+  // and causing the canvas on screen to warp/stretch because the browser stretches the 16:9 buffer
+  // to fill the non-16:9 viewport container.
+  // By maintaining the true viewport aspect ratio, the scene remains 100% visually identical
+  // with absolutely zero shift in zoom, lens perspective, layout, or dimensions.
+  var aspect = preW / preH;
   if (!aspect || isNaN(aspect) || !isFinite(aspect) || aspect <= 0) {
-    preW = aw || 1280;
-    preH = ah || 720;
-    aspect = preW / preH;
+    aspect = aw / ah;
   }
 
   var captureH = ah;
@@ -160,9 +164,10 @@ export function changeCanvasToRecordingResolution(canvas, renderer, camera, conf
     }
   }
 
-  // Preserve the visual display bounds using CSS so that the canvas size on screen never shifts or shrinks
-  canvas.style.width = preW + "px";
-  canvas.style.height = preH + "px";
+  // To satisfy the no visual resizing mandate and prevent any shrinking, jumping, or shifting,
+  // we lock the canvas's visual bounds to "100%" so it fills its responsive container exactly.
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
 
   console.log("Canvas physically scaled to target format:", captureW + "x" + captureH, "(target output render: " + aw + "x" + ah + ", was logical preset: " + preW + "x" + preH + ")");
 

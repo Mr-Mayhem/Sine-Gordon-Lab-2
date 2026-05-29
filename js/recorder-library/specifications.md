@@ -54,9 +54,14 @@ recorder-library/
     │   └── jszip.min.js     # JSZip client-side zip creation module
     ├── file-saver/
     │   └── FileSaver.min.js # FileSaver download wrapper for client blobs
-    └── ffmpeg/
-        ├── ffmpeg.js        # FFmpeg.wasm primary UMD script loader
-        └── 814.ffmpeg.js    # FFmpeg.wasm browser worker bootstrap thread helper
+    ├── ffmpeg/
+    │   ├── ffmpeg.js        # FFmpeg.wasm primary UMD script loader
+    │   └── 814.ffmpeg.js    # FFmpeg.wasm browser worker bootstrap thread helper
+    └── three/
+        ├── three.module.js  # Dedicated Three.js modular script
+        └── addons/
+            └── controls/
+                └── OrbitControls.js # Camera orbital controls addon script
 ```
 
 ---
@@ -95,6 +100,26 @@ A common crash on in-browser WebAssembly video pipelines is the mismatch between
   - Remaps standard **854x480** to complying widescreen **852x480** (clean division, aspect ratio 1.775:1).
   - Remaps and ensures all canvas size transformations apply a modulo-2 grid (`Math.floor(value / 2) * 2`) even when user triggers dynamic, custom window resize interactions.
 
+### 4.3 Complete Video Filters and Resolutions Ledger
+
+To lock in precise output standards and compile high-fidelity outputs, the recording compilation engine utilizes optimized, hardware-friendly FFmpeg scaling and cropping command options. Each target output resolution is mapped to a designated filter chain:
+
+| Target Output Key | Output Name / Preset | Actual Output Width | Actual Output Height | Aspect Ratio | Exact FFmpeg Video Filter (`-vf`) Settings |
+|:---|:---|:---|:---|:---|:---|
+| **640x360** | standard_definition_360p | 640 px | 360 px | 16:9 (~1.777) | `scale=640:360:force_original_aspect_ratio=increase:flags=lanczos,crop=640:360,setsar=1` |
+| **854x480** | standard_definition_480p | 852 px | 480 px | 1.775:1 (Mod-12) | `scale=852:480:force_original_aspect_ratio=increase:flags=lanczos,crop=852:480,setsar=1` |
+| **1280x720** | high_definition_720p | 1280 px | 720 px | 16:9 (~1.777) | `scale=1280:720:force_original_aspect_ratio=increase:flags=lanczos,crop=1280:720,setsar=1` |
+| **1920x1080** | full_hd_1080p | 1920 px | 1080 px | 16:9 (~1.777) | `scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos,crop=1920:1080,setsar=1` |
+| **2560x1440** | quad_hd_1440p | 2560 px | 1440 px | 16:9 (~1.777) | `scale=2560:1440:force_original_aspect_ratio=increase:flags=bicubic,crop=2560:1440,setsar=1` |
+| **3840x2160** | ultra_hd_4k | 3840 px | 2160 px | 16:9 (~1.777) | `scale=3840:2160:force_original_aspect_ratio=increase:flags=bicubic,crop=3840:2160,setsar=1` |
+
+#### Architectural Mechanics of the Filters & Attribute Settings:
+1. **`scale=W:H`**: Scale the input frames so that they exactly match the target output width ($W$) and height ($H$) along the dominant axis.
+2. **`force_original_aspect_ratio=increase`**: Scale the input video dynamically, preventing aspect squashing or stretching. This ensures the shorter dimension of the input video is scaled to completely fill/override the target, while the longer dimension overflows past the boundaries.
+3. **`flags=lanczos` (HD/SD) / `flags=bicubic` (Quad/Ultra HD)**: High-quality spatial resampling filters. Lanczos is utilized for high frequency antialiasing below 1080p, while Bicubic is utilized at higher scales to minimize WebAssembly heap thrashing and keep processing speed steady.
+4. **`crop=W:H`**: Extract a perfectly centered rectangle of size $W \times H$ from the scaled frames. This crops the overflow symmetrically, eliminating any layout black bars (letterboxing/pillarboxing) while keeping the center focused.
+5. **`setsar=1`**: Force the Sample Aspect Ratio (SAR) to 1:1 (square pixels). This instructs standard media players to display the compiled video precisely and uniformly at a 1.0 pixel ratio.
+
 ---
 
 ## 5. Performance & Memory Safeguards
@@ -110,6 +135,15 @@ Rather than a fixed frame limit, the library dynamically samples frame resolutio
 * **1440p (2560x1440)**: Triggers chunked assembly at **>60 frames**. Chunk sizing limits to $75$ frames.
 * **1080p (1920x1080)**: Triggers chunked assembly at **>120 frames**. Chunk sizing limits to $100$ frames.
 * **SD Resolutions**: Fallbacks to chunk sizes of $150$ frames, up to $1500$ frames before partitioning.
+
+### 5.3 Canvas Layout Sizing & Aspect Integrity (Preservation Mandate)
+To maintain user interface alignment and responsive layouts across high-DPI displays (including Retina, mobile grids, and split-screen desktop windows), the recording system operates under a strict preservation mandate:
+* **No Visual Sizing Mutations**: The engine is strictly prohibited from changing the visual inline height or width of the active canvas on screen during active frame capturing.
+* **Aspect Sizing Locks**: During active recording, the canvas's visual CSS style width and height are locked via inline properties to `100%`. This prevents the browser from changing layout reflows or warping elements when internal WebGL backbuffer properties mutate, completely halting any visual shrinking.
+* **No Lens/Zoom Aperture Shifts**: The 3D camera aspect ratio is kept locked directly to the viewport aspect ratio (`preW / preH`) instead of forcing a target 16:9 ratio. Forcing a mismatch aspect ratio changes the camera projection matrix, changing the horizontal field of view (creating lens zoom/aperture artifacts on screen) and squishing the rendering buffer. Under the lock, the scene remains 100% visually identical with absolutely zero shift in zoom, lens perspective, layout, or dimensions.
+* **Resolution-Only Buffer Scaling**: Changing target recording quality (e.g. exporting a 1080p, 1440p, or 4K frame stream) is performed strictly on the internal WebGL backbuffer via the renderer context (using `renderer.setSize(captureW, captureH, false)` with the layout updating flag set to `false`).
+* **Instant Inline Recovery**: Whenever resolution scaling is completed, or when recording is stopped, original width and height style properties must be cleanly restored to their cached pre-recording states. The on-screen dashboard visual appearance remains completely static (even if grainy during lower recording quality settings), protecting container margins, aspect ratios, and visual fluidity.
+* **Untouched Video Filters Directive**: The underlying ffmpeg video scale and crop command filters must never be mutated, ensuring compilation pipeline alignment is not broken.
 
 ---
 

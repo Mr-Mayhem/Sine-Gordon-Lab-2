@@ -229,6 +229,17 @@ Where:
      - Toggle class listings dynamically to keep button accent classes (`.active`) completely accurate.
   2. This guarantees absolute structural integrity across multiple tabs, device pivots, or window resizes, preventing stale DOM displays from masking active physical topologies.
 
+### 4.17 No Canvas Resizing and Absolute Aspect Sizing Integrity Mandate
+* **The Pitfall**: 
+  1. Modifying the DOM elements `canvas.style.width` and `canvas.style.height` inline properties to fit pixel resolutions during a recording capture deforms the layout on high-density displays (such as Retina or mobile viewports) making the renderer jump, flash, or physically shrink.
+  2. Forcing a fixed aspect ratio (like 16:9) on the 3D camera projection matrix when the active viewport has a different aspect ratio causes a distinct visual shift in horizontal/vertical field of view (looking like a physical lens zoom or camera aperture shift) and squishes the rendering backbuffer.
+* **The Resolution (Visual & Camera Projection Retention)**:
+  1. **Strictly Preserve CSS Dimensions**: The recording pipeline is completely forbidden from altering the visual height or width layout of the DOM canvas on screen during active recording.
+  2. **Logical Sizing CSS Locks**: During active capture sessions, the canvas's visual CSS style width and height must be locked via inline style properties to `"100%"` (or matching pre-recording outer containers). This ensures that mutating the internal WebGL backbuffer resolution (`canvas.width`/`canvas.height` via `.setSize(..., false)`) does not trigger any browser reflows, page shrinking, or layout jumps.
+  3. **No Lens Zoom or Aperture Shifts**: The 3D camera projection aspect ratio **MUST** be kept locked directly to the real client viewport aspect ratio (`preW / preH`) instead of forcing a target 16:9 ratio. This locks the perspective projection matrix, ensuring the interactive scene remains 100% visually identical with absolutely zero shifts in zoom, lens perspective, layout, or dimensions.
+  4. **Resolution-Only buffer scaling**: Only adjust the internal pixel density/resolution of the WebGL canvas buffer using `renderer.setSize(captureW, captureH, false)` with the layout updating/style parameter strictly set to `false`. Pre-recording visual style attributes and layout dimensions must be preserved, and cleanly restored upon stopping. Any change in output recording resolution should result purely in a grainy preview stream on the current visual element, leaving container layout aspect ratios completely unchanged on screen.
+  5. **No Direct Modification of Filters**: To preserve production assembly stability and prevent audio/video alignment regressions, the underlying FFmpeg command and video filters (such as `scale` and `crop` modulos inside `video-filters.js`) must never be modified. Keep the original `video-filters.js` mathematical scale calculations unchanged.
+
 ---
 
 ## 5. VERIFICATION WORKFLOW

@@ -147,6 +147,20 @@ export default class RecordingEngine {
       this._preRecordingHeight,
       document.getElementById("viewport")
     );
+    if (this._savedStyleWidth !== undefined) {
+      if (this._savedStyleWidth) {
+        this._canvas.style.width = this._savedStyleWidth;
+      } else {
+        this._canvas.style.removeProperty("width");
+      }
+    }
+    if (this._savedStyleHeight !== undefined) {
+      if (this._savedStyleHeight) {
+        this._canvas.style.height = this._savedStyleHeight;
+      } else {
+        this._canvas.style.removeProperty("height");
+      }
+    }
     this._preRecordingWidth = null;
     this._preRecordingHeight = null;
     
@@ -294,13 +308,17 @@ export default class RecordingEngine {
     }
 
     const cam = this.config.camera || window.camera;
+    this._savedStyleWidth = this._canvas.style.width || "";
+    this._savedStyleHeight = this._canvas.style.height || "";
+
     var sizeData = changeCanvasToRecordingResolution(
       this._canvas,
       this._renderer,
       cam,
       this.config,
-      document.getElementById("viewport")
+      document.getElementById("viewport") || document.querySelector(".main-canvas-container")
     );
+
     var aw = sizeData.width;
     var ah = sizeData.height;
     this._recordingWidth = aw;
@@ -308,7 +326,7 @@ export default class RecordingEngine {
     this._preRecordingWidth = sizeData.preRecordingWidth;
     this._preRecordingHeight = sizeData.preRecordingHeight;
 
-    console.log("Recording started. Physics Canvas physically resized to target format:", aw + "x" + ah);
+    console.log("Recording started. Physics Canvas is updated internally to target format:", aw + "x" + ah);
     this._pixelBuffer = new Uint8Array(aw * ah * 4);
     this._ensureTempCanvas(aw, ah, aw, ah);
     this._calculateCaptureInterval();
