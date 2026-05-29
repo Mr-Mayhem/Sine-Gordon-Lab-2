@@ -25,9 +25,18 @@ In modern browser environments, running native ES Modules with `import * as THRE
 AI agents are heavily pre-trained on bundler-based pipelines (Vite, Next.js, Webpack) where Node resolves bare specifiers at compile time. During general maintenance—such as reordering tags, updating viewport scales, adding metadata, or doing head cleanups—agents commonly:
 * Reorder `<link rel="modulepreload">` tags or ES Module scripts *above* the `<script type="importmap">`.
 * Simplify or consolidate `<head>` tags, thinking the importmap is redundant or can be handled by Node.
+* Inadvertently slide custom comments, multi-line ASCII arts, link tags, metadata declarations, or decorative styles *above* the `<script type="importmap">`, pushing it down.
+
+### The Underlying Browser Mechanics (Determining the "Why")
+When a browser loads an HTML file, it employs a highly optimized **Speculative Preparser (or HTML Preloader)** running on a separate thread. This speculative parser scans the HTML document rapidly to find external resources (such as `<script type="module">` elements, stylesheets, or fonts) and begins speculative parallel downloads and pre-resolutions before the main DOM tree is fully constructed.
+
+If ANY tag or node appears above the `<script type="importmap">`—even seemingly non-executable ones like HTML comment blocks (`<!-- ... -->`), `<meta charset="UTF-8">`, `<meta name="viewport">`, or stylesheets—the browser's loading scheduler can kick off speculative module resolution on the background threads before the main thread has parsed and registered the importmap. Because the importmap is not yet active, the background resolver hits `import * as THREE from 'three'`, treats `"three"` as as unmapped bare specifier, and terminates speculative execution with the fatal:
+> `TypeError: The specifier "three" was a bare specifier, but was not remapped to anything.`
+
+Thus, the `<script type="importmap">` must be the absolute **first child of the <head> element**, completely bypassing speculative preloading timing races.
 
 ### Ultimate Rules for importmap
-1. **Absolute Peak Placement**: The `<script type="importmap">` **MUST** be the absolute first child of the `<head>` element in `index.html`, before any style link, viewport meta, preloads, or module scripts.
+1. **Absolute Peak Placement**: The `<script type="importmap">` **MUST** be the absolute first child of the `<head>` element in `index.html` (or in any nested HTML files like `/js/recorder-library/example/index.html`), preceding all style links, viewport meta elements, scripts, and even HTML comments.
 2. **Duplicate Entry Mapping**: Ensure both directory-nested and absolute specifier mappings exist using root-relative pathing (preventing relative path resolution breakages within subdirectories):
    ```json
    "imports": {
@@ -239,6 +248,29 @@ Where:
   3. **No Lens Zoom or Aperture Shifts**: The 3D camera projection aspect ratio **MUST** be kept locked directly to the real client viewport aspect ratio (`preW / preH`) instead of forcing a target 16:9 ratio. This locks the perspective projection matrix, ensuring the interactive scene remains 100% visually identical with absolutely zero shifts in zoom, lens perspective, layout, or dimensions.
   4. **Resolution-Only buffer scaling**: Only adjust the internal pixel density/resolution of the WebGL canvas buffer using `renderer.setSize(captureW, captureH, false)` with the layout updating/style parameter strictly set to `false`. Pre-recording visual style attributes and layout dimensions must be preserved, and cleanly restored upon stopping. Any change in output recording resolution should result purely in a grainy preview stream on the current visual element, leaving container layout aspect ratios completely unchanged on screen.
   5. **No Direct Modification of Filters**: To preserve production assembly stability and prevent audio/video alignment regressions, the underlying FFmpeg command and video filters (such as `scale` and `crop` modulos inside `video-filters.js`) must never be modified. Keep the original `video-filters.js` mathematical scale calculations unchanged.
+
+### 4.18 Diagnostic Test Isolation Guard (`isTesting`)
+* **The Pitfall**: Automated/programmatic diagnostics and validation suites execute quick frame-by-frame captures under controlled mock parameters (`isTesting = true`). If the main visual timeline animation/render loop (`requestAnimationFrame`) continues to call `.captureFrame()` simultaneously under standard workspace runtime flags (i.e., `recorder.isRecording === true` while `isTesting` is active), state/frame corruption occurs. This results in excess frame writes, frame count mismatches, and dimensional mismatch failures because the background suite updates state parameters (like target resolution or OPFS directory scopes) for successive resolutions while the active loops capture obsolete or wrong canvas layouts.
+* **The Resolution (Testing Isolation Lock)**:
+  1. **Separation of Concerns**: Frame-capturing operations in primary application loops (like standard manual render tickers or toy canvases) must be gated using standard checks:
+     ```javascript
+     if (recorder && recorder.isRecording && !recorder.isTesting) {
+       recorder.captureFrame();
+     }
+     ```
+  2. This guarantees absolute isolation between diagnostic/automated checks and actual user-driven manual capture sessions, eliminating multi-threaded or synchronous frame collision bugs entirely.
+
+### 4.19 FFmpeg Resolution and Filter Guidelines
+* **The Pitfall**: Mismatched canvas layout dimensions or non-modulus resolutions cause failure inside the WASM H.264 synthesis layer.
+* **The Resolution (Strict Filter Standard)**:
+  1. Keep all resolution definitions synchronized with these compliant standards:
+     - **360p**: 640x360
+     - **480p**: 852x480 (remap from 854x480 for standard Mod-12/16 widescreen division)
+     - **720p**: 1280x720
+     - **1080p**: 1920x1080
+     - **1440p (QHD)**: 2560x1440
+     - **2160p (4K UHD)**: 3840x2160
+  2. Direct WebM crops use scaled multipliers: Subtle (`h * 0.80`), Snug (`h * 0.67`), and Max (`h * 0.55`) rounded strictly to even integers (`Math.floor(val / 2) * 2`).
 
 ---
 

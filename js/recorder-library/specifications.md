@@ -1,17 +1,19 @@
 # Recorder Library Specification — `recorder-library/`
 
-**Active Version: v1.8.0-modular-hybrid**
+**Active Version: v1.8.2-modular-hybrid**
 
 This document details the architecture, capabilities, design philosophy, API contracts, directories, and integration workflows of the self-contained browser recording and rendering assembly engine. 
 
 Designed for high-performance in-browser rendering pipelines, this library is crafted to handle ultra-high resolution captures (such as 1080p, 1440p, or 4K) directly inside sandboxed browser frames using modern standards including WebGL, standard ES Modules (ESM), WebAssembly (FFmpeg.wasm), and fast sandboxed storage via the **Origin Private File System (OPFS)**.
 
-### Recent Updates in v1.8.0
+### Recent Updates in v1.8.2
 1. **Fully Encapsulated Vendor Directory**: Moves all external non-downloadable scripts (`ffmpeg.js`, `814.ffmpeg.js`, `jszip.min.js`, `FileSaver.min.js`) into an isolated `vendor/` subfolder within the module itself to make it a portable drag-and-drop package.
 2. **Atomic CDN & Sandbox Transaction Fallback**: Fixes single-threaded WASM URL resolution bugs and details how fallbacks and SHA-256 cryptographic hashes operate to satisfy secure origin policies.
 3. **Dynamic Target Aspect Ratio Locking**: Remaps capturing dimensions dynamically to match the exact target aspect ratio of the requested export resolution across all formats. This prevents dimensional discrepancy errors during in-memory and OPFS storage ZIP extraction and video rendering workflows.
 4. **Integrated Log Window & HUD Tool**: A dedicated terminal console tracks operations, compiling steps, and thread configurations dynamically with visual tracking and message grouping.
 5. **Diagnostic Utility (Clipboard Copy)**: Introduces a robust clipboard action featuring dual-tier fallback mechanisms (`navigator.clipboard.writeText` and a hidden temporary textarea node) to grab complete diagnostic reports seamlessly inside iframes or sandboxed origins.
+6. **Programmatic Core Test Isolation Guard (`isTesting`)**: Configures and documents the synchronization safety layer that gates render ticks from calling capture functions concurrently while automated test suites run, preventing frame sequence pollution or aspect-ratio desynchronization.
+7. **HTML Head Peak Placement (Speculative Parser Protection)**: Incorporates precise documentation on why the `<script type="importmap">` must be the absolute first node inside `<head>`, precluding speculative browser loading pre-fetch races.
 
 ---
 
@@ -264,4 +266,48 @@ To preserve design intent and provide clear real-time user feedback, the recordi
   - In each requestAnimationFrame capture loop, as frames are stored to OPFS, the script updates the internal element containing ID `txt-recording` with the current sequence state: `"REC: " + frameCount`.
   - On `stop()`, the `recording-indicator` is hidden gracefully (`style.display = "none"`) and reset to zero.
 - **Pulsing Aesthetic**: Rendered using glassmorphism styling (`backdrop-blur-md`, alpha-backed red background bounds, and a pulsing core red indicator dot mapped via smooth infinite keyframes). This visual feedback guarantees users know that the canvas is being captured and that the application is actively processing frames.
+
+---
+
+## 9. Sandbox Diagnostic Test Isolation Guidelines
+
+### 9.1 Background
+The recording library contains a powerful interactive **Diagnostic Suite** that allows testing WebGL frame buffers, JSZip streams, and WebAssembly transcode speeds over different compliant resolutions (from 360p up to UHD 4K). 
+
+### 9.2 The Double-Capture Concurrency Pitfall
+Because the browser's visual viewport utilizes a continuous `requestAnimationFrame` render/animation loop, adding frame capturing operations like `recorder.captureFrame()` direct-coupled to general drawing updates can trigger severe desynchronization during test validations:
+- As the Diagnostic Suite initializes, it sets up its own programmatically controlled frame capture cycles under temporary mock resolutions.
+- If the main visual timeline ticker concurrently issues `captureFrame()` inside the normal animation loop, the two cycles collide.
+- This results in excess frame writes, frame count mismatches on OPFS/RAM disk buffers, and dimensional mismatch violations (e.g., standard renderer dimensions being written to target sandboxed directories).
+
+### 9.3 The Golden Guard Strategy
+To maintain absolute separation of concerns and avoid concurrency desynchronization under iframe and preview environments, all primary model render/animation ticks MUST gate capturing operations to isolate them under active testing flags:
+
+```javascript
+// Main viewport animation tick
+function tick() {
+  requestAnimationFrame(tick);
+  renderer.render(scene, camera);
+  
+  // GOLDEN safety lock separates manual user recording from programmatic tests
+  if (recorder && recorder.isRecording && !recorder.isTesting) {
+    recorder.captureFrame();
+  }
+}
+```
+
+This simple guard isolates standard user recording sessions cleanly from background programmatic audits, resolving timing races and ensuring that every single compliant resolution test delivers precise, reproducible results.
+
+
+## 10. Peak Placement HTML Head Rules (Speculative Parser Protection)
+
+### 10.1 The Issue
+Under aggressive, concurrent browser parsing routines (specifically in sandboxed frames or standard secure origins), the browser uses a **Speculative Preparser (HTML Preloader)**. If it sees ANY element before the `<script type="importmap">`—including comments, stylesheets, link preconnect tags, or viewport meta elements—it may speculatively parse and attempt to fetch/preload ES modules down in the file body. Since the import map hasn't been compiled on the main thread yet, resolving `"three"` bare specifiers will immediately crash speculative execution, generating unrecoverable `TypeError: The specifier "three" was a bare specifier, but was not remapped to anything.` errors.
+
+### 10.2 The Safe Pattern
+To eliminate timing-related bare specifier crashes entirely across all environments:
+1. The `<script type="importmap">` **MUST** be placed as the absolute first child of the `<head>` tag.
+2. Even comment blocks (such as `<!-- ... -->` or headers) must not precede it.
+3. Keep structural and style assets locked strictly below the importmap.
+
 
