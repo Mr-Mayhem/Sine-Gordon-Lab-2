@@ -302,47 +302,6 @@
 
       <!-- Complete CTA actions (Injected dynamically on compile finish) -->
       <div id="assembly-ready-actions" class="hidden gap-2 mx-auto justify-center shrink-0"></div>
-
-    </div>
-  </div>
-
-
-  <!-- ==========================================================================
-       DIAGNOSTICS & SYSTEM COMPLIANCE OVERLAY
-       ========================================================================== -->
-  <div id="diagnostics-overlay" style="display: none;" class="fixed inset-0 bg-black/95 backdrop-blur-[12px] z-[300] overflow-y-auto p-4 md:p-6 select-none">
-    <div class="theory-content max-w-[800px] margin-[10px_auto] bg-neutral-950/85 border border-white/10 rounded-xl p-4 md:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
-      
-      <header class="flex justify-between items-center border-b border-white/10 pb-2 mb-3">
-        <div>
-          <h1 class="text-xs font-mono font-bold tracking-wider text-white uppercase select-none">Video Pipeline Diagnostics</h1>
-          <p class="text-white/35 font-mono text-[7px] uppercase tracking-[0.12em] mt-0.5 select-none">Example Compliance and Core Thread Checks</p>
-        </div>
-        <button id="btn-close-diagnostics" class="w-5 h-5 text-white hover:bg-white/15 text-[8px] border border-white/10 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-95">✕</button>
-      </header>
-
-      <section class="grid grid-cols-2 lg:grid-cols-4 gap-2 bg-white/[0.015] border border-white/5 rounded-lg p-2 mb-3 text-[7px] font-mono text-white/60">
-        <div>
-          <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block">System Cores:</span>
-          <strong id="diag-cores" class="text-white">8 Cores</strong>
-        </div>
-        <div>
-          <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block">Reported Memory:</span>
-          <strong id="diag-mem" class="text-white">8.00 GB RAM</strong>
-        </div>
-        <div>
-          <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block">SharedArrayBuffer:</span>
-          <strong id="diag-sab" class="text-[#00ffcc]">SUPPORTED (MT Enabled)</strong>
-        </div>
-        <div>
-          <span class="text-white/35 font-bold uppercase tracking-wider mb-0.5 block">OPFS Sandbox:</span>
-          <strong id="diag-opfs" class="text-[#00ffcc]">AVAILABLE</strong>
-        </div>
-      </section>
-
-      <p class="text-[9px] font-mono text-white/40 leading-snug">
-        NOTE: In this reference setup, diagnostic simulation metrics query local host thread pools and confirm availability of local files in <code class="text-[#00ffcc]">js/recorder-library/vendor/</code>.
-      </p>
     </div>
   </div>
 

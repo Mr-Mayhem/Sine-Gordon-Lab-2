@@ -104,21 +104,13 @@ class LogNexusController {
       row.textContent = `[${t}] ${cleanMsg}`;
       el.appendChild(row);
 
-      // Perform scrolling adjustments
+      // Perform scrolling adjustments instantly
       el.scrollTop = el.scrollHeight;
-      try {
-        row.scrollIntoView({ block: "nearest" });
-      } catch (e) {}
 
-      // Asynchronous security offsets for browser layout engines
+      // Asynchronous micro-task backup offset for browser layout engines
       setTimeout(() => {
         el.scrollTop = el.scrollHeight;
-        try { row.scrollIntoView({ block: "nearest" }); } catch (err) {}
       }, 0);
-      setTimeout(() => {
-        el.scrollTop = el.scrollHeight;
-        try { row.scrollIntoView({ block: "nearest" }); } catch (err) {}
-      }, 50);
     }
 
     const countEl = document.getElementById("assembly-log-count");

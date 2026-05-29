@@ -61,9 +61,8 @@ function hookConsole() {
       // Synchronous scroll bottom pinning
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
       
-      // Secondary macro-task backup scrolling pins to counteract render ticks
+      // Secondary macro-task backup scrolling pins
       setTimeout(() => { scrollContainer.scrollTop = scrollContainer.scrollHeight; }, 0);
-      setTimeout(() => { scrollContainer.scrollTop = scrollContainer.scrollHeight; }, 50);
     }
 
     logHistory.push(`[${timeStr}] [${type.toUpperCase()}] ${text}`);
@@ -93,37 +92,6 @@ function hookConsole() {
 
   // Safe global logger access handles external module exports logs.
   window.__recordingHUDLog = appendToHUD;
-}
-
-// Ensure the local DOM state updates nicely for diagnostics
-function updateDiagnosticsHUD() {
-  const coresElem = document.getElementById("diag-cores");
-  const memElem = document.getElementById("diag-mem");
-  const sabElem = document.getElementById("diag-sab");
-  const opfsElem = document.getElementById("diag-opfs");
-
-  if (coresElem) coresElem.textContent = `${navigator.hardwareConcurrency || "N/A"} Logical Cores`;
-  if (memElem) memElem.textContent = `${navigator.deviceMemory || "8"} GB Estimated RAM`;
-  
-  if (sabElem) {
-    if (typeof SharedArrayBuffer !== "undefined") {
-      sabElem.textContent = "PASSED (COOP/COEP Unlocked/MT Active)";
-      sabElem.className = "text-[#00ffcc] font-mono";
-    } else {
-      sabElem.textContent = "RESTRICTED (ST fallback engine active)";
-      sabElem.className = "text-amber-400 font-mono";
-    }
-  }
-
-  if (opfsElem) {
-    if (navigator.storage && navigator.storage.getDirectory) {
-      opfsElem.textContent = "AVAILABLE (Optimized speed)";
-      opfsElem.className = "text-[#00ffcc] font-mono";
-    } else {
-      opfsElem.textContent = "UNSUPPORTED (Fallback active)";
-      opfsElem.className = "text-rose-400 font-mono";
-    }
-  }
 }
 
 // Setup simple three.js interactive canvas scene
@@ -302,8 +270,6 @@ function wireUI() {
   const btnCloseProc = document.getElementById("btn-close-processing");
   const btnCopyLogs = document.getElementById("btn-copy-logs");
   const btnDemoDiag = document.getElementById("btn-demo-diagnostics");
-  const diagOverlay = document.getElementById("diagnostics-overlay");
-  const btnCloseDiag = document.getElementById("btn-close-diagnostics");
 
   // Bind speed & density inputs
   paramSpeed.addEventListener("input", (e) => {
@@ -320,13 +286,13 @@ function wireUI() {
   });
 
   // Diagnostics overlays
-  btnDemoDiag.addEventListener("click", () => {
-    diagOverlay.style.display = "block";
-    updateDiagnosticsHUD();
-  });
-
-  btnCloseDiag.addEventListener("click", () => {
-    diagOverlay.style.display = "none";
+  btnDemoDiag.addEventListener("click", async () => {
+    try {
+      const { getDiagnosticsManager } = await import("/js/diagnostics.js");
+      getDiagnosticsManager().show();
+    } catch (err) {
+      console.error("[Diagnostics Loader] Failed to load diagnostics module in example:", err);
+    }
   });
 
   btnCloseProc.addEventListener("click", () => {
@@ -499,6 +465,5 @@ window.addEventListener("DOMContentLoaded", () => {
   hookConsole();
   initThree();
   wireUI();
-  updateDiagnosticsHUD();
   console.log("%c[System] Interactive integration example bootstrapped successfully.", "color: #00ffcc; font-weight: bold;");
 });

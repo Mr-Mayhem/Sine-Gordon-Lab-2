@@ -1007,7 +1007,7 @@ html, body {
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 255, 204, 0.75) rgba(255, 255, 255, 0.08);
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   overflow-y: scroll !important;
 }
 
