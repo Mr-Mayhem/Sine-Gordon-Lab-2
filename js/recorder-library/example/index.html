@@ -443,7 +443,7 @@
         <span class="text-[10px] font-black text-[#00ffcc] tracking-[0.3em] uppercase filter drop-shadow-[0_0_4px_rgba(0,255,204,0.35)] select-none">
           Assembly Engine
         </span>
-        <span id="assembly-subheader-info" class="font-mono text-[8.5px] text-white/50 uppercase tracking-wider text-right mr-10 select-none">
+        <span id="assembly-subheader-info" class="font-mono text-[8.5px] text-white/50 uppercase tracking-wider text-right select-none" style="margin-right: 64px;">
           Operation: Idle | Res: 1280x720
         </span>
         <span id="assembly-status" class="hidden">Ready</span>
@@ -473,16 +473,16 @@
 
       <!-- Scrolling Logs Panel -->
       <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[10px] bg-black/40 p-2.5 flex flex-col gap-1 overflow-hidden mx-auto flex-1 min-h-[220px]">
-        <div class="flex justify-between items-center text-[9px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1 shrink-0">
+        <div class="flex justify-between items-center text-[10px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1 shrink-0">
           <span>Assembly Logs & Standard Output</span>
           <div class="flex items-center gap-2">
             <span id="assembly-log-count" class="select-none">0 messages</span>
-            <button id="btn-copy-logs" class="hover:text-white transition-colors cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded text-[8px] font-mono font-bold text-[#00ffcc] uppercase select-none" title="Copy Logs">
+            <button id="btn-copy-logs" class="hover:text-white transition-colors cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded text-[9px] font-mono font-bold text-[#00ffcc] uppercase select-none" title="Copy Logs">
               Copy Logs
             </button>
           </div>
         </div>
-        <div id="assembly-log-scroll" class="w-full flex-1 min-h-0 overflow-y-scroll pr-2 font-mono text-[9px] text-[#00ffcc]/85 space-y-0.5 text-left select-text scrollbar-thin">
+        <div id="assembly-log-scroll" class="w-full flex-1 min-h-0 overflow-y-scroll pr-2 font-mono text-[10px] text-[#00ffcc]/85 space-y-0.5 text-left select-text scrollbar-thin">
           <div class="text-white/30">[System] Initializing Example Assembly Logger...</div>
         </div>
       </div>

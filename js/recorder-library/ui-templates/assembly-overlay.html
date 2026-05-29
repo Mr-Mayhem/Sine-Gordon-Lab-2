@@ -20,7 +20,7 @@
         Assembly Engine
       </span>
       <!-- ID: #assembly-subheader-info (Updated dynamically on init to fit chosen dimensions & format) -->
-      <span id="assembly-subheader-info" class="font-mono text-[8.5px] text-white/50 uppercase tracking-wider text-right mr-10 select-none">
+      <span id="assembly-subheader-info" class="font-mono text-[8.5px] text-white/50 uppercase tracking-wider text-right select-none" style="margin-right: 64px;">
         Operation: Idle | Res: 1280x720
       </span>
       <!-- 
@@ -92,13 +92,13 @@
     <!-- Scrolling Log Console Container -->
     <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[10px] bg-black/40 p-2.5 flex flex-col gap-1 overflow-hidden mx-auto flex-1 min-h-[220px]">
       <!-- Log HUD Title/Metadata Bar -->
-      <div class="flex justify-between items-center text-[9px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1 shrink-0">
+      <div class="flex justify-between items-center text-[10px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1 shrink-0">
         <span>Assembly Logs & Standard Output</span>
         <div class="flex items-center gap-2">
           <!-- ID: #assembly-log-count (Tracks incoming lines inside scroll area) -->
           <span id="assembly-log-count" class="select-none">0 messages</span>
           <!-- ID: #btn-copy-logs (Triggers automatic dual-tier Clipboard action) -->
-          <button id="btn-copy-logs" class="hover:text-white transition-colors cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded text-[8px] font-mono font-bold text-[#00ffcc] uppercase select-none" title="Copy Logs">
+          <button id="btn-copy-logs" class="hover:text-white transition-colors cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded text-[9px] font-mono font-bold text-[#00ffcc] uppercase select-none" title="Copy Logs">
             Copy Logs
           </button>
         </div>
@@ -106,7 +106,7 @@
       <!-- 
         ID: #assembly-log-scroll (Scroll-pinned container managed via synchronous fallback macro-tasks) 
       -->
-      <div id="assembly-log-scroll" class="w-full flex-1 min-h-0 overflow-y-scroll pr-2 font-mono text-[9px] text-[#00ffcc]/85 space-y-0.5 text-left select-text scrollbar-thin">
+      <div id="assembly-log-scroll" class="w-full flex-1 min-h-0 overflow-y-scroll pr-2 font-mono text-[10px] text-[#00ffcc]/85 space-y-0.5 text-left select-text scrollbar-thin">
         <div class="text-white/30">[System] Initializing Assembly Logger...</div>
         <div class="text-emerald-400/90">[Assemble] Ready to build. Awaiting output stream components...</div>
       </div>
