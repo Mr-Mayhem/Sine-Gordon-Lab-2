@@ -17,6 +17,55 @@ let animationFrameId = null;
 // Symmetrically initialized Recorder Engine
 let recorder = null;
 
+// Initialize minimal sgState mock for diagnostics compatibility
+window.sgState = {
+  get isRecording() { return recorder ? recorder.isRecording : false; },
+  set isRecording(v) { if (recorder) recorder.isRecording = v; },
+  get exportPipeline() { return document.getElementById("sel-pipeline")?.value || "ffmpeg"; },
+  set exportPipeline(v) { 
+    const el = document.getElementById("sel-pipeline");
+    if (el) el.value = v; 
+    if (recorder) recorder._pipeline = v;
+  },
+  get exportFormat() { return document.getElementById("sel-format")?.value || "mp4"; },
+  set exportFormat(v) { 
+    const el = document.getElementById("sel-format");
+    if (el) el.value = v; 
+    if (recorder) recorder.config.exportFormat = v;
+  },
+  get exportFPS() { return Number(document.getElementById("sel-fps")?.value || 30); },
+  set exportFPS(v) { 
+    const el = document.getElementById("sel-fps");
+    if (el) el.value = String(v); 
+    if (recorder) recorder.config.exportFPS = Number(v);
+  },
+  get exportWidth() { 
+    const val = document.getElementById("sel-res")?.value || "1280x720";
+    return Number(val.split("x")[0]);
+  },
+  set exportWidth(v) {
+    const el = document.getElementById("sel-res");
+    if (el) {
+      const h = window.sgState.exportHeight;
+      el.value = `${v}x${h}`;
+    }
+    if (recorder) recorder.config.exportWidth = Number(v);
+  },
+  get exportHeight() {
+    const val = document.getElementById("sel-res")?.value || "1280x720";
+    return Number(val.split("x")[1]);
+  },
+  set exportHeight(v) {
+    const el = document.getElementById("sel-res");
+    if (el) {
+      const w = window.sgState.exportWidth;
+      el.value = `${w}x${v}`;
+    }
+    if (recorder) recorder.config.exportHeight = Number(v);
+  },
+  paused: true
+};
+
 // UI State Configurations
 const params = {
   speed: 0.4,
@@ -119,7 +168,7 @@ function initThree() {
     alpha: true,
     preserveDrawingBuffer: true
   });
-  renderer.setSize(width, height);
+  renderer.setSize(width, height, false);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   // Controls
@@ -153,7 +202,7 @@ function initThree() {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
 
-      renderer.setSize(w, h);
+      renderer.setSize(w, h, false);
     }
   });
 
