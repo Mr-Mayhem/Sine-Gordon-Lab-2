@@ -450,7 +450,7 @@ export class DiagnosticsManager {
 
     const RESOLUTIONS = [
       { name: "SD 360p", width: 640, height: 360, fps: 30 },
-      { name: "SD 480p", width: 854, height: 480, fps: 30 },
+      { name: "SD 480p", width: 852, height: 480, fps: 30 },
       { name: "HD 720p", width: 1280, height: 720, fps: 30 },
       { name: "FHD 1080p", width: 1920, height: 1080, fps: 30, highRes: true },
       { name: "QHD 1440p", width: 2560, height: 1440, fps: 30, highRes: true },
@@ -1363,8 +1363,8 @@ export class DiagnosticsManager {
                   }
                 }
 
-                if (probeResult.width !== expectedW || probeResult.height !== expectedH) {
-                  const mmErr = new Error(`Video output resolution mismatch: parsed ${probeResult.width}x${probeResult.height}, configured ${expectedW}x${expectedH} (target aligned).`);
+                if (probeResult.width !== res.width || probeResult.height !== res.height) {
+                  const mmErr = new Error(`Video output resolution mismatch: parsed ${probeResult.width}x${probeResult.height}, configured ${res.width}x${res.height} (target aligned).`);
                   mmErr.name = "ResolutionMismatchError";
                   throw mmErr;
                 }
