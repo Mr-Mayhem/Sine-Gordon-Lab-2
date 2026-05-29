@@ -10,6 +10,25 @@ import { processFrame } from "./pipeline.js";
 import { DiscSpaceEstimator } from "./disc-space-estimator.js";
 
 export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
+  // Safe event binding utilities to prevent null selector crashes
+  function safeClick(id, fn) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.onclick = fn;
+    } else {
+      console.warn(`[bindEvents] click target #${id} not found.`);
+    }
+  }
+
+  function safeChange(id, fn) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.onchange = fn;
+    } else {
+      console.warn(`[bindEvents] change target #${id} not found.`);
+    }
+  }
+
   // Local constants to avoid import ambiguity
   const PALETTE = [
     { hex: "#00ff88" },
@@ -188,25 +207,29 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   }
 
   // Play / Pause
-  document.getElementById("btn-play").onclick = function () {
+  safeClick("btn-play", function () {
     if (sgState.isLerping) return;
     sgState.paused = !sgState.paused;
     var l = sgState.paused ? "▶ Run" : "⏸ Pause";
     var i = sgState.paused ? "▶" : "⏸";
-    document.getElementById("btn-play").textContent = l;
-    document.getElementById("btn-side-play").textContent = i;
-  };
-  document.getElementById("btn-side-play").onclick = function () {
+    var bp = document.getElementById("btn-play");
+    var bsp = document.getElementById("btn-side-play");
+    if (bp) bp.textContent = l;
+    if (bsp) bsp.textContent = i;
+  });
+  safeClick("btn-side-play", function () {
     if (sgState.isLerping) return;
     sgState.paused = !sgState.paused;
     var l = sgState.paused ? "▶ Run" : "⏸ Pause";
     var i = sgState.paused ? "▶" : "⏸";
-    document.getElementById("btn-play").textContent = l;
-    document.getElementById("btn-side-play").textContent = i;
-  };
+    var bp = document.getElementById("btn-play");
+    var bsp = document.getElementById("btn-side-play");
+    if (bp) bp.textContent = l;
+    if (bsp) bsp.textContent = i;
+  });
 
   // Fire Impulse
-  document.getElementById("btn-fire").onclick = function () {
+  safeClick("btn-fire", function () {
     if (sgState.onA) {
       if (sgState.modeA === "kink")
         physics.inject(
@@ -267,44 +290,50 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     sgState.hasFiredAtLeastOnce = true;
     if (window.refreshUI) window.refreshUI();
     var l = sgState.paused ? "▶ Run" : "⏸ Pause";
-    document.getElementById("btn-play").textContent = l;
-    document.getElementById("btn-side-play").textContent = sgState.paused
-      ? "▶"
-      : "⏸";
-  };
+    var bp = document.getElementById("btn-play");
+    var bsp = document.getElementById("btn-side-play");
+    if (bp) bp.textContent = l;
+    if (bsp) bsp.textContent = sgState.paused ? "▶" : "⏸";
+  });
 
   // Reset / Step / Snapshot
-  document.getElementById("btn-reset").onclick = function () {
+  safeClick("btn-reset", function () {
     physics.reset();
     sgState.paused = true;
-    document.getElementById("btn-play").textContent = "▶ Run";
-    document.getElementById("btn-side-play").textContent = "▶";
-  };
-  document.getElementById("btn-rapid-reset").onclick = function () {
+    var bp = document.getElementById("btn-play");
+    var bsp = document.getElementById("btn-side-play");
+    if (bp) bp.textContent = "▶ Run";
+    if (bsp) bsp.textContent = "▶";
+  });
+  safeClick("btn-rapid-reset", function () {
     physics.reset();
     sgState.paused = true;
-    document.getElementById("btn-play").textContent = "▶ Run";
-    document.getElementById("btn-side-play").textContent = "▶";
-  };
-  document.getElementById("btn-step").onclick = function () {
+    var bp = document.getElementById("btn-play");
+    var bsp = document.getElementById("btn-side-play");
+    if (bp) bp.textContent = "▶ Run";
+    if (bsp) bsp.textContent = "▶";
+  });
+  safeClick("btn-step", function () {
     physics.step(1);
     var sr = rendererRef.current;
-    var fd = processFrame(
-      sgState,
-      physics.phi,
-      physics.acc,
-      sr._glowPosAttr.array,
-      sr._glowNegAttr.array,
-      sr.maxAcc,
-    );
-    sr.render(fd, physics.phi);
-  };
-  document.getElementById("btn-snapshot").onclick = function () {
+    if (sr) {
+      var fd = processFrame(
+        sgState,
+        physics.phi,
+        physics.acc,
+        sr._glowPosAttr.array,
+        sr._glowNegAttr.array,
+        sr.maxAcc,
+      );
+      sr.render(fd, physics.phi);
+    }
+  });
+  safeClick("btn-snapshot", function () {
     if (snapshotEngine) snapshotEngine.capture();
-  };
+  });
 
   // Video Record / Assemble
-  document.getElementById("btn-video").onclick = function () {
+  safeClick("btn-video", function () {
     if (sgState.exportAction === "assemble") {
       if (recorder && !recorder.isAssembling) {
         recorder.assembleFromStorage(sgState.exportPipeline);
@@ -315,7 +344,8 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     if (sgState.isRecording) {
       sgState.isRecording = false;
       sgState.paused = true;
-      document.getElementById("btn-play").textContent = "▶ Run";
+      var bp = document.getElementById("btn-play");
+      if (bp) bp.textContent = "▶ Run";
       recorder.stop();
       if (window.refreshUI) window.refreshUI();
     } else {
@@ -361,62 +391,81 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
 
         recorder.setFrameLimit(limit);
         recorder.start();
-        document.getElementById("btn-video").textContent = "⏹ Stop";
-        document.getElementById("btn-video").classList.add("btn-warn");
+        var bv = document.getElementById("btn-video");
+        if (bv) {
+          bv.textContent = "⏹ Stop";
+          bv.classList.add("btn-warn");
+        }
       })();
     }
-  };
+  });
 
   // Impulse Visibility
-  document.getElementById("btn-impulse-master").onclick = function () {
+  safeClick("btn-impulse-master", function () {
     sgState.impulseVisible = !sgState.impulseVisible;
-  };
+  });
 
   // Collapse/Expand Widgets
-  document.getElementById("btn-collapse-launch").onclick = function () {
+  safeClick("btn-collapse-launch", function () {
     var p = document.getElementById("launch-panel");
+    if (!p) return;
     var c = p.querySelector(".widget-content");
     var b = document.getElementById("btn-collapse-launch");
     var miniFire = document.getElementById("btn-mini-fire");
-    if (c.style.display === "none") {
-      c.style.display = "";
-      b.textContent = "▲";
-      b.title = "Collapse Panel";
-      p.classList.remove("widget-collapsed");
-      if (miniFire) miniFire.style.display = "none";
-    } else {
-      c.style.display = "none";
-      b.textContent = "▼";
-      b.title = "Expand Panel";
-      p.classList.add("widget-collapsed");
-      if (miniFire) miniFire.style.display = "inline-block";
+    if (c) {
+      if (c.style.display === "none") {
+        c.style.display = "";
+        if (b) {
+          b.textContent = "▲";
+          b.title = "Collapse Panel";
+        }
+        p.classList.remove("widget-collapsed");
+        if (miniFire) miniFire.style.display = "none";
+      } else {
+        c.style.display = "none";
+        if (b) {
+          b.textContent = "▼";
+          b.title = "Expand Panel";
+        }
+        p.classList.add("widget-collapsed");
+        if (miniFire) miniFire.style.display = "inline-block";
+      }
     }
-  };
-  document.getElementById("btn-collapse-bottom").onclick = function () {
+  });
+  safeClick("btn-collapse-bottom", function () {
     var p = document.getElementById("bottom-bar");
+    if (!p) return;
     var c = p.querySelector(".bottom-bar-inner .widget-content");
     var b = document.getElementById("btn-collapse-bottom");
     var sep = p.querySelector(".bottom-bar-inner > .w-px");
     var thumbs = document.getElementById("physics-thumb-container");
     var miniActions = document.getElementById("mini-bottom-actions");
-    if (c.style.display === "none") {
-      c.style.display = "";
-      if (sep) sep.style.display = "";
-      if (thumbs) thumbs.style.display = "";
-      if (miniActions) miniActions.style.display = "none";
-      b.textContent = "▲";
-      b.title = "Collapse Panel";
-      p.querySelector(".bottom-bar-inner").classList.remove("widget-collapsed");
-    } else {
-      c.style.display = "none";
-      if (sep) sep.style.display = "none";
-      if (thumbs) thumbs.style.display = "none";
-      if (miniActions) miniActions.style.display = "flex";
-      b.textContent = "▼";
-      b.title = "Expand Panel";
-      p.querySelector(".bottom-bar-inner").classList.add("widget-collapsed");
+    if (c) {
+      if (c.style.display === "none") {
+        c.style.display = "";
+        if (sep) sep.style.display = "";
+        if (thumbs) thumbs.style.display = "";
+        if (miniActions) miniActions.style.display = "none";
+        if (b) {
+          b.textContent = "▲";
+          b.title = "Collapse Panel";
+        }
+        var inner = p.querySelector(".bottom-bar-inner");
+        if (inner) inner.classList.remove("widget-collapsed");
+      } else {
+        c.style.display = "none";
+        if (sep) sep.style.display = "none";
+        if (thumbs) thumbs.style.display = "none";
+        if (miniActions) miniActions.style.display = "flex";
+        if (b) {
+          b.textContent = "▼";
+          b.title = "Expand Panel";
+        }
+        var inner = p.querySelector(".bottom-bar-inner");
+        if (inner) inner.classList.add("widget-collapsed");
+      }
     }
-  };
+  });
 
   // Bind Miniature Helper Actions
   const miniFire = document.getElementById("btn-mini-fire");
@@ -442,15 +491,17 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   }
 
   // Linear Wrap
-  document.getElementById("btn-linear-wrap").onclick = function () {
+  safeClick("btn-linear-wrap", function () {
     sgState.physics.linearWrap = !sgState.physics.linearWrap;
     var b = document.getElementById("btn-linear-wrap");
-    if (sgState.physics.linearWrap) b.classList.add("active");
-    else b.classList.remove("active");
-  };
+    if (b) {
+      if (sgState.physics.linearWrap) b.classList.add("active");
+      else b.classList.remove("active");
+    }
+  });
 
   // Gimbal-Ring Mode (Nested Gimbal Rotation Mode)
-  document.getElementById("btn-gimbal-ring").onclick = function () {
+  safeClick("btn-gimbal-ring", function () {
     if (!sgState.gimbalRingActive) {
       sgState.gimbalRingActive = true;
       sgState.gimbalPhysicsMode = "simplified";
@@ -463,59 +514,68 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
       sgState.gimbalPhysicsMode = "simplified";
     }
     if (window.refreshUI) window.refreshUI();
-  };
+  });
 
   // Nudge Gimbal Buttons click bindings
-  document.getElementById("btn-nudge-outer-l").onclick = function () {
+  safeClick("btn-nudge-outer-l", function () {
     sgState.gimbalOuterNudge1 += 0.15;
-  };
-  document.getElementById("btn-nudge-outer-r").onclick = function () {
+  });
+  safeClick("btn-nudge-outer-r", function () {
     sgState.gimbalOuterNudge1 -= 0.15;
-  };
-  document.getElementById("btn-nudge-mid-f").onclick = function () {
+  });
+  safeClick("btn-nudge-mid-f", function () {
     sgState.gimbalMiddleNudge1 += 0.15;
-  };
-  document.getElementById("btn-nudge-mid-b").onclick = function () {
+  });
+  safeClick("btn-nudge-mid-b", function () {
     sgState.gimbalMiddleNudge1 -= 0.15;
-  };
+  });
 
   // Factory Reset
-  document.getElementById("btn-factory-reset").onclick = function () {
+  safeClick("btn-factory-reset", function () {
     if (confirm("Hard reset all parameters?")) {
       localFactoryReset();
     }
-  };
+  });
 
   // Channel A/B on/off toggles
-  document.getElementById("btn-a-on").onclick = function () {
+  safeClick("btn-a-on", function () {
     sgState.onA = !sgState.onA;
     applyChannelStyles("a");
-  };
-  document.getElementById("btn-b-on").onclick = function () {
+  });
+  safeClick("btn-b-on", function () {
     sgState.onB = !sgState.onB;
     applyChannelStyles("b");
-  };
+  });
 
   // Palette buttons (skip other channel's color)
-  document.getElementById("btn-a-palette").onclick = function () {
+  safeClick("btn-a-palette", function () {
     var next = (sgState.colA + 1) % PALETTE.length;
     if (next === sgState.colB) next = (next + 1) % PALETTE.length;
     sgState.colA = next;
     applyChannelStyles("a");
-  };
-  document.getElementById("btn-b-palette").onclick = function () {
+  });
+  safeClick("btn-b-palette", function () {
     var next = (sgState.colB + 1) % PALETTE.length;
     if (next === sgState.colA) next = (next + 1) % PALETTE.length;
     sgState.colB = next;
     applyChannelStyles("b");
-  };
+  });
 
-  // Processing overlay
+  // Processing overlay close button
   var btnClose = document.getElementById("btn-close-processing");
   if (btnClose) {
-    btnClose.onclick = function () {
-      document.getElementById("processing-overlay").style.display = "none";
+    btnClose.onclick = function (e) {
+      if (e) e.stopPropagation();
+      console.log("[Assembly Engine] Hiding overlay via onclick close button");
+      var overlay = document.getElementById("processing-overlay");
+      if (overlay) overlay.style.display = "none";
     };
+    btnClose.addEventListener("click", function (e) {
+      if (e) e.stopPropagation();
+      console.log("[Assembly Engine] Hiding overlay via addEventListener close button");
+      var overlay = document.getElementById("processing-overlay");
+      if (overlay) overlay.style.display = "none";
+    });
   }
   var btnCopy = document.getElementById("btn-copy-telemetry-ready");
   if (btnCopy) {
@@ -555,24 +615,24 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   }
 
   // Topology Dropdown
-  document.getElementById("sel-topology").onchange = function () {
+  safeChange("sel-topology", function () {
     localChangeTopology(this.value);
-  };
+  });
 
   // Lemniscate Form Dropdown
-  document.getElementById("sel-lemniscate-form").onchange = function () {
+  safeChange("sel-lemniscate-form", function () {
     sgState.lemniscateForm = this.value;
-  };
+  });
 
   // Other Dropdowns
-  document.getElementById("sel-orientation").onchange = function () {
+  safeChange("sel-orientation", function () {
     sgState.orientationTarget = this.value;
-  };
-  document.getElementById("sel-format").onchange = function () {
+  });
+  safeChange("sel-format", function () {
     sgState.exportFormat = this.value;
     updateDiskSpaceUI();
     if (window.refreshUI) window.refreshUI();
-  };
+  });
   var selTrimObj = document.getElementById("sel-trim");
   if (selTrimObj) {
     selTrimObj.onchange = function () {
@@ -632,66 +692,92 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     };
   }
 
-  document.getElementById("sel-fps").onchange = function () {
+  safeChange("sel-fps", function () {
     sgState.exportFPS = Number(this.value);
     updateDiskSpaceUI();
-  };
+  });
 
   // Theory
-  document.getElementById("btn-theory").onclick = function () {
-    document.getElementById("theory-overlay").style.display = "block";
-  };
-  document.getElementById("btn-close-theory").onclick = function () {
-    document.getElementById("theory-overlay").style.display = "none";
-  };
+  safeClick("btn-theory", function (e) {
+    if (e) e.stopPropagation();
+    var o = document.getElementById("theory-overlay");
+    if (o) o.style.display = "block";
+  });
+  var btnCloseTheory = document.getElementById("btn-close-theory");
+  if (btnCloseTheory) {
+    btnCloseTheory.onclick = function (e) {
+      if (e) e.stopPropagation();
+      console.log("[Theory Panel] Hiding theory overlay via onclick close button");
+      var overlay = document.getElementById("theory-overlay");
+      if (overlay) overlay.style.display = "none";
+    };
+    btnCloseTheory.addEventListener("click", function (e) {
+      if (e) e.stopPropagation();
+      console.log("[Theory Panel] Hiding theory overlay via addEventListener close button");
+      var overlay = document.getElementById("theory-overlay");
+      if (overlay) overlay.style.display = "none";
+    });
+  }
 
   // Diagnostics
-  document.getElementById("btn-diagnostics").onclick = async function () {
+  safeClick("btn-diagnostics", async function () {
     try {
       const { getDiagnosticsManager } = await import("./diagnostics.js");
       getDiagnosticsManager().show();
     } catch (err) {
       console.error("[Diagnostics Loader] Failed to load diagnostics module:", err);
     }
-  };
+  });
 
   // Mode & Direction
   ["kink", "anti", "breath", "wind"].forEach(function (m) {
-    document.getElementById("btn-a-mode-" + m).onclick = function () {
+    safeClick("btn-a-mode-" + m, function () {
       sgState.modeA = m;
       ["kink", "anti", "breath", "wind"].forEach(function (x) {
-        document.getElementById("btn-a-mode-" + x).classList.remove("active");
+        var el = document.getElementById("btn-a-mode-" + x);
+        if (el) el.classList.remove("active");
       });
-      document.getElementById("btn-a-mode-" + m).classList.add("active");
-    };
-    document.getElementById("btn-b-mode-" + m).onclick = function () {
+      var btn = document.getElementById("btn-a-mode-" + m);
+      if (btn) btn.classList.add("active");
+    });
+    safeClick("btn-b-mode-" + m, function () {
       sgState.modeB = m;
       ["kink", "anti", "breath", "wind"].forEach(function (x) {
-        document.getElementById("btn-b-mode-" + x).classList.remove("active");
+        var el = document.getElementById("btn-b-mode-" + x);
+        if (el) el.classList.remove("active");
       });
-      document.getElementById("btn-b-mode-" + m).classList.add("active");
-    };
+      var btn = document.getElementById("btn-b-mode-" + m);
+      if (btn) btn.classList.add("active");
+    });
   });
-  document.getElementById("btn-a-dir-cw").onclick = function () {
+  safeClick("btn-a-dir-cw", function () {
     sgState.dirA = "cw";
-    document.getElementById("btn-a-dir-cw").classList.add("active");
-    document.getElementById("btn-a-dir-ccw").classList.remove("active");
-  };
-  document.getElementById("btn-a-dir-ccw").onclick = function () {
+    var cw = document.getElementById("btn-a-dir-cw");
+    var ccw = document.getElementById("btn-a-dir-ccw");
+    if (cw) cw.classList.add("active");
+    if (ccw) ccw.classList.remove("active");
+  });
+  safeClick("btn-a-dir-ccw", function () {
     sgState.dirA = "ccw";
-    document.getElementById("btn-a-dir-ccw").classList.add("active");
-    document.getElementById("btn-a-dir-cw").classList.remove("active");
-  };
-  document.getElementById("btn-b-dir-cw").onclick = function () {
+    var cw = document.getElementById("btn-a-dir-cw");
+    var ccw = document.getElementById("btn-a-dir-ccw");
+    if (ccw) ccw.classList.add("active");
+    if (cw) cw.classList.remove("active");
+  });
+  safeClick("btn-b-dir-cw", function () {
     sgState.dirB = "cw";
-    document.getElementById("btn-b-dir-cw").classList.add("active");
-    document.getElementById("btn-b-dir-ccw").classList.remove("active");
-  };
-  document.getElementById("btn-b-dir-ccw").onclick = function () {
+    var cw = document.getElementById("btn-b-dir-cw");
+    var ccw = document.getElementById("btn-b-dir-ccw");
+    if (cw) cw.classList.add("active");
+    if (ccw) ccw.classList.remove("active");
+  });
+  safeClick("btn-b-dir-ccw", function () {
     sgState.dirB = "ccw";
-    document.getElementById("btn-b-dir-ccw").classList.add("active");
-    document.getElementById("btn-b-dir-cw").classList.remove("active");
-  };
+    var cw = document.getElementById("btn-b-dir-cw");
+    var ccw = document.getElementById("btn-b-dir-ccw");
+    if (ccw) ccw.classList.add("active");
+    if (cw) cw.classList.remove("active");
+  });
 
   // Perform initial disk space estimation
   updateDiskSpaceUI();
@@ -948,22 +1034,18 @@ export function initAssemblyStatusObserver() {
 
     leftCol.innerHTML = `
       <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
-      <div class="py-0.5 border-b border-white/[0.02]"><strong>Version:</strong> <span class="text-white/80 font-medium">${version}</span></div>
-      <div class="py-0.5 border-b border-white/[0.02]"><strong>Export Mode:</strong> <span class="text-white/80 font-medium">${mode}</span></div>
-      <div class="py-0.5 border-b border-white/[0.02]"><strong>Active Phase:</strong> <span class="text-white/80 font-medium">${phase}</span></div>
-      <div class="py-0.5 border-b border-white/[0.02]"><strong>Frames Count:</strong> <span class="text-[#00ffcc] font-medium font-mono">${frames}</span></div>
-      <div class="py-0.5 last:border-b-0"><strong>Temporal Metrics:</strong> <span class="text-[#00aaff] font-medium font-mono font-bold">${metrics}</span></div>
+      <div class="py-0.5 border-b border-white/[0.02]"><strong>Active Phase:</strong> <span class="text-amber-300 font-bold font-mono text-[9px]">${phase}</span></div>
+      <div class="py-0.5 border-b border-white/[0.02]"><strong>Progress:</strong> <span class="text-[#00ffcc] font-bold font-mono text-[9px]">${frames} frames</span></div>
+      <div class="py-0.5 last:border-b-0"><strong>Live Metrics:</strong> <span class="text-[#00aaff] font-bold font-mono text-[9px]">${metrics}</span> &nbsp;<span class="text-white/30 font-normal">(${version})</span></div>
     `;
 
-    // Parse Diagnostics for Right Column (Diagnostic Report) - Always exactly 5 unified rows
+    // Parse Diagnostics for Right Column (Diagnostic Report) - Always exactly 3 unified rows
     if (isZip) {
       rightCol.innerHTML = `
         <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Container Format:</span><span class="text-white font-medium">ZIP Archive (.zip)</span></div>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Compression:</span><span class="text-white font-medium">Deflate (Fast)</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Compression:</span><span class="text-white font-medium">ZIP Deflate (Fast)</span></div>
         <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">${sgState.exportWidth}x${sgState.exportHeight}</span></div>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Source Stills:</span><span class="text-[#00aaff] font-medium">PNG Sequence</span></div>
-        <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Target File:</span><span class="text-emerald-400 font-medium font-mono">sg_lab_render_*.zip</span></div>
+        <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Target File:</span><span class="text-emerald-400 font-medium font-mono">sg_render_*.zip</span></div>
       `;
     } else {
       const formatLabel = sgState.exportFormat === "mp4" ? "MP4 (H.264)" : "WebM (VP8)";
@@ -973,10 +1055,8 @@ export function initAssemblyStatusObserver() {
 
       rightCol.innerHTML = `
         <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Container Format:</span><span class="text-white font-medium">${formatLabel}</span></div>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">CPU Threading:</span><span class="text-white font-medium">${threadingLabel}</span></div>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Frame Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">${sgState.exportWidth}x${sgState.exportHeight}</span></div>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Target Framerate:</span><span class="text-[#00aaff] font-bold font-mono">${sgState.exportFPS} FPS</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Format / Core:</span><span class="text-white font-medium">${formatLabel} (${threadingLabel})</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">${sgState.exportWidth}x${sgState.exportHeight} @ ${sgState.exportFPS} FPS</span></div>
         <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Quality / CRF:</span><span class="text-amber-400 font-bold font-mono">${crfLabel}</span></div>
       `;
     }

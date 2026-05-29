@@ -109,6 +109,7 @@ To lock in precise output standards and compile high-fidelity outputs, the recor
 | Target Output Key | Output Name / Preset | Actual Output Width | Actual Output Height | Aspect Ratio | Exact FFmpeg Video Filter (`-vf`) Settings |
 |:---|:---|:---|:---|:---|:---|
 | **640x360** | standard_definition_360p | 640 px | 360 px | 16:9 (~1.777) | `scale=640:360:force_original_aspect_ratio=increase:flags=lanczos,crop=640:360,setsar=1` |
+| **852x480** | standard_definition_480p | 852 px | 480 px | 1.775:1 (Mod-12) | `scale=852:480:force_original_aspect_ratio=increase:flags=lanczos,crop=852:480,setsar=1` |
 | **854x480** | standard_definition_480p | 852 px | 480 px | 1.775:1 (Mod-12) | `scale=852:480:force_original_aspect_ratio=increase:flags=lanczos,crop=852:480,setsar=1` |
 | **1280x720** | high_definition_720p | 1280 px | 720 px | 16:9 (~1.777) | `scale=1280:720:force_original_aspect_ratio=increase:flags=lanczos,crop=1280:720,setsar=1` |
 | **1920x1080** | full_hd_1080p | 1920 px | 1080 px | 16:9 (~1.777) | `scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos,crop=1920:1080,setsar=1` |

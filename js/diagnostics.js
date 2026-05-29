@@ -376,8 +376,28 @@ export class DiagnosticsManager {
     }
 
     // Bind event handlers
-    document.getElementById("btn-close-diagnostics").onclick = () => this.hide();
-    document.getElementById("btn-close-diagnostics-bottom").onclick = () => this.hide();
+    const btnCloseDiag = document.getElementById("btn-close-diagnostics");
+    if (btnCloseDiag) {
+      btnCloseDiag.onclick = (e) => {
+        if (e) e.stopPropagation();
+        this.hide();
+      };
+      btnCloseDiag.addEventListener("click", (e) => {
+        if (e) e.stopPropagation();
+        this.hide();
+      });
+    }
+    const btnCloseDiagBot = document.getElementById("btn-close-diagnostics-bottom");
+    if (btnCloseDiagBot) {
+      btnCloseDiagBot.onclick = (e) => {
+        if (e) e.stopPropagation();
+        this.hide();
+      };
+      btnCloseDiagBot.addEventListener("click", (e) => {
+        if (e) e.stopPropagation();
+        this.hide();
+      });
+    }
     document.getElementById("btn-clear-diagnostic-logs").onclick = () => this.clearLogs();
     
     // Frames list update binding

@@ -96,7 +96,7 @@
           <h1 class="text-5xl font-black mt-2 tracking-tighter italic uppercase">The Sine-Gordon Lab</h1>
           <p class="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em] mt-1">v1.4.0 • RELATIVISTIC SOLITON DYNAMICS</p>
         </div>
-        <button id="btn-close-theory" class="btn-icon w-12 h-12 text-white hover:bg-white/10 text-xl">✕</button>
+        <button id="btn-close-theory" onclick="document.getElementById('theory-overlay').style.display='none';" class="btn-icon w-12 h-12 text-white hover:bg-white/10 text-xl" style="position: relative; z-index: 1010; pointer-events: auto;">✕</button>
       </header>
 
       <section class="mt-12">
@@ -197,78 +197,126 @@
   </div>
 
   <!-- Processing Overlay (Assembly Engine) -->
-  <div id="processing-overlay" style="display:none;">
-    <div>
+  <div id="processing-overlay" style="display: none;" class="fixed inset-0 bg-black/95 backdrop-blur-[24px] flex items-center justify-center p-4 z-[1000] overflow-hidden select-none animate-fade-in">
+    <div class="relative bg-zinc-900/95 border border-white/10 rounded-[20px] p-6 w-full max-w-[760px] h-[88vh] max-h-[820px] flex flex-col gap-4 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.85)] overflow-hidden">
+      <!-- 
+        ID: #btn-close-processing (Allows aborting active transcode/processing assembly sequences) 
+      -->
+      <button id="btn-close-processing" onclick="document.getElementById('processing-overlay').style.display='none'; if (window.recorder) { window.recorder.isAssembling = false; if (typeof window.recorder._restoreCanvasSize === 'function') window.recorder._restoreCanvasSize(); }" class="absolute top-[18px] right-[18px] z-10 w-8 h-8 rounded-full bg-white/10 border-0 text-white hover:bg-white/20 text-sm flex items-center justify-center cursor-pointer transition-all active:scale-95" title="Abort & Close">✕</button>
 
-      <button id="btn-close-processing" class="btn-icon w-8 h-8 rounded-full" style="position:absolute; top:18px; right:18px; z-index:10; background:rgba(255,255,255,0.1); border:none; color:white; font-size:14px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Close">✕</button>
+      <header class="flex justify-between items-baseline border-b border-white/5 pb-2 shrink-0">
+        <span class="text-[10px] font-black text-[#00ffcc] tracking-[0.3em] uppercase filter drop-shadow-[0_0_4px_rgba(0,255,204,0.35)] select-none">
+          Assembly Engine
+        </span>
+        <!-- 
+          ID: #assembly-subheader-info (Keeps track of frame limits and active resolution metadata) 
+        -->
+        <span id="assembly-subheader-info" class="font-mono text-[8.5px] text-white/50 uppercase tracking-wider text-right select-none" style="margin-right: 64px;">
+          Operation: Idle | Res: 1280x720
+        </span>
+        <!-- 
+          ID: #assembly-status (Muted status mirror used as state hook, hidden from standard viewers) 
+        -->
+        <span id="assembly-status" class="hidden">Ready</span>
+      </header>
 
-      <div class="flex justify-between items-baseline border-b border-white/5 pb-1.5 mb-0.5 w-full max-w-[720px] mx-auto" style="flex-shrink:0;">
-        <span style="font-size:10px; font-weight:900; color:#00ffcc; letter-spacing:0.3em; text-transform:uppercase; filter: drop-shadow(0 0 4px rgba(0,255,204,0.35));">Assembly Engine</span>
-        <span id="assembly-subheader-info" class="font-mono text-[8.5px] text-white/50 uppercase tracking-wider text-right" style="margin-right: 64px;">Operation: Idle | Res: 1280x720</span>
-        <!-- Hidden legacy status node updated by other JS code, intercepted via MutationObserver -->
-        <span id="assembly-status" style="display:none;">Ready</span>
-      </div>
-
-      <!-- Aligned Top Text Blobs (Consistent, fixed-height to prevent vertical resizing jitter) -->
-      <div id="assembly-overview-tiles" class="grid grid-cols-2 gap-3 w-full max-w-[720px] mx-auto mb-0.5" style="height: 112px; min-height: 112px; flex-shrink:0;">
-        <!-- Left Blob: Assembly Details -->
-        <div id="assembly-status-left" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left select-none font-mono text-[9px] text-white/70 overflow-hidden justify-start h-full">
+      <!-- Dual Card Analytics HUD tiles -->
+      <section id="assembly-overview-tiles" class="grid grid-cols-2 gap-3 w-full max-w-[720px] mx-auto shrink-0 select-none h-[112px] min-h-[112px]">
+        <!-- Left HUD Analytics Card -->
+        <div id="assembly-status-left" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left font-mono text-[9px] text-white/70 overflow-hidden h-full">
           <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
-          <div class="py-0.5 border-b border-white/[0.02]"><strong>Version:</strong> <span class="text-white/80 font-medium">v1.7.0-hybrid-ts</span></div>
-          <div class="py-0.5 border-b border-white/[0.02]"><strong>Export Mode:</strong> <span class="text-white/80 font-medium">Idle</span></div>
-          <div class="py-0.5 border-b border-white/[0.02]"><strong>Active Phase:</strong> <span class="text-white/80 font-medium">Ready</span></div>
-          <div class="py-0.5 border-b border-white/[0.02]"><strong>Frames Count:</strong> <span class="text-[#00ffcc] font-medium font-mono">0 / 0</span></div>
-          <div class="py-0.5 last:border-b-0"><strong>Temporal Metrics:</strong> <span class="text-[#00aaff] font-medium font-mono font-bold">N/A</span></div>
+          <div class="py-0.5 border-b border-white/[0.02]">
+            <strong>Version:</strong> <span class="text-white/80 font-medium">v1.8.0-modular</span>
+          </div>
+          <div class="py-0.5 border-b border-white/[0.02]">
+            <!-- ID: #current-telemetry-phase (Updated dynamically as transcode triggers compile) -->
+            <strong>Active Phase:</strong> <span class="text-white/80 font-medium font-bold text-amber-300" id="current-telemetry-phase">Ready</span>
+          </div>
+          <div class="py-0.5 last:border-b-0">
+            <!-- ID: #telemetry-frames (Real-time temporal frames counter tracking processing status) -->
+            <strong>Frames Count:</strong> <span id="telemetry-frames" class="text-[#00ffcc] font-medium font-mono">0 / 0</span>
+          </div>
         </div>
 
-        <!-- Right Blob: Diagnostic Report -->
-        <div id="assembly-status-right" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left select-none font-mono text-[9px] text-white/70 overflow-hidden justify-start h-full">
+        <!-- Right HUD Analytics Card -->
+        <div id="assembly-status-right" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left font-mono text-[9px] text-white/70 overflow-hidden h-full">
           <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
-          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Container Format:</span><span class="text-white font-medium">Automatic</span></div>
-          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">CPU Threading:</span><span class="text-white font-medium">Single-Threaded</span></div>
-          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Frame Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">1280x720</span></div>
-          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Target Framerate:</span><span class="text-[#00aaff] font-bold font-mono">30 FPS</span></div>
-          <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Quality / CRF:</span><span class="text-amber-400 font-bold font-mono">18 (Typical Default)</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]">
+            <span class="text-white/45">CPU Threading:</span>
+            <!-- ID: #diagnostic-threads (Indicates SharedArrayBuffer multi-threaded availability status) -->
+            <span id="diagnostic-threads" class="text-white font-medium">Single-Threaded</span>
+          </div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]">
+            <span class="text-white/45">Frame Resolution:</span>
+            <!-- ID: #diagnostic-resolution (Tracks dynamic dimensions matched during canvas resize sequences) -->
+            <span id="diagnostic-resolution" class="text-[#00ffcc] font-medium font-mono">1280x720</span>
+          </div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]">
+            <span class="text-white/45">Quality:</span>
+            <!-- ID: #diagnostic-quality (Displays current configuration compression CRF scales) -->
+            <span id="diagnostic-quality" class="text-amber-400 font-bold font-mono">18</span>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Preview Canvas (Thumbnail Window) -->
-      <div id="assembly-preview" class="w-full max-w-[140px] aspect-video bg-[#000] rounded-[12px] overflow-hidden border border-white/10 relative shadow-inner mx-auto mt-0 animate-fade-in" style="flex-shrink:0;">
+      <!-- Picture-in-Picture Rendering Thumbnails (Center Viewport) -->
+      <div id="assembly-preview" class="w-full max-w-[140px] aspect-video bg-black rounded-[12px] overflow-hidden border border-white/10 relative shadow-inner mx-auto mt-0 shrink-0">
+        <!-- 
+          ID: #preview-canvas (Capturing Engine streams compressed WebG/PNG chunks to show rendering results) 
+        -->
         <canvas id="preview-canvas" class="w-full h-full object-contain"></canvas>
       </div>
 
-      <!-- Scrolling log window below thumbnail -->
+      <!-- Scrolling Log Console Container -->
       <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[10px] bg-black/40 p-2.5 flex flex-col gap-1 overflow-hidden mx-auto flex-1 min-h-[220px]">
-        <div class="flex justify-between items-center text-[10px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1">
+        <!-- Log HUD Title/Metadata Bar -->
+        <div class="flex justify-between items-center text-[10px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1 shrink-0">
           <span>Assembly Logs & Standard Output</span>
           <div class="flex items-center gap-2">
-            <span id="assembly-log-count">0 messages</span>
-            <button id="btn-copy-logs" class="hover:text-white transition-colors cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded text-[9px] font-mono font-bold text-[#00ffcc] uppercase" title="Copy Assembly Logs to Clipboard">Copy Logs</button>
+            <!-- ID: #assembly-log-count (Tracks incoming lines inside scroll area) -->
+            <span id="assembly-log-count" class="select-none">0 messages</span>
+            <!-- ID: #btn-copy-logs (Triggers automatic dual-tier Clipboard action) -->
+            <button id="btn-copy-logs" class="hover:text-white transition-colors cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded text-[9px] font-mono font-bold text-[#00ffcc] uppercase select-none" title="Copy Logs">
+              Copy Logs
+            </button>
           </div>
         </div>
+        <!-- 
+          ID: #assembly-log-scroll (Scroll-pinned container managed via synchronous fallback macro-tasks) 
+        -->
         <div id="assembly-log-scroll" class="w-full flex-1 min-h-0 overflow-y-scroll pr-2 font-mono text-[10px] text-[#00ffcc]/85 space-y-0.5 text-left select-text scrollbar-thin">
           <div class="text-white/30">[System] Initializing Assembly Logger...</div>
+          <div class="text-emerald-400/90">[Assemble] Ready to build. Awaiting output stream components...</div>
         </div>
       </div>
 
-      <div style="width:100%; max-w-[720px]; flex-shrink:0;" class="flex flex-col gap-1.5 mx-auto mt-1">
+      <!-- Compile Loading Progress Linear Timeline bar -->
+      <div style="width:100%; max-w-[720px];" class="flex flex-col gap-1.5 mx-auto mt-1 shrink-0">
         <div style="height:8px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden; border: 1px solid rgba(255,255,255,0.03);">
+          <!-- ID: #progress-fill (Updated dynamically from 0% to 100% as video file compiles) -->
           <div id="progress-fill" style="height:100%; background:linear-gradient(90deg, #00ffcc, #00aaff); width:0%; transition:none;"></div>
         </div>
-        <div class="flex justify-between items-center px-1 font-mono text-[9px]">
-          <div class="flex items-center gap-1.5 text-white/50">
+        <div class="flex justify-between items-center px-1 font-mono text-[9px] select-none text-white/50">
+          <div class="flex items-center gap-1.5">
             <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#00ffcc] animate-pulse"></span>
-            <span id="assembly-bottom-phase">Ready to launch assembly process</span>
+            <!-- ID: #assembly-bottom-phase (Prints sub-operation descriptors like extracting frame bytes) -->
+            <span id="assembly-bottom-phase">Awaiting capture sequences...</span>
           </div>
           <div class="flex items-center gap-3">
+            <!-- ID: #assembly-bottom-frames (Prints the raw fractional frame index numbers) -->
             <span id="assembly-bottom-frames" class="text-white/60">0 / 0 frames</span>
-            <span id="assembly-percent" class="text-[#00ffcc] font-bold text-[10px]">0%</span>
+            <!-- ID: #assembly-percent (Displays current fraction as formatted string) -->
+            <span id="assembly-percent" class="text-[#00ffcc] font-black text-[10px]">0%</span>
           </div>
         </div>
       </div>
 
-      <div id="assembly-ready-actions" style="display:none; width:100%; max-w-[720px]; justify-content:center; flex-shrink:0;" class="flex gap-2 mx-auto">
-      </div>
+      <!-- 
+        ID: #assembly-ready-actions (CTAs and dynamic action triggers are injected here on completion) 
+      -->
+      <div id="assembly-ready-actions" class="hidden gap-2 mx-auto justify-center shrink-0"></div>
+    </div>
+  </div>
 
     </div>
   </div>
@@ -461,7 +509,7 @@
                     <span class="label-micro text-white/50 mb-0.5 select-none" style="font-size: 8px; letter-spacing: 0.05em;">RESOLUTION</span>
                     <select id="sel-res" class="thumb-select !h-[18px] !py-0 !text-[9px] !w-24 bg-white/5 border border-white/15 rounded px-1 cursor-pointer" autocomplete="off">
                       <option value="640x360">360p</option>
-                      <option value="854x480">480p</option>
+                      <option value="852x480">480p</option>
                       <option value="1280x720" selected>720p</option>
                       <option value="1920x1080">1080p</option>
                       <option value="2560x1440">1440p</option>

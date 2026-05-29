@@ -13,6 +13,11 @@ export const FFMPEG_RESOLUTIONS_RECIPES = {
     height: 360,
     filter: "scale=640:360:force_original_aspect_ratio=increase:flags=lanczos,crop=640:360,setsar=1"
   },
+  "852x480": {
+    width: 852,
+    height: 480,
+    filter: "scale=852:480:force_original_aspect_ratio=increase:flags=lanczos,crop=852:480,setsar=1"
+  },
   "854x480": {
     width: 852,
     height: 480,
