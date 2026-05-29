@@ -311,3 +311,15 @@ To eliminate timing-related bare specifier crashes entirely across all environme
 3. Keep structural and style assets locked strictly below the importmap.
 
 
+## 11. One Design Throughout Mandate
+
+To maintain absolute uniformity of user experience and mechanical logic, this project operates under a strict **One Design Throughout** architectural mandate:
+
+* **Symmetrical Options Mapping**: The main application and the reference example project must perfectly mirror each other in all recorder, diagnostic, and control options. 
+  - Supported resolutions (such as 360p, 480p, 720p, 1080p, 1440p, and 4K), formats, FPS presets, quality/CRF scales, and trim bounds must remain fully synced in options and implementation without feature or setting drift.
+  - Symmetrical state engines (such as `window.sgState` mocks) must expose the exact same properties, setters, and programmatic update hooks so that the underlying diagnostic framework can evaluate either project interchangeably.
+* **Component-Level Visual Styling Harmony**: The dark glassmorphism styling, structural layouts, HUD terminal console logs, copyable diagnostic clipboards, overlays, and modal compiler screens must use the exact same aesthetic configurations, ensuring a brand-coherent look.
+* **Scene Isolation Exception**: The only permissible divergence between the main application and the reference example is the underlying 3D visual scene. While the main app renders the complex, coupled-pendulum Sine-Gordon simulation, the reference example behaves as a lightweight learning playground rendering a Three.js Torus Knot, focusing developer attention purely on understanding and preserving the recording mechanics.
+
+
+

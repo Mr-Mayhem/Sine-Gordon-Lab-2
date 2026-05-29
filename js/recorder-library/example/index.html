@@ -379,7 +379,9 @@
           <span class="text-[8px] font-mono font-black text-white/50 mb-1 tracking-widest uppercase select-none">Pipeline</span>
           <select id="sel-pipeline" class="h-[22px] py-0 text-[10px] w-24 bg-zinc-800 border border-white/15 text-white rounded px-1.5 focus:outline-none cursor-pointer">
             <option value="ffmpeg" selected>FFmpeg</option>
+            <option value="opfs">OPFS Frames</option>
             <option value="zip">Disk (ZIP)</option>
+            <option value="local">📁 Local Folder</option>
           </select>
         </div>
 
@@ -388,6 +390,7 @@
           <span class="text-[8px] font-mono font-black text-white/50 mb-1 tracking-widest uppercase select-none">Action</span>
           <select id="sel-action" class="h-[22px] py-0 text-[10px] w-24 bg-zinc-800 border border-white/15 text-white rounded px-1.5 focus:outline-none cursor-pointer">
             <option value="record" selected>⏺ Record</option>
+            <option value="assemble">🛠 Assemble</option>
           </select>
         </div>
 
@@ -396,8 +399,11 @@
           <span class="text-[8px] font-mono font-black text-white/50 mb-1 tracking-widest uppercase select-none">Resolution</span>
           <select id="sel-res" class="h-[22px] py-0 text-[10px] w-28 bg-zinc-800 border border-white/15 text-white rounded px-1.5 focus:outline-none cursor-pointer">
             <option value="640x360">360p (Fast)</option>
+            <option value="854x480">480p (SD)</option>
             <option value="1280x720" selected>720p (HD)</option>
             <option value="1920x1080">1080p (FHD)</option>
+            <option value="2560x1440">1440p (QHD)</option>
+            <option value="3840x2160">4K (UHD)</option>
           </select>
         </div>
 
@@ -410,8 +416,12 @@
               <option value="webm">WEBM</option>
             </select>
             <select id="sel-fps" class="h-[22px] py-0 text-[10px] w-[45px] bg-zinc-800 border border-white/15 text-white rounded px-1 cursor-pointer">
+              <option value="12">12</option>
+              <option value="24">24</option>
               <option value="30" selected>30</option>
               <option value="60">60</option>
+              <option value="90">90</option>
+              <option value="120">120</option>
             </select>
           </div>
         </div>
@@ -420,9 +430,24 @@
         <div class="flex flex-col">
           <span class="text-[8px] font-mono font-black text-white/50 mb-1 tracking-widest uppercase select-none">Quality / CRF</span>
           <select id="sel-crf" class="h-[22px] py-0 text-[10px] w-28 bg-zinc-800 border border-white/15 text-[#00ffcc] font-mono font-bold rounded px-1.5 focus:outline-none cursor-pointer">
-            <option value="5">5 (Ultra Quality)</option>
-            <option value="18" selected>18 (Default)</option>
-            <option value="28">28 (Eco Space)</option>
+            <option value="0">0 (Lossless)</option>
+            <option value="5" selected>5 (Ultra Quality)</option>
+            <option value="12">12 (High Quality)</option>
+            <option value="18">18 (Default)</option>
+            <option value="23">23 (Medium)</option>
+            <option value="28">28 (Low Space)</option>
+            <option value="35">35 (Lowest Quality)</option>
+          </select>
+        </div>
+
+        <!-- WebM Snug Trim -->
+        <div class="flex flex-col" id="trim-selection-container">
+          <span class="text-[8px] font-mono font-black text-white/50 mb-1 tracking-widest uppercase select-none">WebM Snug Trim</span>
+          <select id="sel-trim" class="h-[22px] py-0 text-[10px] w-28 bg-zinc-800 border border-white/15 text-white rounded px-1.5 focus:outline-none cursor-pointer">
+            <option value="none" selected>Letterbox (16:9)</option>
+            <option value="subtle">Subtle Trim (20%)</option>
+            <option value="snug">Snug Crop (33%)</option>
+            <option value="max">Maximum (45%)</option>
           </select>
         </div>
       </div>

@@ -24,6 +24,9 @@ window.sgState = {
   _exportFormat: "mp4",
   _exportFPS: 30,
   _exportPipeline: "ffmpeg",
+  _exportAction: "record",
+  _exportCRF: 5,
+  _exportTrim: "none",
   get isRecording() { return recorder ? recorder.isRecording : false; },
   set isRecording(v) { if (recorder) recorder.isRecording = v; },
   get exportPipeline() { return this._exportPipeline; },
@@ -32,6 +35,12 @@ window.sgState = {
     const el = document.getElementById("sel-pipeline");
     if (el) el.value = v; 
     if (recorder) recorder._pipeline = v;
+  },
+  get exportAction() { return this._exportAction; },
+  set exportAction(v) {
+    this._exportAction = v;
+    const el = document.getElementById("sel-action");
+    if (el) el.value = v;
   },
   get exportFormat() { return this._exportFormat; },
   set exportFormat(v) { 
@@ -46,6 +55,20 @@ window.sgState = {
     const el = document.getElementById("sel-fps");
     if (el) el.value = String(v); 
     if (recorder) recorder.config.exportFPS = Number(v);
+  },
+  get exportCRF() { return this._exportCRF; },
+  set exportCRF(v) {
+    this._exportCRF = Number(v);
+    const el = document.getElementById("sel-crf");
+    if (el) el.value = String(v);
+    if (recorder) recorder.config.exportCRF = Number(v);
+  },
+  get exportTrim() { return this._exportTrim; },
+  set exportTrim(v) {
+    this._exportTrim = v;
+    const el = document.getElementById("sel-trim");
+    if (el) el.value = v;
+    if (recorder) recorder.config.exportTrim = v;
   },
   get exportWidth() { return this._exportWidth; },
   set exportWidth(v) {
@@ -87,11 +110,20 @@ window.refreshUI = function() {
   const selPipeline = document.getElementById("sel-pipeline");
   if (selPipeline) selPipeline.value = window.sgState._exportPipeline;
   
+  const selAction = document.getElementById("sel-action");
+  if (selAction) selAction.value = window.sgState._exportAction;
+
   const selFormat = document.getElementById("sel-format");
   if (selFormat) selFormat.value = window.sgState._exportFormat;
   
   const selFps = document.getElementById("sel-fps");
   if (selFps) selFps.value = String(window.sgState._exportFPS);
+
+  const selCrf = document.getElementById("sel-crf");
+  if (selCrf) selCrf.value = String(window.sgState._exportCRF);
+
+  const selTrim = document.getElementById("sel-trim");
+  if (selTrim) selTrim.value = window.sgState._exportTrim;
   
   syncResolutionUI();
 };
@@ -347,10 +379,12 @@ function animate(time) {
 function wireUI() {
   const btnVideo = document.getElementById("btn-video");
   const selPipeline = document.getElementById("sel-pipeline");
+  const selAction = document.getElementById("sel-action");
   const selRes = document.getElementById("sel-res");
   const selFormat = document.getElementById("sel-format");
   const selFps = document.getElementById("sel-fps");
   const selCrf = document.getElementById("sel-crf");
+  const selTrim = document.getElementById("sel-trim");
 
   // Toy parameters
   const paramSpeed = document.getElementById("param-speed");
@@ -368,6 +402,10 @@ function wireUI() {
     window.sgState._exportPipeline = e.target.value;
     if (recorder) recorder._pipeline = e.target.value;
   });
+
+  selAction.addEventListener("change", (e) => {
+    window.sgState._exportAction = e.target.value;
+  });
   
   selFormat.addEventListener("change", (e) => {
     window.sgState._exportFormat = e.target.value;
@@ -378,6 +416,18 @@ function wireUI() {
     window.sgState._exportFPS = Number(e.target.value);
     if (recorder) recorder.config.exportFPS = Number(e.target.value);
   });
+
+  selCrf.addEventListener("change", (e) => {
+    window.sgState._exportCRF = Number(e.target.value);
+    if (recorder) recorder.config.exportCRF = Number(e.target.value);
+  });
+
+  if (selTrim) {
+    selTrim.addEventListener("change", (e) => {
+      window.sgState._exportTrim = e.target.value;
+      if (recorder) recorder.config.exportTrim = e.target.value;
+    });
+  }
   
   selRes.addEventListener("change", (e) => {
     const [w, h] = e.target.value.split("x").map(Number);
@@ -452,6 +502,109 @@ function wireUI() {
   btnVideo.addEventListener("click", async () => {
     if (!recorder) return;
 
+    if (window.sgState.exportAction === "assemble") {
+      const pipelineMode = selPipeline.value;
+      const [resW, resH] = selRes.value.split("x").map(Number);
+      const outputFormat = selFormat.value;
+      const targetFPS = Number(selFps.value);
+      const crfLimit = Number(selCrf.value);
+      const trimMode = selTrim ? selTrim.value : "none";
+
+      // Mutate configs symmetrically
+      recorder.config.exportWidth = resW;
+      recorder.config.exportHeight = resH;
+      recorder.config.exportFormat = outputFormat;
+      recorder.config.exportFPS = targetFPS;
+      recorder.config.exportCRF = crfLimit;
+      recorder.config.exportTrim = trimMode;
+      recorder._pipeline = pipelineMode;
+
+      // Reset logs and launch compiling overlay
+      logHistory.length = 0;
+      document.getElementById("assembly-log-scroll").innerHTML = '<div class="text-white/30">[System] Initiating Assemble Dynamic Storage Context...</div>';
+      
+      procOverlay.style.display = "flex";
+      
+      // Feed HUD elements programmatically
+      document.getElementById("diagnostic-resolution").textContent = `${resW}x${resH}`;
+      document.getElementById("diagnostic-threads").textContent = (typeof SharedArrayBuffer !== "undefined") ? "Multi-Threaded (MT)" : "Single-Threaded (ST)";
+      document.getElementById("diagnostic-quality").textContent = String(crfLimit);
+      
+      document.getElementById("assembly-subheader-info").textContent = `Operation: Transcoding Chunks | Res: ${resW}x${resH}`;
+      document.getElementById("current-telemetry-phase").textContent = "Transcoding Chunks";
+      document.getElementById("assembly-bottom-phase").textContent = "Parsing OPFS frames... compiling video stream...";
+
+      const rawActionContainer = document.getElementById("assembly-ready-actions");
+      rawActionContainer.classList.add("hidden");
+      rawActionContainer.innerHTML = "";
+
+      // Track assembly updates through progress callbacks
+      recorder.setProgressCallback((stage, frameNum, totalFrames, percent) => {
+        const progressFill = document.getElementById("progress-fill");
+        const assemblyPercent = document.getElementById("assembly-percent");
+        const bottomFrames = document.getElementById("assembly-bottom-frames");
+        const framesLeftBadge = document.getElementById("telemetry-frames");
+        const btmPhase = document.getElementById("assembly-bottom-phase");
+
+        if (progressFill) progressFill.style.width = `${percent}%`;
+        if (assemblyPercent) assemblyPercent.textContent = `${Math.round(percent)}%`;
+        if (bottomFrames) bottomFrames.textContent = `${frameNum} / ${totalFrames} frames`;
+        if (framesLeftBadge) framesLeftBadge.textContent = `${frameNum} / ${totalFrames}`;
+        if (btmPhase) btmPhase.textContent = `Processing stage: ${stage}`;
+        
+        // Grab preview frames if available and copy onto preview canvas
+        if (recorder._tempCanvas) {
+          const previewCanvas = document.getElementById("preview-canvas");
+          if (previewCanvas) {
+            const pCtx = previewCanvas.getContext("2d");
+            previewCanvas.width = recorder._tempCanvas.width;
+            previewCanvas.height = recorder._tempCanvas.height;
+            pCtx.drawImage(recorder._tempCanvas, 0, 0);
+          }
+        }
+      });
+
+      try {
+        const assembledBlob = await recorder.assembleFromStorage(pipelineMode);
+        
+        // Success completion and file offering
+        document.getElementById("current-telemetry-phase").textContent = "Succeeded ✓";
+        document.getElementById("assembly-bottom-phase").textContent = "File assembly completed successfully!";
+        document.getElementById("assembly-subheader-info").textContent = "Status: Export Ready";
+        
+        console.log("[🌟 Success] Assembly completed! Blob size:", (assembledBlob.size/1024/1024).toFixed(4), "MB");
+
+        // Present dynamic completion buttons inside compiler overlay
+        rawActionContainer.classList.remove("hidden");
+        rawActionContainer.classList.add("flex");
+        
+        const btnDownload = document.createElement("button");
+        btnDownload.className = "px-6 py-2 bg-[#00ffcc] text-black font-bold uppercase tracking-wider text-xs rounded-lg shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer";
+        btnDownload.textContent = "Download export";
+        btnDownload.addEventListener("click", () => {
+          const filename = recorder.getExportFilename(recorder.config.exportFormat);
+          if (window.saveAs) {
+            window.saveAs(assembledBlob, filename);
+          } else {
+            const tempUrl = URL.createObjectURL(assembledBlob);
+            const a = document.createElement("a");
+            a.href = tempUrl;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(tempUrl);
+          }
+        });
+
+        rawActionContainer.appendChild(btnDownload);
+
+      } catch (err) {
+        document.getElementById("current-telemetry-phase").textContent = "Errored 🛑";
+        document.getElementById("assembly-bottom-phase").textContent = "Video assembly encountered a fatal error.";
+        console.error("[Compilation Abort]", err);
+      }
+      return;
+    }
+
     if (!recorder.isRecording) {
       // READ INTERFACE CONFIGURATIONS
       const pipelineMode = selPipeline.value;
@@ -459,12 +612,15 @@ function wireUI() {
       const outputFormat = selFormat.value;
       const targetFPS = Number(selFps.value);
       const crfLimit = Number(selCrf.value);
+      const trimMode = selTrim ? selTrim.value : "none";
 
       // Mutate configs symmetrically
       recorder.config.exportWidth = resW;
       recorder.config.exportHeight = resH;
       recorder.config.exportFormat = outputFormat;
       recorder.config.exportFPS = targetFPS;
+      recorder.config.exportCRF = crfLimit;
+      recorder.config.exportTrim = trimMode;
       recorder._pipeline = pipelineMode;
 
       // Reset logs and launch capture lock
@@ -494,9 +650,9 @@ function wireUI() {
       // Feed HUD elements programmatically
       document.getElementById("diagnostic-resolution").textContent = `${recorder.config.exportWidth}x${recorder.config.exportHeight}`;
       document.getElementById("diagnostic-threads").textContent = (typeof SharedArrayBuffer !== "undefined") ? "Multi-Threaded (MT)" : "Single-Threaded (ST)";
-      document.getElementById("diagnostic-quality").textContent = selCrf.value;
+      document.getElementById("diagnostic-quality").textContent = String(recorder.config.exportCRF || 18);
       
-      document.getElementById("assembly-subheader-info").textContent = `Operation: Transcoding Chunks | Res: ${selRes.value}`;
+      document.getElementById("assembly-subheader-info").textContent = `Operation: Transcoding Chunks | Res: ${recorder.config.exportWidth}x${recorder.config.exportHeight}`;
       document.getElementById("current-telemetry-phase").textContent = "Transcoding Chunks";
       document.getElementById("assembly-bottom-phase").textContent = "Parsing OPFS frames... compiling video stream...";
 
