@@ -235,7 +235,7 @@ export class DiagnosticsManager {
     overlay.style.display = "none";
     overlay.style.position = "fixed";
     overlay.style.inset = "0";
-    overlay.style.background = "rgba(0,0,0,0.96)";
+    overlay.style.background = "rgba(0,0,0,0.95)";
     overlay.style.backdropFilter = "blur(24px)";
     overlay.style.zIndex = "1001";
     overlay.style.alignItems = "center";
@@ -245,14 +245,7 @@ export class DiagnosticsManager {
     const content = document.createElement("div");
     content.className = "theory-content";
     content.style.position = "relative";
-    content.style.maxWidth = "880px";
-    content.style.width = "100%";
-    content.style.margin = "0";
-    content.style.backgroundColor = "rgba(10, 10, 10, 0.85)";
-    content.style.border = "1px solid rgba(255,255,255,0.08)";
-    content.style.borderRadius = "12px";
-    content.style.padding = "10px 16px";
-    content.style.boxShadow = "0 30px 80px rgba(0,0,0,0.8)";
+    // Inline constraints deleted to allow complete layout parity matching of ID selector in style.css
 
     let testsHtml = "";
 
@@ -334,7 +327,7 @@ export class DiagnosticsManager {
       </div>
 
       <!-- Main Test Suite Grid (Made Taller) -->
-      <div id="diagnostics-tests-container" class="flex flex-col gap-1 pr-1 select-none scrollbar-thin mb-1.5" style="max-height: 480px; overflow-y: auto;">
+      <div id="diagnostics-tests-container" class="flex flex-col gap-1 pr-1 select-none scrollbar-thin mb-1.5" style="flex: 1; overflow-y: auto;">
         <!-- Dynamically populated via rebuildTestsList() -->
       </div>
 
@@ -1569,11 +1562,7 @@ export class DiagnosticsManager {
 
       this.cleanupMainRecordingState();
 
-      if (this.isAborted) {
-        this.showProgress(false);
-      } else {
-        this.showProgress(true, "All diagnostic tests benchmarked successfully!", 100);
-      }
+      this.showProgress(false);
       
       this.isTesting = false;
       LogNexus.isTestingRunning = false;

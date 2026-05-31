@@ -198,7 +198,7 @@
 
   <!-- Processing Overlay (Assembly Engine) -->
   <div id="processing-overlay" style="display: none;" class="fixed inset-0 bg-black/95 backdrop-blur-[24px] flex items-center justify-center p-4 z-[1000] overflow-hidden select-none animate-fade-in">
-    <div class="relative bg-zinc-900/95 border border-white/10 rounded-[20px] p-6 w-full max-w-[760px] h-auto max-h-none flex flex-col gap-4 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.85)] overflow-hidden">
+    <div class="relative bg-zinc-900/95 border border-white/10 rounded-[20px] p-6 w-full max-w-[760px] h-[840px] max-h-[95vh] flex flex-col gap-4 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.85)] overflow-hidden">
       <!-- 
         ID: #btn-close-processing (Allows aborting active transcode/processing assembly sequences) 
       -->
@@ -260,7 +260,7 @@
       </section>
 
       <!-- Picture-in-Picture Rendering Thumbnails (Center Viewport) -->
-      <div id="assembly-preview" class="w-[110px] h-[62px] min-w-[110px] min-h-[62px] max-w-[110px] max-h-[62px] bg-black rounded-[12px] overflow-hidden border border-white/10 relative shadow-inner mx-auto mt-0 shrink-0">
+      <div id="assembly-preview" class="w-[240px] h-[135px] min-w-[240px] min-h-[135px] max-w-[240px] max-h-[135px] bg-black rounded-[12px] overflow-hidden border border-white/10 relative shadow-inner mx-auto mt-0 flex-shrink-0 shrink-0">
         <!-- 
           ID: #preview-canvas (Capturing Engine streams compressed WebG/PNG chunks to show rendering results) 
         -->
@@ -268,7 +268,7 @@
       </div>
 
       <!-- Scrolling Log Console Container -->
-      <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[10px] bg-black/40 p-2.5 flex flex-col gap-1 overflow-hidden mx-auto flex-1 min-h-[220px]">
+      <div id="assembly-log-container" class="w-full max-w-[720px] border border-white/10 rounded-[10px] bg-black/40 p-2.5 flex flex-col gap-1 overflow-hidden mx-auto flex-1 min-h-[300px]">
         <!-- Log HUD Title/Metadata Bar -->
         <div class="flex justify-between items-center text-[10px] text-white/40 uppercase tracking-widest font-mono border-b border-white/5 pb-1 mb-1 shrink-0">
           <span>Assembly Logs & Standard Output</span>
