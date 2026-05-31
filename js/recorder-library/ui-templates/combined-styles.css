@@ -65,7 +65,12 @@
     font-size: 8.5px !important;
   }
   #assembly-preview {
-    max-width: 100px !important;
+    width: 90px !important;
+    height: 51px !important;
+    min-width: 90px !important;
+    min-height: 51px !important;
+    max-width: 90px !important;
+    max-height: 51px !important;
   }
   #assembly-log-container {
     min-height: 200px !important;
@@ -86,7 +91,12 @@
     font-size: 7.5px !important;
   }
   #assembly-preview {
-    max-width: 80px !important;
+    width: 76px !important;
+    height: 43px !important;
+    min-width: 76px !important;
+    min-height: 43px !important;
+    max-width: 76px !important;
+    max-height: 43px !important;
   }
   #assembly-log-container {
     min-height: 160px !important;

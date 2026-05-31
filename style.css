@@ -755,16 +755,53 @@ html, body {
 /* ==========================================================================
    PROCESSING OVERLAY (Assembly Engine)
    ========================================================================== */
+#processing-overlay,
+#diagnostics-overlay,
+#sandbox-widget {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+#processing-overlay,
+#diagnostics-overlay,
+#sandbox-widget,
+#processing-overlay *,
+#diagnostics-overlay *,
+#sandbox-widget * {
+  font-family: var(--font-sans) !important;
+}
+
+#processing-overlay .font-mono,
+#diagnostics-overlay .font-mono,
+#sandbox-widget .font-mono,
+#processing-overlay pre,
+#diagnostics-overlay pre,
+#sandbox-widget pre,
+#processing-overlay code,
+#diagnostics-overlay code,
+#sandbox-widget code,
+#processing-overlay .font-mono *,
+#diagnostics-overlay .font-mono *,
+#sandbox-widget .font-mono * {
+  font-family: var(--font-mono) !important;
+}
+
 #processing-overlay {
   display: none;
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
   background: rgba(0, 0, 0, 0.95);
   backdrop-filter: blur(24px);
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 #processing-overlay > div {
@@ -774,20 +811,22 @@ html, body {
   padding: 24px;
   max-width: 760px; /* Aligns perfectly with the max-w-[720px] items inside, avoiding narrow margin look */
   width: 100%;
-  height: 88vh;
-  max-height: 820px; /* Cap visual height to prevent giant vertical spreads on ultra-tall screens */
+  height: auto;
+  max-height: 96vh; /* Released from 820px constraint */
   display: flex;
   flex-direction: column;
   gap: 16px;
   position: relative;
   box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.85);
   overflow: hidden; /* Standardize internal flex scrolling behavior */
+  margin: auto; /* Force absolute centering horizontally and vertically, preventing alignment skewing */
 }
 
 /* Responsive Hardware Sizing Adapters (Tablets, landscape devices, and shorter displays) */
 @media (max-height: 780px) {
   #processing-overlay > div {
-    height: 94vh;
+    height: auto;
+    max-height: 98vh;
     padding: 16px;
     gap: 12px;
   }
@@ -801,7 +840,12 @@ html, body {
     font-size: 8.5px !important;
   }
   #assembly-preview {
-    max-width: 100px !important;
+    width: 90px !important;
+    height: 51px !important;
+    min-width: 90px !important;
+    min-height: 51px !important;
+    max-width: 90px !important;
+    max-height: 51px !important;
   }
   #assembly-log-container {
     min-height: 200px !important;
@@ -823,7 +867,12 @@ html, body {
     font-size: 7.5px !important;
   }
   #assembly-preview {
-    max-width: 80px !important;
+    width: 76px !important;
+    height: 43px !important;
+    min-width: 76px !important;
+    min-height: 43px !important;
+    max-width: 76px !important;
+    max-height: 43px !important;
   }
   #assembly-log-container {
     min-height: 160px !important;
@@ -1010,5 +1059,23 @@ html, body {
   scrollbar-color: rgba(0, 255, 204, 0.75) rgba(255, 255, 255, 0.08);
   scroll-behavior: auto;
   overflow-y: scroll !important;
+}
+
+/* ==========================================================================
+   SANDBOX TRANSITIONS & KEYFRAMES
+   ========================================================================== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+.animate-slide-in {
+  animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 }
 

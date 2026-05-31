@@ -729,6 +729,21 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     }
   });
 
+  // Design Sandbox Control Mode
+  safeClick("btn-design-sandbox", async function () {
+    try {
+      const { getDesignSandbox } = await import("./design-sandbox.js");
+      const sandbox = getDesignSandbox();
+      if (sandbox.isHubVisible) {
+        sandbox.hideHub();
+      } else {
+        sandbox.showHub();
+      }
+    } catch (err) {
+      console.error("[Design Sandbox Loader] Failed to load sandbox module:", err);
+    }
+  });
+
   // Mode & Direction
   ["kink", "anti", "breath", "wind"].forEach(function (m) {
     safeClick("btn-a-mode-" + m, function () {

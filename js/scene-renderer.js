@@ -4,7 +4,7 @@
 // COMPLETELY SELF-CONTAINED - only imports three.js
 // =============================================================================
 
-import * as THREE from 'three';
+import * as THREE from '../vendor/three/three.module.js';
 import Gimbal from './gimbal.js';
 
 const PI = Math.PI;

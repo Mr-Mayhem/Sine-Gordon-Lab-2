@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from '../vendor/three/three.module.js';
 import { sgState } from './state.js';
 
 export default class Gimbal {

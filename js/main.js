@@ -4,8 +4,8 @@
 // Default: 80 elements, circular topology
 // =============================================================================
 
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as THREE from '../vendor/three/three.module.js';
+import { OrbitControls } from '../vendor/three/addons/controls/OrbitControls.js';
 
 import { sgState, loadExportSettings, saveExportSettings } from "./state.js";
 import { LogNexus } from "./logger.js";
@@ -538,8 +538,10 @@ function init() {
   bindEvents(physics, rendererRef, recorder, snapshotEngine);
   refreshUI();
 
-  // On mobile/tablet or narrow screen, start with both bottombar and launch panel collapsed by default
-  if (isMobile || window.innerWidth < 1024) {
+  // Start minimized on a tablet or phone, and start maximized on a PC.
+  const isTabletOrPhone = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 
+                          (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  if (isTabletOrPhone) {
     const bottomCollapse = document.getElementById("btn-collapse-bottom");
     if (bottomCollapse) bottomCollapse.click();
     const launcherCollapse = document.getElementById("btn-collapse-launch");

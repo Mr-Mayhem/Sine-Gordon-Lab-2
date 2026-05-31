@@ -3,7 +3,7 @@
 // Animation loop with patient handshaking recording support
 // =============================================================================
 
-import * as THREE from 'three';
+import * as THREE from '../vendor/three/three.module.js';
 import { sgState } from "./state.js";
 import { processFrame } from "./pipeline.js";
 
@@ -83,6 +83,16 @@ export function animate(time, rendererRef, renderer, controls, physics, recorder
       animate(ts, rendererRef, renderer, controls, physics, recorder, camera); 
     }); 
     return; 
+  }
+
+  // Pause the tree.js animation / updates during sandbox mock display modes
+  const isSandboxPausing = window.getDesignSandbox && window.getDesignSandbox() && typeof window.getDesignSandbox().isMockActive === "function" && window.getDesignSandbox().isMockActive();
+  if (isSandboxPausing) {
+    controls.update(); // Keep camera orbit controls reactive to user movement
+    requestAnimationFrame(function(ts) {
+      animate(ts, rendererRef, renderer, controls, physics, recorder, camera);
+    });
+    return;
   }
 
   // Handle topology morphing transitions

@@ -355,9 +355,19 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
               console.log("[ZIP Export] Returning canvas size back to normal viewing resolution.");
               recorderRef._restoreCanvasSize();
           }
-          const overlay = document.getElementById("processing-overlay");
-          if (overlay) overlay.style.display = "none";
-          setTimeout(function() { if (refreshUI) refreshUI(); }, 2000);
+          
+          if (percentEl) {
+              percentEl.textContent = "100%";
+              if (fill) fill.style.width = "100%";
+          }
+          const bottomPhaseEl = document.getElementById("assembly-bottom-phase");
+          if (bottomPhaseEl) bottomPhaseEl.textContent = "ZIP packaging completed successfully.";
+
+          setTimeout(function() {
+              const overlay = document.getElementById("processing-overlay");
+              if (overlay) overlay.style.display = "none";
+              if (refreshUI) refreshUI();
+          }, 2000);
       }
     } catch (e) {
         console.error("ZIP Generation error:", e);
@@ -521,9 +531,19 @@ export async function exportToZip(dirHandle, zip, btnVideo, refreshUI, recorderR
           console.log("[ZIP Export] Returning canvas size back to normal viewing resolution.");
           recorderRef._restoreCanvasSize();
         }
-        const overlay = document.getElementById("processing-overlay");
-        if (overlay) overlay.style.display = "none";
-        setTimeout(function() { if (refreshUI) refreshUI(); }, 2000);
+        
+        if (percentEl) {
+          percentEl.textContent = "100%";
+          if (fill) fill.style.width = "100%";
+        }
+        const bottomPhaseEl = document.getElementById("assembly-bottom-phase");
+        if (bottomPhaseEl) bottomPhaseEl.textContent = "ZIP packaging completed successfully.";
+
+        setTimeout(function() {
+          const overlay = document.getElementById("processing-overlay");
+          if (overlay) overlay.style.display = "none";
+          if (refreshUI) refreshUI();
+        }, 2000);
       }
     }).catch(function(err) {
       console.error("ZIP Generation error:", err);

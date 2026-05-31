@@ -235,31 +235,36 @@ export class DiagnosticsManager {
     overlay.style.display = "none";
     overlay.style.position = "fixed";
     overlay.style.inset = "0";
-    overlay.style.background = "rgba(0,0,0,0.95)";
-    overlay.style.backdropFilter = "blur(12px)";
-    overlay.style.zIndex = "300";
-    overlay.style.overflowY = "auto";
-    overlay.style.padding = "20px 16px";
+    overlay.style.background = "rgba(0,0,0,0.96)";
+    overlay.style.backdropFilter = "blur(24px)";
+    overlay.style.zIndex = "1001";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.padding = "16px";
 
     const content = document.createElement("div");
     content.className = "theory-content";
+    content.style.position = "relative";
     content.style.maxWidth = "880px";
-    content.style.margin = "10px auto";
+    content.style.width = "100%";
+    content.style.margin = "0";
     content.style.backgroundColor = "rgba(10, 10, 10, 0.85)";
     content.style.border = "1px solid rgba(255,255,255,0.08)";
     content.style.borderRadius = "12px";
     content.style.padding = "10px 16px";
-    content.style.boxShadow = "0 20px 50px rgba(0,0,0,0.6)";
+    content.style.boxShadow = "0 30px 80px rgba(0,0,0,0.8)";
 
     let testsHtml = "";
 
     content.innerHTML = `
-      <header class="flex justify-between items-center border-b border-white/10 pb-1 mb-1.5">
+      <!-- Circular Glass Close button at upper-right -->
+      <button id="btn-close-diagnostics" style="position: absolute; top: 16px; right: 16px; z-index: 50;" class="w-8 h-8 rounded-full bg-white/10 border-0 text-white hover:bg-white/20 text-sm flex items-center justify-center cursor-pointer transition-all active:scale-95" title="Close Diagnostics">✕</button>
+
+      <header class="flex justify-between items-center border-b border-white/10 pb-1 mb-1.5 pr-10">
         <div>
           <h1 class="text-[8px] font-bold tracking-wider text-white select-none uppercase font-mono">Video Pipeline Diagnostics</h1>
           <p class="text-white/35 font-mono text-[5.2px] uppercase tracking-[0.12em] mt-0.5 select-none">Automated compliance checks • Frame rate integrity benchmarks</p>
         </div>
-        <button id="btn-close-diagnostics" class="btn-icon w-4 h-4 text-white hover:bg-white/10 text-[7px] border border-white/10 rounded-full transition-all flex items-center justify-center">✕</button>
       </header>
 
       <!-- System Diagnostic Metadata Header -->
@@ -605,7 +610,12 @@ export class DiagnosticsManager {
   }
 
   show() {
-    document.getElementById(this.modalId).style.display = "block";
+    const el = document.getElementById(this.modalId);
+    if (el) {
+      el.style.display = "flex";
+      el.style.alignItems = "center";
+      el.style.justifyContent = "center";
+    }
     this.updateSpecs();
     this.updateTestLengthsSelector();
     this.updateUIForSelectedFrameCount();
@@ -1559,7 +1569,11 @@ export class DiagnosticsManager {
 
       this.cleanupMainRecordingState();
 
-      this.showProgress(false);
+      if (this.isAborted) {
+        this.showProgress(false);
+      } else {
+        this.showProgress(true, "All diagnostic tests benchmarked successfully!", 100);
+      }
       
       this.isTesting = false;
       LogNexus.isTestingRunning = false;
