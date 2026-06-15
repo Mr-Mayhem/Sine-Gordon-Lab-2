@@ -32,6 +32,7 @@ export default class LaserScreen {
     this.N = N;
     this.spacing = spacing;
     this.mesh = null;
+    this.radius = 3.22; // Exactly matches the outer tip of the pendulum bobs
 
     // Create a dynamic drawing canvas for laser trails
     this.canvas = document.createElement('canvas');
@@ -73,7 +74,7 @@ export default class LaserScreen {
 
     const tw = (this.N - 1) * this.spacing;
     const length = tw + 1.2; // Extend slightly past bobs
-    const radius = 3.5;      // Slightly larger than physical envelope 3.22 (rod 3.0 + bob 0.22)
+    const radius = this.radius; // Exactly matches the outer tip of the pendulum bobs (3.22)
 
     // CylinderGeometry(radiusTop, radiusBottom, height, radialSegments, heightSegments, openEnded)
     // Create plenty of heightSegments to allow clean, localized radial bulging matching color/amplitude mapping
@@ -120,8 +121,8 @@ export default class LaserScreen {
         const orig = this.origPositions;
         const count = posAttr.count;
 
-        const radiusMin = 3.5;              // Larger than the pendulum physical envelope (3.22)
-        const radiusMax = radiusMin * 2.5;  // Maximum envelope scaling (around 8.75)
+        const radiusMin = this.radius;              // Exactly matches the outer tip of the pendulum bobs (3.22)
+        const radiusMax = this.radius * 2.2;        // Outer dynamic bulge maximum limit proportional to color/velocity
 
         const m = frameData.morph !== undefined ? frameData.morph : 0;
         const rr = frameData.ringRadius !== undefined ? frameData.ringRadius : ((this.N * this.spacing) / (Math.PI * 2));
@@ -221,8 +222,8 @@ export default class LaserScreen {
         const phi = phiValues[i];
         
         // Map rotational angle to Circumference U coord [0, 2*PI] -> [0, 1]
-        // Perfectly sync the laser projection with the physical pendulum pointing angle on the screen: theta = phi - Math.PI / 2
-        const theta = (((phi - Math.PI / 2) % TAU) + TAU) % TAU;
+        // Perfectly sync the laser projection with the physical pendulum pointing angle on the screen: theta = -phi - Math.PI / 2
+        const theta = (((-phi - Math.PI / 2) % TAU) + TAU) % TAU;
         const u = theta / TAU;
 
         // V maps along length of the cylinder (height parameter)
