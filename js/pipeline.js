@@ -21,7 +21,7 @@ const PALETTE = [
   { hex: "#e8e8e8" }
 ];
 
-export function processFrame(sgState, phiV, accV, prevGlowPos, prevGlowNeg, maxAcc) {
+export function processFrame(sgState, phiV, vV, accV, prevGlowPos, prevGlowNeg, maxAcc) {
   var N = phiV.length;
   var spacing = 0.8;
   var rr = (N * spacing) / TAU;
@@ -55,8 +55,8 @@ export function processFrame(sgState, phiV, accV, prevGlowPos, prevGlowNeg, maxA
       glowPos[i] = 0;
       glowNeg[i] = 0;
     } else {
-      glowPos[i] = prevGlowPos[i] * 0.92;
-      glowNeg[i] = prevGlowNeg[i] * 0.92;
+      glowPos[i] = prevGlowPos[i] * 0.85;
+      glowNeg[i] = prevGlowNeg[i] * 0.85;
     }
 
     if (hA && !atRest) {
@@ -171,6 +171,7 @@ export function processFrame(sgState, phiV, accV, prevGlowPos, prevGlowNeg, maxA
     positions: positions,
     glowPos: glowPos,
     glowNeg: glowNeg,
+    velocities: vV,
     ghostVisible: ghostVisible,
     ghostY: ghostY,
     ghostColor: ghostColor,

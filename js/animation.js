@@ -102,7 +102,7 @@ export function animate(time, rendererRef, renderer, controls, physics, recorder
       sgState.morph = sgState.morphTarget;
       _finishTransition();
     }
-    var fd = processFrame(sgState, physics.phi, physics.acc, sr._glowPosAttr.array, sr._glowNegAttr.array, sr.maxAcc);
+    var fd = processFrame(sgState, physics.phi, physics.v, physics.acc, sr._glowPosAttr.array, sr._glowNegAttr.array, sr.maxAcc);
     sr.render(fd, physics.phi);
     renderer.render(sr.scene, camera);
     controls.update();
@@ -123,13 +123,18 @@ export function animate(time, rendererRef, renderer, controls, physics, recorder
   var ot = sgState.orientationTarget === "vertical" ? 1 : 0;
   sgState.orientationValue += (ot - sgState.orientationValue) * 0.08;
 
+  // Always step the gimbal rotation and offsets at 60fps, even when simulation is paused
+  if (sgState.gimbalRingActive && typeof physics.stepGimbal === "function") {
+    physics.stepGimbal(0.016);
+  }
+
   // Physics always advances at normal rate for smooth real-time preview
   if (!sgState.paused) {
     physics.step(Math.max(1, Math.floor(5 * sgState.timeScale)));
   }
   
   // Always render the current state
-  var fd = processFrame(sgState, physics.phi, physics.acc, sr._glowPosAttr.array, sr._glowNegAttr.array, sr.maxAcc);
+  var fd = processFrame(sgState, physics.phi, physics.v, physics.acc, sr._glowPosAttr.array, sr._glowNegAttr.array, sr.maxAcc);
   sr.render(fd, physics.phi);
   renderer.render(sr.scene, camera);
   

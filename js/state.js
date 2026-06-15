@@ -19,6 +19,7 @@ export const sgState = {
   physics: { ...DEFAULT_PHYSICS },
   paused: true,
   hasFiredAtLeastOnce: false,
+  laserScreenActive: false,
   timeScale: 1.6,
   morph: 1,
   morphTarget: 1,

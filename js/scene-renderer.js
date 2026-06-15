@@ -6,6 +6,8 @@
 
 import * as THREE from '../vendor/three/three.module.js';
 import Gimbal from './gimbal.js';
+import LaserScreen from './laser-screen.js';
+import { sgState } from './state.js';
 
 const PI = Math.PI;
 const TAU = 2 * Math.PI;
@@ -109,6 +111,9 @@ export default class SceneRenderer {
     if (this.gimbal) {
       this.gimbal.build(rr);
     }
+    if (this.laserScreen) {
+      this.laserScreen.resize(newN, spacing);
+    }
   }
 
   build(settings, spacing, morph) {
@@ -122,6 +127,8 @@ export default class SceneRenderer {
 
     this.modelGroup = new THREE.Group();
     this.scene.add(this.modelGroup);
+
+    this.laserScreen = new LaserScreen(this.modelGroup, this.N, spacing);
 
     this.support = new THREE.Mesh(
       new THREE.CylinderGeometry(0.1, 0.1, tw + 4),
@@ -422,6 +429,10 @@ export default class SceneRenderer {
       this._updateCounterSprite(this.counterB, countB, frameData.colorB, frameData.positions[pB], frameData.ghostY[pB], phiValues[pB], frameData.morph, pB, frameData.spacing, frameData.ringRadius, frameData.orientationValue, N);
     } else {
       this.counterB.visible = false;
+    }
+
+    if (this.laserScreen) {
+      this.laserScreen.update(sgState, phiValues, frameData);
     }
   }
 }

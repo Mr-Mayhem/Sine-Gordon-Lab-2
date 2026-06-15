@@ -286,6 +286,16 @@ function refreshUI() {
       btnGimbal.setAttribute("title", "Activate Gimbal-Ring relative frame physical forces");
     }
   }
+
+  const btnLaser = document.getElementById("btn-laser-screen");
+  if (btnLaser) {
+    if (sgState.laserScreenActive) {
+      btnLaser.classList.add("active");
+    } else {
+      btnLaser.classList.remove("active");
+    }
+    btnLaser.style.display = "";
+  }
   var elNudges = document.getElementById("gimbal-nudges");
   if (elNudges) {
     elNudges.style.display = sgState.gimbalRingActive ? "flex" : "none";
@@ -452,7 +462,7 @@ function init() {
   window.renderManualFrame = function() {
     if (rendererRef.current && physics && camera && renderer) {
       const sr = rendererRef.current;
-      const fd = processFrame(sgState, physics.phi, physics.acc, sr._glowPosAttr.array, sr._glowNegAttr.array, sr.maxAcc);
+      const fd = processFrame(sgState, physics.phi, physics.v, physics.acc, sr._glowPosAttr.array, sr._glowNegAttr.array, sr.maxAcc);
       sr.render(fd, physics.phi);
       renderer.render(sr.scene, camera);
     }

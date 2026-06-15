@@ -52,29 +52,6 @@ class PhysicsEngine {
         t = this.tSim * 0.31;
         if (this.stateRef) {
           this.stateRef.gimbalTime = this.tSim;
-          
-          const steps_dt = dt / 0.01;
-          
-          // Outer gimbal cascaded S-curve nudge filter (gentle and smooth)
-          this.stateRef.gimbalOuterNudge1 *= Math.pow(0.95, steps_dt);
-          this.stateRef.gimbalOuterNudge2 += (this.stateRef.gimbalOuterNudge1 - this.stateRef.gimbalOuterNudge2) * (0.08 * steps_dt);
-          this.stateRef.gimbalOuterNudge3 += (this.stateRef.gimbalOuterNudge2 - this.stateRef.gimbalOuterNudge3) * (0.08 * steps_dt);
-          this.stateRef.gimbalOuterVel += this.stateRef.gimbalOuterNudge3 * steps_dt * 0.005;
-
-          // Middle gimbal cascaded S-curve nudge filter (gentle and smooth)
-          this.stateRef.gimbalMiddleNudge1 *= Math.pow(0.95, steps_dt);
-          this.stateRef.gimbalMiddleNudge2 += (this.stateRef.gimbalMiddleNudge1 - this.stateRef.gimbalMiddleNudge2) * (0.08 * steps_dt);
-          this.stateRef.gimbalMiddleNudge3 += (this.stateRef.gimbalMiddleNudge2 - this.stateRef.gimbalMiddleNudge3) * (0.08 * steps_dt);
-          this.stateRef.gimbalMiddleVel += this.stateRef.gimbalMiddleNudge3 * steps_dt * 0.005;
-
-          // Physical velocity decay and offset integration
-          const damping_coeff = this.stateRef.gimbalDamping !== undefined ? this.stateRef.gimbalDamping : 0;
-          const decay = Math.exp(-damping_coeff * steps_dt);
-          this.stateRef.gimbalOuterVel *= decay;
-          this.stateRef.gimbalMiddleVel *= decay;
-
-          this.stateRef.gimbalOuterOffset += this.stateRef.gimbalOuterVel * steps_dt;
-          this.stateRef.gimbalMiddleOffset += this.stateRef.gimbalMiddleVel * steps_dt;
         }
       }
 
@@ -262,6 +239,40 @@ class PhysicsEngine {
       }
     }
     this.p = p;
+  }
+
+  stepGimbal(dt) {
+    if (!this.stateRef || !this.stateRef.gimbalRingActive) return;
+
+    if (this.tSim === undefined) this.tSim = 0;
+    this.tSim += dt;
+    this.stateRef.gimbalTime = this.tSim;
+
+    const steps_dt = dt / 0.01;
+
+    // Outer gimbal cascaded S-curve nudge filter (gentle and smooth)
+    this.stateRef.gimbalOuterNudge1 *= Math.pow(0.95, steps_dt);
+    this.stateRef.gimbalOuterNudge2 += (this.stateRef.gimbalOuterNudge1 - this.stateRef.gimbalOuterNudge2) * (0.08 * steps_dt);
+    this.stateRef.gimbalOuterNudge3 += (this.stateRef.gimbalOuterNudge2 - this.stateRef.gimbalOuterNudge3) * (0.08 * steps_dt);
+    // Standard integration and physical coupling mapping logic
+    this.stateRef.gimbalOuterVel += this.stateRef.gimbalOuterNudge3 * steps_dt * 0.005;
+
+    // Middle gimbal cascaded S-curve nudge filter (gentle and smooth)
+    this.stateRef.gimbalMiddleNudge1 *= Math.pow(0.95, steps_dt);
+    this.stateRef.gimbalMiddleNudge2 += (this.stateRef.gimbalMiddleNudge1 - this.stateRef.gimbalMiddleNudge2) * (0.08 * steps_dt);
+    this.stateRef.gimbalMiddleNudge3 += (this.stateRef.gimbalMiddleNudge2 - this.stateRef.gimbalMiddleNudge3) * (0.08 * steps_dt);
+    // Standard integration and physical coupling mapping logic
+    this.stateRef.gimbalMiddleVel += this.stateRef.gimbalMiddleNudge3 * steps_dt * 0.005;
+
+    // Physical velocity decay
+    const damping_coeff = this.stateRef.gimbalDamping !== undefined ? this.stateRef.gimbalDamping : 0;
+    const decay = Math.exp(-damping_coeff * steps_dt);
+    this.stateRef.gimbalOuterVel *= decay;
+    this.stateRef.gimbalMiddleVel *= decay;
+
+    // Integrate offsets
+    this.stateRef.gimbalOuterOffset += this.stateRef.gimbalOuterVel * steps_dt;
+    this.stateRef.gimbalMiddleOffset += this.stateRef.gimbalMiddleVel * steps_dt;
   }
 }
 

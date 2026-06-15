@@ -68,8 +68,23 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     physics.reset();
   }
 
+  function resetGimbals() {
+    sgState.gimbalTime = 0;
+    sgState.gimbalOuterOffset = 0;
+    sgState.gimbalOuterVel = 0;
+    sgState.gimbalMiddleOffset = 0;
+    sgState.gimbalMiddleVel = 0;
+    sgState.gimbalOuterNudge1 = 0;
+    sgState.gimbalOuterNudge2 = 0;
+    sgState.gimbalOuterNudge3 = 0;
+    sgState.gimbalMiddleNudge1 = 0;
+    sgState.gimbalMiddleNudge2 = 0;
+    sgState.gimbalMiddleNudge3 = 0;
+  }
+
   // Local factory reset function (avoids circular dependency with animation.js)
   function localFactoryReset() {
+    resetGimbals();
     Object.assign(sgState.physics, DEFAULT_PHYSICS);
     physics.syncParams(sgState.physics, true);
     sgState.posA = Math.floor(sgState.physics.N * 0.75);
@@ -299,19 +314,23 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   // Reset / Step / Snapshot
   safeClick("btn-reset", function () {
     physics.reset();
+    resetGimbals();
     sgState.paused = true;
     var bp = document.getElementById("btn-play");
     var bsp = document.getElementById("btn-side-play");
     if (bp) bp.textContent = "▶ Run";
     if (bsp) bsp.textContent = "▶";
+    if (window.refreshUI) window.refreshUI();
   });
   safeClick("btn-rapid-reset", function () {
     physics.reset();
+    resetGimbals();
     sgState.paused = true;
     var bp = document.getElementById("btn-play");
     var bsp = document.getElementById("btn-side-play");
     if (bp) bp.textContent = "▶ Run";
     if (bsp) bsp.textContent = "▶";
+    if (window.refreshUI) window.refreshUI();
   });
   safeClick("btn-step", function () {
     physics.step(1);
@@ -320,6 +339,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
       var fd = processFrame(
         sgState,
         physics.phi,
+        physics.v,
         physics.acc,
         sr._glowPosAttr.array,
         sr._glowNegAttr.array,
@@ -513,6 +533,12 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
       sgState.gimbalRingActive = false;
       sgState.gimbalPhysicsMode = "simplified";
     }
+    if (window.refreshUI) window.refreshUI();
+  });
+
+  // Laser Screen Surround Toggle
+  safeClick("btn-laser-screen", function () {
+    sgState.laserScreenActive = !sgState.laserScreenActive;
     if (window.refreshUI) window.refreshUI();
   });
 
