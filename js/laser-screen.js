@@ -148,13 +148,13 @@ export default class LaserScreen {
             const v0 = Math.abs(frameData.velocities[i0] || 0);
             const v1 = Math.abs(frameData.velocities[i1] || 0);
             const interpolatedVel = v0 * (1 - t) + v1 * t;
-            interpolatedGlow = Math.min(1.0, interpolatedVel / 3.0);
+            interpolatedGlow = Math.min(1.0, interpolatedVel / 5.5);
           } else {
             const g0 = Math.max(frameData.glowPos[i0] || 0, frameData.glowNeg[i0] || 0);
             const g1 = Math.max(frameData.glowPos[i1] || 0, frameData.glowNeg[i1] || 0);
             interpolatedGlow = g0 * (1 - t) + g1 * t;
           }
-          const iVal = Math.pow(Math.min(1.0, interpolatedGlow), 1.5);
+          const iVal = Math.pow(Math.min(1.0, interpolatedGlow), 1.2);
 
           // Re-scale cross-sectional Y and Z based on our dynamic radius mapping
           const r_orig = Math.sqrt(oy * oy + oz * oz);
@@ -240,16 +240,16 @@ export default class LaserScreen {
          if (frameData.velocities) {
            const vel = frameData.velocities[i] || 0;
            const absVel = Math.abs(vel);
-           iVal = Math.pow(Math.min(1.0, absVel / 3.0), 1.5);
+           iVal = Math.pow(Math.min(1.0, absVel / 5.5), 1.2);
            sPos = vel > 0 ? iVal : 0;
            sNeg = vel < 0 ? iVal : 0;
          } else {
            const gPos = frameData.glowPos[i] || 0;
            const gNeg = frameData.glowNeg[i] || 0;
            const vGlow = Math.max(gPos, gNeg);
-           sPos = Math.pow(Math.min(1.0, gPos), 1.5);
-           sNeg = Math.pow(Math.min(1.0, gNeg), 1.5);
-           iVal = Math.pow(Math.min(1.0, vGlow), 1.5);
+           sPos = Math.pow(Math.min(1.0, gPos), 1.2);
+           sNeg = Math.pow(Math.min(1.0, gNeg), 1.2);
+           iVal = Math.pow(Math.min(1.0, vGlow), 1.2);
          }
 
         // Make low-intensity/low-value tic-marks completely invisible
