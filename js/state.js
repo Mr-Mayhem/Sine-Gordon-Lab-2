@@ -6,12 +6,12 @@
 
 // Default physics configuration
 const DEFAULT_PHYSICS = {
-  N: 120,
+  N: 60,
   kappa: 100,
   gravity: 10,
   gamma: 0,
   dt: 0.01,
-  topo: "circ",
+  topo: "linear",
   linearWrap: false
 };
 
@@ -20,9 +20,9 @@ export const sgState = {
   paused: true,
   hasFiredAtLeastOnce: false,
   laserScreenActive: false,
-  timeScale: 1.6,
-  morph: 1,
-  morphTarget: 1,
+  timeScale: 1.0,
+  morph: 0,
+  morphTarget: 0,
   isLerping: false,
   lerpSpeed: 0.08,
   lerpFastSpeed: 0.15,

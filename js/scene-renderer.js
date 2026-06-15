@@ -67,12 +67,55 @@ export default class SceneRenderer {
       mat.userData.shader = shader;
 
       shader.vertexShader =
-        "attribute float aIndex;\nattribute float aPhi;\nattribute float aGlowPos;\nattribute float aGlowNeg;\nuniform float uMorph, uSp, uRad, uKWraps, uRMinor, uN, uIsBob, uLemnForm;\nvarying float vGlow, vGlowPos, vGlowNeg;\nmat4 rot(vec3 a, float th){ a=normalize(a); float s=sin(th),c=cos(th),oc=1.-c; return mat4(oc*a.x*a.x+c, oc*a.x*a.y-a.z*s, oc*a.z*a.x+a.y*s, 0.0, oc*a.x*a.y+a.z*s, oc*a.y*a.y+c, oc*a.y*a.z-a.x*s, 0.0, oc*a.z*a.x-a.y*s, oc*a.y*a.z+a.x*s, oc*a.z*a.z+c, 0.0, 0.0,0.0,0.0,1.0); }\n" +
+        "attribute float aIndex;\n" +
+        "attribute float aPhi;\n" +
+        "attribute float aGlowPos;\n" +
+        "attribute float aGlowNeg;\n" +
+        "uniform float uMorph, uSp, uRad, uKWraps, uRMinor, uN, uIsBob, uLemnForm;\n" +
+        "varying float vGlow, vGlowPos, vGlowNeg;\n" +
+        "vec3 getPivot(float idx, float N, float sp, float rad, float morph, float rMinor, float lemnForm) {\n" +
+        "  float i_wrapped;\n" +
+        "  if (morph < 0.01) {\n" +
+        "    i_wrapped = clamp(idx, 0.0, N - 1.0);\n" +
+        "  } else {\n" +
+        "    i_wrapped = mod(idx + N, N);\n" +
+        "  }\n" +
+        "  float th = (i_wrapped / N) * 6.28318530718;\n" +
+        "  float sx = -((N - 1.0) * sp) / 2.0;\n" +
+        "  vec3 p0 = vec3(sx + i_wrapped * sp, 1.5, 0.0);\n" +
+        "  vec3 p1 = vec3(rad * cos(th), 1.5, rad * sin(th));\n" +
+        "  vec3 p2;\n" +
+        "  if (lemnForm < 0.5) {\n" +
+        "    p2 = vec3(rad * 1.3 * cos(th), 1.5 + rMinor * sin(th * 2.0), rad * 1.3 * sin(th) * cos(th));\n" +
+        "  } else {\n" +
+        "    float d = 1.0 + sin(th) * sin(th);\n" +
+        "    p2 = vec3(rad * 1.3 * cos(th) / d, 1.5, rad * 1.3 * sin(th) * cos(th) / d);\n" +
+        "  }\n" +
+        "  return morph <= 1.0 ? mix(p0, p1, morph) : mix(p1, p2, morph - 1.0);\n" +
+        "}\n" +
         shader.vertexShader;
 
       shader.vertexShader = shader.vertexShader.replace(
         "#include <begin_vertex>",
-        "\nfloat th=(aIndex/uN)*6.28318; float sx=-((uN-1.)*uSp)/2.0; vec3 p0=vec3(sx+aIndex*uSp,1.5,0.), p1=vec3(uRad*cos(th),1.5,uRad*sin(th)), p2; if(uLemnForm<0.5) p2=vec3(uRad*1.3*cos(th),1.5+uRMinor*sin(th*2.),uRad*1.3*sin(th)*cos(th)); else{ float d=1.+sin(th)*sin(th); p2=vec3(uRad*1.3*cos(th)/d,1.5,uRad*1.3*sin(th)*cos(th)/d); } vec3 piv=uMorph<=1.?mix(p0,p1,uMorph):mix(p1,p2,uMorph-1.); float ry=-th+1.5707; if(uMorph<=1.) ry*=uMorph; vec3 pos=position; if(uIsBob>0.5) pos.y-=3.0; vec4 rtd=rot(vec3(0,1,0),ry)*rot(vec3(1,0,0),aPhi)*vec4(pos,1.0); vec3 transformed=rtd.xyz+piv; vGlowPos=aGlowPos; vGlowNeg=aGlowNeg; vGlow=max(aGlowPos,aGlowNeg);\n"
+        "\n" +
+        "vec3 piv = getPivot(aIndex, uN, uSp, uRad, uMorph, uRMinor, uLemnForm);\n" +
+        "vec3 piv_prev = getPivot(aIndex - 1.0, uN, uSp, uRad, uMorph, uRMinor, uLemnForm);\n" +
+        "vec3 piv_next = getPivot(aIndex + 1.0, uN, uSp, uRad, uMorph, uRMinor, uLemnForm);\n" +
+        "vec3 u = normalize(piv_next - piv_prev);\n" +
+        "vec3 g_vec = vec3(0.0, -1.0, 0.0);\n" +
+        "vec3 v_unnorm = g_vec - dot(g_vec, u) * u;\n" +
+        "vec3 v = normalize(v_unnorm);\n" +
+        "vec3 w = cross(u, v);\n" +
+        "vec3 pos = position;\n" +
+        "if(uIsBob > 0.5) pos.y -= 3.0;\n" +
+        "vec3 rotated_local;\n" +
+        "rotated_local.x = pos.x;\n" +
+        "rotated_local.y = pos.y * cos(aPhi) - pos.z * sin(aPhi);\n" +
+        "rotated_local.z = pos.y * sin(aPhi) + pos.z * cos(aPhi);\n" +
+        "vec3 transformed = piv + rotated_local.x * u - rotated_local.y * v - rotated_local.z * w;\n" +
+        "vGlowPos = aGlowPos;\n" +
+        "vGlowNeg = aGlowNeg;\n" +
+        "vGlow = max(aGlowPos, aGlowNeg);\n"
       );
 
       shader.fragmentShader =
@@ -269,6 +312,39 @@ export default class SceneRenderer {
     // We optionally want the counter to stand upright, but sprites do that by default.
   }
 
+  _calculatePhysicsBasis(i, frameData, N, m) {
+    var prev_idx, next_idx;
+    if (m < 0.01) {
+      prev_idx = Math.max(0, i - 1);
+      next_idx = Math.min(N - 1, i + 1);
+    } else {
+      prev_idx = (i - 1 + N) % N;
+      next_idx = (i + 1) % N;
+    }
+    var p_prev = frameData.positions[prev_idx];
+    var p_next = frameData.positions[next_idx];
+    
+    var u = new THREE.Vector3(p_next.x - p_prev.x, p_next.y - p_prev.y, p_next.z - p_prev.z);
+    if (u.lengthSq() > 1e-8) {
+      u.normalize();
+    } else {
+      u.set(1, 0, 0);
+    }
+    
+    var g_vec = new THREE.Vector3(0, -1, 0);
+    var u_dot_g = u.dot(g_vec);
+    var v_unnorm = new THREE.Vector3().copy(g_vec).addScaledVector(u, -u_dot_g);
+    var v = new THREE.Vector3();
+    if (v_unnorm.lengthSq() > 1e-8) {
+      v.copy(v_unnorm).normalize();
+    } else {
+      v.set(0, -1, 0);
+    }
+    
+    var w = new THREE.Vector3().crossVectors(u, v);
+    return { u: u, v: v, w: w };
+  }
+
   render(frameData, phiValues) {
     this.lastPositions = frameData.positions;
     this.lastPhi = phiValues;
@@ -351,6 +427,8 @@ export default class SceneRenderer {
     var ghostCount = 0;
     var ghostColorArr = this.ghostInst.instanceColor.array;
 
+    var m = frameData.morph;
+
     if (frameData.ghostVisible) {
       for (var i = 0; i < N; i++) {
         this._phiAttr.setX(i, phiValues[i]);
@@ -362,10 +440,22 @@ export default class SceneRenderer {
         var gY = frameData.ghostY[i];
         var gCol = frameData.ghostColor[i];
 
-        this._instanceMatrix.identity();
-        this._instanceMatrix.makeRotationX(phiVal);
+        var basis = this._calculatePhysicsBasis(i, frameData, N, m);
+        var u = basis.u;
+        var v = basis.v;
+        var w = basis.w;
+
+        var mRot = new THREE.Matrix4().set(
+          u.x, -v.x, -w.x, 0,
+          u.y, -v.y, -w.y, 0,
+          u.z, -v.z, -w.z, 0,
+          0,   0,   0,   1
+        );
+        var mLocal = new THREE.Matrix4().makeRotationX(phiVal);
+        this._instanceMatrix.multiplyMatrices(mRot, mLocal);
         this._instanceMatrix.setPosition(pos.x, gY, pos.z);
         this.ghostInst.setMatrixAt(ghostCount, this._instanceMatrix);
+
         ghostColorArr[ghostCount * 3] = gCol.r;
         ghostColorArr[ghostCount * 3 + 1] = gCol.g;
         ghostColorArr[ghostCount * 3 + 2] = gCol.b;
@@ -389,10 +479,22 @@ export default class SceneRenderer {
           var phiVal = phiValues[i];
           var tCol = frameData.ticColor[i];
 
-          this._instanceMatrix.identity();
-          this._instanceMatrix.makeRotationX(phiVal);
+          var basis = this._calculatePhysicsBasis(i, frameData, N, m);
+          var u = basis.u;
+          var v = basis.v;
+          var w = basis.w;
+
+          var mRot = new THREE.Matrix4().set(
+            u.x, -v.x, -w.x, 0,
+            u.y, -v.y, -w.y, 0,
+            u.z, -v.z, -w.z, 0,
+            0,   0,   0,   1
+          );
+          var mLocal = new THREE.Matrix4().makeRotationX(phiVal);
+          this._instanceMatrix.multiplyMatrices(mRot, mLocal);
           this._instanceMatrix.setPosition(pos.x, frameData.ghostY[i], pos.z);
           this.ticInst.setMatrixAt(ticCount, this._instanceMatrix);
+
           if (!this.ticInst.userData.indexMap) this.ticInst.userData.indexMap = [];
           this.ticInst.userData.indexMap[ticCount] = i;
           ticColorArr[ticCount * 3] = tCol.r;

@@ -43,18 +43,29 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
 
   // Local DEFAULT_PHYSICS for factory reset
   const DEFAULT_PHYSICS = {
-    N: 120,
+    N: 60,
     kappa: 100,
     gravity: 10,
     gamma: 0,
     dt: 0.01,
-    topo: "circ",
+    topo: "linear",
     linearWrap: false,
   };
 
   // Local topology change function (avoids circular dependency with animation.js)
   function localChangeTopology(topo) {
     sgState.physics.topo = topo;
+
+    // Default elements for linear is 60, and for circ/lemniscate is 120
+    const newN = topo === "linear" ? 60 : 120;
+    sgState.posA = Math.floor(newN * 0.75);
+    sgState.posB = Math.floor(newN * 0.25);
+    sgState.physics.N = newN;
+    physics.syncParams(sgState.physics, true);
+    if (rendererRef && rendererRef.current) {
+      rendererRef.current.N = newN;
+      rendererRef.current.resize(newN);
+    }
 
     var lemForm = document.getElementById("sel-lemniscate-form");
     var linearWrap = document.getElementById("btn-linear-wrap");
@@ -66,6 +77,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     sgState.isLerping = true;
 
     physics.reset();
+    if (window.refreshUI) window.refreshUI();
   }
 
   function resetGimbals() {

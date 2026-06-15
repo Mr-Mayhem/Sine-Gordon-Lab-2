@@ -31,12 +31,12 @@ const PALETTE = [
 ];
 
 const DEFAULT_PHYSICS = {
-  N: 120,
+  N: 60,
   kappa: 100,
   gravity: 10,
   gamma: 0,
   dt: 0.01,
-  topo: "circ",
+  topo: "linear",
   linearWrap: false
 };
 
@@ -590,17 +590,43 @@ function init() {
         var pos = sr.lastPositions[i];
         var phiVal = sr.lastPhi[i];
         
-        var th = (i / N) * 2 * Math.PI;
-        var ry = -th + 1.5707963268;
-        if (m <= 1.0) ry *= m;
+        var prev_idx, next_idx;
+        if (m < 0.01) {
+          prev_idx = Math.max(0, i - 1);
+          next_idx = Math.min(N - 1, i + 1);
+        } else {
+          prev_idx = (i - 1 + N) % N;
+          next_idx = (i + 1) % N;
+        }
+        var p_prev = sr.lastPositions[prev_idx];
+        var p_next = sr.lastPositions[next_idx];
         
+        var u = new THREE.Vector3(p_next.x - p_prev.x, p_next.y - p_prev.y, p_next.z - p_prev.z);
+        if (u.lengthSq() > 1e-8) {
+          u.normalize();
+        } else {
+          u.set(1, 0, 0);
+        }
+        
+        var g_vec = new THREE.Vector3(0, -1, 0);
+        var u_dot_g = u.dot(g_vec);
+        var v_unnorm = new THREE.Vector3().copy(g_vec).addScaledVector(u, -u_dot_g);
+        var v = new THREE.Vector3();
+        if (v_unnorm.lengthSq() > 1e-8) {
+          v.copy(v_unnorm).normalize();
+        } else {
+          v.set(0, -1, 0);
+        }
+        
+        var w = new THREE.Vector3().crossVectors(u, v);
+
         pivot.set(pos.x, pos.y, pos.z);
-        
-        var bx = 3 * Math.sin(phiVal) * Math.sin(ry);
-        var by = -3 * Math.cos(phiVal);
-        var bz = 3 * Math.sin(phiVal) * Math.cos(ry);
-        
-        bob.set(pos.x + bx, pos.y + by, pos.z + bz);
+
+        var vx = 3 * Math.cos(phiVal) * v.x + 3 * Math.sin(phiVal) * w.x;
+        var vy = 3 * Math.cos(phiVal) * v.y + 3 * Math.sin(phiVal) * w.y;
+        var vz = 3 * Math.cos(phiVal) * v.z + 3 * Math.sin(phiVal) * w.z;
+
+        bob.set(pos.x + vx, pos.y + vy, pos.z + vz);
         
         pivot.applyMatrix4(modelMat);
         bob.applyMatrix4(modelMat);
