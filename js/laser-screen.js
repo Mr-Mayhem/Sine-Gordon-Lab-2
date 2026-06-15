@@ -190,17 +190,9 @@ export default class LaserScreen {
           const i1 = Math.min(N - 1, Math.ceil(idxFloat));
           const t = idxFloat - i0;
 
-          let interpolatedGlow = 0;
-          if (frameData.velocities) {
-            const v0 = Math.abs(frameData.velocities[i0] || 0);
-            const v1 = Math.abs(frameData.velocities[i1] || 0);
-            const interpolatedVel = v0 * (1 - t) + v1 * t;
-            interpolatedGlow = Math.min(1.0, interpolatedVel / 5.5);
-          } else {
-            const g0 = Math.max(frameData.glowPos[i0] || 0, frameData.glowNeg[i0] || 0);
-            const g1 = Math.max(frameData.glowPos[i1] || 0, frameData.glowNeg[i1] || 0);
-            interpolatedGlow = g0 * (1 - t) + g1 * t;
-          }
+          const g0 = Math.max(frameData.glowPos[i0] || 0, frameData.glowNeg[i0] || 0);
+          const g1 = Math.max(frameData.glowPos[i1] || 0, frameData.glowNeg[i1] || 0);
+          const interpolatedGlow = g0 * (1 - t) + g1 * t;
           const iVal = Math.pow(Math.min(1.0, interpolatedGlow), 1.2);
 
           // Re-scale cross-sectional Y and Z based on our dynamic radius mapping
@@ -271,34 +263,29 @@ export default class LaserScreen {
         // In canvas coordinate space (0,0) is top-left. So (1 - v) flips height properly.
         const canvasY = (1 - v) * h;
 
-        let iVal = 0;
-        let sPos = 0;
-        let sNeg = 0;
-
-        if (frameData.velocities) {
-          const vel = frameData.velocities[i] || 0;
-          const absVel = Math.abs(vel);
-          iVal = Math.pow(Math.min(1.0, absVel / 5.5), 1.2);
-          sPos = vel > 0 ? iVal : 0;
-          sNeg = vel < 0 ? iVal : 0;
-        } else {
-          const gPos = frameData.glowPos[i] || 0;
-          const gNeg = frameData.glowNeg[i] || 0;
-          const vGlow = Math.max(gPos, gNeg);
-          sPos = Math.pow(Math.min(1.0, gPos), 1.2);
-          sNeg = Math.pow(Math.min(1.0, gNeg), 1.2);
-          iVal = Math.pow(Math.min(1.0, vGlow), 1.2);
-        }
+        const gPos = frameData.glowPos[i] || 0;
+        const gNeg = frameData.glowNeg[i] || 0;
+        const vGlow = Math.max(gPos, gNeg);
+        const sPos = Math.pow(Math.min(1.0, gPos), 1.2);
+        const sNeg = Math.pow(Math.min(1.0, gNeg), 1.2);
+        const iVal = Math.pow(Math.min(1.0, vGlow), 1.2);
 
         // Make low-intensity/low-value tic-marks completely invisible
         if (iVal < 0.05) {
           continue;
         }
 
-        // Core physics palette mapping (matches bobs)
-        let hue = 0.55; // Core cyan
-        const hueShift = (sPos - sNeg) * 0.65;
-        hue += hueShift;
+        // Core physics palette mapping (matches bobs, with Solar/Fire vs Deep Space/Neon Violet)
+        let hue = 0.55;
+        if (sPos > 0.0 || sNeg > 0.0) {
+          if (sPos >= sNeg) {
+            // Solar / Fire warm spectrum (positive torque direction)
+            hue = 0.0 + sPos * 0.18;
+          } else {
+            // Deep Space / Neon Violet cool spectrum (negative torque direction)
+            hue = 0.50 + sNeg * 0.33;
+          }
+        }
         hue = ((hue % 1) + 1) % 1;
 
         const sat = 0.8 + iVal * 0.2;

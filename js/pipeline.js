@@ -33,10 +33,25 @@ export function processFrame(sgState, phiV, vV, accV, prevGlowPos, prevGlowNeg, 
   var per = phys.topo === "circ" || phys.topo === "lemniscate" || (phys.topo === "linear" && phys.linearWrap);
 
   var hA = accV && accV.length === N;
+  var accVSmooth = null;
   if (hA) {
+    accVSmooth = new Float32Array(N);
+    for (var i = 0; i < N; i++) {
+      var im1 = i - 1;
+      var ip1 = i + 1;
+      if (per) {
+        if (im1 < 0) im1 = N - 1;
+        if (ip1 >= N) ip1 = 0;
+      } else {
+        if (im1 < 0) im1 = 0;
+        if (ip1 >= N) ip1 = N - 1;
+      }
+      accVSmooth[i] = 0.25 * accV[im1] + 0.5 * accV[i] + 0.25 * accV[ip1];
+    }
+
     var mv = 0.001;
     for (var i = 0; i < N; i++) {
-      var av = Math.abs(accV[i]);
+      var av = Math.abs(accVSmooth[i]);
       if (av > mv) mv = av;
     }
     maxAcc.val = Math.max(0.001, maxAcc.val * 0.95 + mv * 0.05);
@@ -60,20 +75,16 @@ export function processFrame(sgState, phiV, vV, accV, prevGlowPos, prevGlowNeg, 
     }
 
     if (hA && !atRest) {
-      var n = accV[i] / (maxAcc.val + 1e-5);
-      var gv = Math.pow(Math.abs(n), 1.5) * Math.sign(n);
+      // Primary driving variable: Net Torque (represented by smoothed angular acceleration)
+      var torque = accVSmooth[i];
+      var n = torque / (maxAcc.val + 1e-5);
+      var torqueIntensity = Math.pow(Math.min(1.0, Math.abs(n)), 1.2);
 
-      var ip1 = (i + 1) % N;
-      var im1 = (i - 1 + N) % N;
-      var grad = phiV[ip1] - phiV[im1];
-      if (per) { grad -= Math.round(grad / TAU) * TAU; }
-      var gradNorm = grad / (PI * 0.5);
-      var gradGlow = Math.pow(Math.min(1, Math.abs(gradNorm)), 0.8) * Math.sign(gradNorm);
-
-      var blend = Math.abs(gv) > Math.abs(gradGlow) ? gv : gradGlow;
-
-      if (blend > 0) glowPos[i] = Math.max(glowPos[i], blend);
-      else glowNeg[i] = Math.max(glowNeg[i], -blend);
+      if (torque > 0) {
+        glowPos[i] = Math.max(glowPos[i], torqueIntensity);
+      } else if (torque < 0) {
+        glowNeg[i] = Math.max(glowNeg[i], torqueIntensity);
+      }
     }
   }
 

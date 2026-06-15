@@ -124,7 +124,24 @@ export default class SceneRenderer {
 
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <emissivemap_fragment>",
-        "\n#include <emissivemap_fragment>\nfloat i=pow(min(1.,vGlow),1.5),sPos=pow(min(1.,vGlowPos),1.5),sNeg=pow(min(1.,vGlowNeg),1.5); float hue=0.55; float hueShift=(sPos-sNeg)*0.65; hue+=hueShift; hue=mod(hue+1.,1.); float sat=0.8+i*0.2; float val=0.01+i*0.99; vec3 rb=hsv2rgb(vec3(hue,sat,val)); vec3 rest=vec3(0.005,0.02,0.005); totalEmissiveRadiance=rb*6.*i+rest; diffuseColor.rgb=mix(vec3(0.005,0.015,0.005),rb,i);\n"
+        "\n#include <emissivemap_fragment>\n" +
+        "float i = pow(min(1.0, vGlow), 1.5);\n" +
+        "float sPos = pow(min(1.0, vGlowPos), 1.5);\n" +
+        "float sNeg = pow(min(1.0, vGlowNeg), 1.5);\n" +
+        "float hue = 0.55;\n" +
+        "if (sPos > 0.0 || sNeg > 0.0) {\n" +
+        "  if (sPos >= sNeg) {\n" +
+        "    hue = 0.0 + sPos * 0.18;\n" + // Solar / Fire warm spectrum (positive torque direction)
+        "  } else {\n" +
+        "    hue = 0.50 + sNeg * 0.33;\n" + // Deep Space / Neon Violet cool spectrum (negative torque direction)
+        "  }\n" +
+        "}\n" +
+        "float sat = 0.8 + i * 0.2;\n" +
+        "float val = 0.01 + i * 0.99;\n" +
+        "vec3 rb = hsv2rgb(vec3(hue, sat, val));\n" +
+        "vec3 rest = vec3(0.005, 0.02, 0.005);\n" +
+        "totalEmissiveRadiance = rb * 6.0 * i + rest;\n" +
+        "diffuseColor.rgb = mix(vec3(0.005, 0.015, 0.005), rb, i);\n"
       );
     };
 
