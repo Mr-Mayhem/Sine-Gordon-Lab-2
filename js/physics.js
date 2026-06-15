@@ -109,8 +109,8 @@ class PhysicsEngine {
           if (im1 >= 0) { dL = phi[i] - phi[im1]; vL = v[i] - v[im1]; }
         }
 
-        // Base Sine-Gordon coupling + damping
-        var f = k * (dR - dL) - gm * v[i] + 0.005 * (vR - vL);
+        // Base Sine-Gordon coupling + damping (completely lossless when user's gamma is 0)
+        var f = k * (dR - dL) - gm * v[i];
 
         // Add correct physical gravity / inertial terms
         if (hasGimbal) {

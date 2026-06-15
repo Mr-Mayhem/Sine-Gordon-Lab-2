@@ -131,6 +131,12 @@ export default class LaserScreen {
     return { u, v, w };
   }
 
+  // =========================================================================
+  // update() - PASSIVE DERIVATION WITH ZERO SIDE-CHANNEL OR CAUSAL FEEDBACK
+  // This method only reads phiValues and frameData, treating them as completely
+  // immutable. Absolutely no mutations or modifications are ever applied to 
+  // the physical state arrays of the Sine-Gordon engine.
+  // =========================================================================
   update(sgState, phiValues, frameData) {
     const active = sgState.laserScreenActive;
     const targetOpacity = active ? 0.75 : 0.0;

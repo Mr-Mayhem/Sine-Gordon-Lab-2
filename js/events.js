@@ -43,7 +43,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
 
   // Local DEFAULT_PHYSICS for factory reset
   const DEFAULT_PHYSICS = {
-    N: 60,
+    N: 100,
     kappa: 100,
     gravity: 10,
     gamma: 0,
@@ -56,8 +56,8 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   function localChangeTopology(topo) {
     sgState.physics.topo = topo;
 
-    // Default elements for linear is 60, and for circ/lemniscate is 120
-    const newN = topo === "linear" ? 60 : 120;
+    // Default elements for linear is 100, and for circ/lemniscate is 120
+    const newN = topo === "linear" ? 100 : 120;
     sgState.posA = Math.floor(newN * 0.75);
     sgState.posB = Math.floor(newN * 0.25);
     sgState.physics.N = newN;

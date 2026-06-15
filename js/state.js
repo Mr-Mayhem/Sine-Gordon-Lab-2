@@ -6,7 +6,7 @@
 
 // Default physics configuration
 const DEFAULT_PHYSICS = {
-  N: 60,
+  N: 100,
   kappa: 100,
   gravity: 10,
   gamma: 0,
@@ -20,7 +20,7 @@ export const sgState = {
   paused: true,
   hasFiredAtLeastOnce: false,
   laserScreenActive: false,
-  timeScale: 1.0,
+  timeScale: 1.5,
   morph: 0,
   morphTarget: 0,
   isLerping: false,

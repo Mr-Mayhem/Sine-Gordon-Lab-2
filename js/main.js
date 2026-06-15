@@ -31,7 +31,7 @@ const PALETTE = [
 ];
 
 const DEFAULT_PHYSICS = {
-  N: 60,
+  N: 100,
   kappa: 100,
   gravity: 10,
   gamma: 0,
@@ -539,7 +539,7 @@ function init() {
   UI.setup("nodes", "physics.N", 20, 720, 1, true, function() {
     changeElementCount(sgState.physics.N, rendererRef, physics, refreshUI);
   }, 0, function() { 
-    changeElementCount(180, rendererRef, physics, refreshUI); 
+    changeElementCount(100, rendererRef, physics, refreshUI); 
   });
 
   if (sgState.physics.linearWrap) document.getElementById("btn-linear-wrap").classList.add("active");
