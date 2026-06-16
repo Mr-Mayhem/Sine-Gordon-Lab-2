@@ -217,11 +217,65 @@ export default class SceneRenderer {
     this.support.position.y = 1.5;
     this.modelGroup.add(this.support);
 
+    var self = this;
     this.ringMat = new THREE.MeshStandardMaterial({
       color: 0x0F0F0F,
       metalness: 0.9,
       roughness: 0.15
     });
+    this.ringMat.onBeforeCompile = function(shader) {
+      Object.assign(shader.uniforms, {
+        uMorph: { value: morph },
+        uSp: { value: spacing },
+        uRad: { value: rr },
+        uEllipseX: { value: sgState.ellipseX !== undefined ? sgState.ellipseX : 1.0 },
+        uEllipseZ: { value: sgState.ellipseZ !== undefined ? sgState.ellipseZ : 1.0 },
+        uEllipseTwist: { value: sgState.ellipseTwist !== undefined ? sgState.ellipseTwist : 0.0 },
+        uIsEllipse: { value: sgState.physics.topo === "ellipse" ? 1.0 : 0.0 }
+      });
+      self.ringMat.userData.shader = shader;
+
+      shader.vertexShader =
+        "uniform float uMorph, uSp, uRad, uEllipseX, uEllipseZ, uEllipseTwist, uIsEllipse;\n" +
+        "vec3 getRingPivot(float th, float rad, float ellX, float ellZ, float ellTwist, float isEll) {\n" +
+        "  vec3 p1;\n" +
+        "  if (isEll > 0.5) {\n" +
+        "    float a = rad * ellX;\n" +
+        "    float b = rad * ellZ;\n" +
+        "    float eccentricity = abs(ellX - ellZ) / max(ellX, max(ellZ, 0.001));\n" +
+        "    float twistFade = min(1.0, eccentricity / 0.15);\n" +
+        "    float effectiveTwist = ellTwist * twistFade;\n" +
+        "    float tAngle = th * effectiveTwist;\n" +
+        "    if (ellX >= ellZ) {\n" +
+        "      p1 = vec3(a * cos(th), 1.5 + b * sin(th) * sin(tAngle), b * sin(th) * cos(tAngle));\n" +
+        "    } else {\n" +
+        "      p1 = vec3(a * cos(th) * cos(tAngle), 1.5 + a * cos(th) * sin(tAngle), b * sin(th));\n" +
+        "    }\n" +
+        "  } else {\n" +
+        "    p1 = vec3(rad * cos(th), 1.5, rad * sin(th));\n" +
+        "  }\n" +
+        "  return p1;\n" +
+        "}\n" +
+        shader.vertexShader;
+
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        "\n" +
+        "float th = atan(position.y, position.x);\n" +
+        "vec3 piv_world = getRingPivot(th, uRad, uEllipseX, uEllipseZ, uEllipseTwist, uIsEllipse);\n" +
+        "vec3 piv_local = vec3(piv_world.x, piv_world.z, -(piv_world.y - 1.5));\n" +
+        "vec3 piv_next_world = getRingPivot(th + 0.01, uRad, uEllipseX, uEllipseZ, uEllipseTwist, uIsEllipse);\n" +
+        "vec3 piv_next_local = vec3(piv_next_world.x, piv_next_world.z, -(piv_next_world.y - 1.5));\n" +
+        "vec3 tangent = normalize(piv_next_local - piv_local);\n" +
+        "vec3 up = vec3(0.0, 0.0, 1.0);\n" +
+        "vec3 normal = normalize(cross(tangent, up));\n" +
+        "vec3 binormal = cross(tangent, normal);\n" +
+        "float r_cos = length(position.xy) - uRad;\n" +
+        "float r_sin = position.z;\n" +
+        "vec3 transformed = piv_local + r_cos * normal + r_sin * binormal;\n"
+      );
+    };
+
     this.ring = new THREE.Mesh(
       new THREE.TorusGeometry(rr, 0.08, 16, 128),
       this.ringMat
@@ -464,13 +518,13 @@ export default class SceneRenderer {
       }
     }
 
-    [this.rodMat, this.bobInst.material].forEach(function(mat) {
-      if (mat.userData.shader) {
+    [this.rodMat, this.bobInst.material, this.ringMat].forEach(function(mat) {
+      if (mat && mat.userData && mat.userData.shader) {
         var u = mat.userData.shader.uniforms;
-        u.uMorph.value = m;
-        u.uSp.value = frameData.spacing;
-        u.uRad.value = frameData.ringRadius;
-        u.uLemnForm.value = frameData.lemniscateForm === "bernoulli" ? 1 : 0;
+        if (u.uMorph) u.uMorph.value = m;
+        if (u.uSp) u.uSp.value = frameData.spacing;
+        if (u.uRad) u.uRad.value = frameData.ringRadius;
+        if (u.uLemnForm) u.uLemnForm.value = frameData.lemniscateForm === "bernoulli" ? 1 : 0;
         if (u.uEllipseX) u.uEllipseX.value = frameData.ellipseX !== undefined ? frameData.ellipseX : 1.0;
         if (u.uEllipseZ) u.uEllipseZ.value = frameData.ellipseZ !== undefined ? frameData.ellipseZ : 1.0;
         if (u.uEllipseTwist) u.uEllipseTwist.value = frameData.ellipseTwist !== undefined ? frameData.ellipseTwist : 0.0;
