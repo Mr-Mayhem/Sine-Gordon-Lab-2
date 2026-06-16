@@ -693,6 +693,17 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     };
   }
 
+  // Spacing density slider
+  var spacingSlider = document.getElementById("slider-spacing-density");
+  if (spacingSlider) {
+    spacingSlider.oninput = function() {
+      sgState.spacing = parseFloat(this.value);
+      var display = document.getElementById("val-spacing-density");
+      if (display) display.textContent = sgState.spacing.toFixed(2);
+      if (window.refreshUI) window.refreshUI();
+    };
+  }
+
   // Other Dropdowns
   safeChange("sel-orientation", function () {
     sgState.orientationTarget = this.value;

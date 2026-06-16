@@ -173,6 +173,13 @@ function refreshUI() {
     selOrient.value = sgState.orientationTarget || "horizontal";
   }
 
+  const sliderSpDensity = document.getElementById("slider-spacing-density");
+  const valSpDensity = document.getElementById("val-spacing-density");
+  if (sliderSpDensity && valSpDensity) {
+    sliderSpDensity.value = sgState.spacing !== undefined ? sgState.spacing : 0.8;
+    valSpDensity.textContent = (sgState.spacing !== undefined ? sgState.spacing : 0.8).toFixed(2);
+  }
+
   // Sync resolution dropdown to the current state dimensions programmatically
   const pbPrev = document.getElementById("assembly-preview");
   const selResolution = document.getElementById("sel-res");

@@ -21,6 +21,7 @@ export const sgState = {
   hasFiredAtLeastOnce: false,
   laserScreenActive: false,
   timeScale: 1.5,
+  spacing: 0.8,
   morph: 0,
   morphTarget: 0,
   isLerping: false,

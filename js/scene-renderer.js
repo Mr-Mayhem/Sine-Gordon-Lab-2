@@ -101,7 +101,7 @@ export default class SceneRenderer {
         "      p1 = vec3(a * cos(th) * cos(tAngle), 1.5 + a * cos(th) * sin(tAngle), b * sin(th));\n" +
         "    }\n" +
         "  } else {\n" +
-        "    p1 = vec3(rad * cos(th) * ellX, 1.5, rad * sin(th) * ellZ);\n" +
+        "    p1 = vec3(rad * cos(th), 1.5, rad * sin(th));\n" +
         "  }\n" +
         "  vec3 p2;\n" +
         "  if (lemnForm < 0.5) {\n" +
@@ -176,7 +176,7 @@ export default class SceneRenderer {
         mat.userData.shader.uniforms.uN.value = newN;
       }
     });
-    var spacing = 0.8;
+    var spacing = sgState.spacing !== undefined ? sgState.spacing : 0.8;
     var rr = (newN * spacing) / TAU;
     var tw = (newN - 1) * spacing;
     if (this.ring) {
@@ -196,7 +196,7 @@ export default class SceneRenderer {
   }
 
   build(settings, spacing, morph) {
-    spacing = spacing || 0.8;
+    spacing = spacing || (sgState.spacing !== undefined ? sgState.spacing : 0.8);
     morph = morph || 0;
     var rr = (this.N * spacing) / TAU;
     var tw = (this.N - 1) * spacing;
@@ -397,6 +397,27 @@ export default class SceneRenderer {
   }
 
   render(frameData, phiValues) {
+    if (frameData.spacing !== undefined && this._lastSpacing !== frameData.spacing) {
+      this._lastSpacing = frameData.spacing;
+      var newSpacing = frameData.spacing;
+      var rRadius = (this.N * newSpacing) / (2 * Math.PI);
+      var twLength = (this.N - 1) * newSpacing;
+      if (this.ring) {
+        this.ring.geometry.dispose();
+        this.ring.geometry = new THREE.TorusGeometry(rRadius, 0.08, 16, 128);
+      }
+      if (this.support) {
+        this.support.geometry.dispose();
+        this.support.geometry = new THREE.CylinderGeometry(0.1, 0.1, twLength + 4);
+      }
+      if (this.gimbal) {
+        this.gimbal.build(rRadius);
+      }
+      if (this.laserScreen) {
+        this.laserScreen.resize(this.N, newSpacing);
+      }
+    }
+
     this.lastPositions = frameData.positions;
     this.lastPhi = phiValues;
     this.lastMorph = frameData.morph;
@@ -408,7 +429,7 @@ export default class SceneRenderer {
     if (this.support) {
       if (frameData.gimbalRingActive) {
         this.support.visible = m < 0.99;
-        const tw = (frameData.ringRadius * Math.PI * 2) - 0.8;
+        const tw = (frameData.ringRadius * Math.PI * 2) - (frameData.spacing !== undefined ? frameData.spacing : 0.8);
         const R_linear = (tw + 4.0) / 2.0;
         const target_r = R_linear + (frameData.ringRadius - R_linear) * Math.max(0, Math.min(1, m));
         const thicknessScale = Math.max(0.001, 1 - m);
@@ -422,7 +443,7 @@ export default class SceneRenderer {
     if (this.ring) {
       if (frameData.gimbalRingActive) {
         this.ring.visible = true;
-        const tw = (frameData.ringRadius * Math.PI * 2) - 0.8;
+        const tw = (frameData.ringRadius * Math.PI * 2) - (frameData.spacing !== undefined ? frameData.spacing : 0.8);
         const R_linear = (tw + 4.0) / 2.0;
         const target_r = R_linear + (frameData.ringRadius - R_linear) * Math.max(0, Math.min(1, m));
         const ringScale = m <= 1 ? (target_r / frameData.ringRadius) : 1.0;
@@ -492,7 +513,7 @@ export default class SceneRenderer {
 
         var pos = frameData.positions[i];
         var phiVal = phiValues[i];
-        if (sgState.physics.topo === "ellipse") {
+        if (frameData.topology === "ellipse") {
           var twistVal = frameData.ellipseTwist !== undefined ? frameData.ellipseTwist : 0.0;
           phiVal += (i / N) * twistVal * Math.PI * 2 * Math.min(1.0, m);
         }
@@ -523,10 +544,8 @@ export default class SceneRenderer {
     }
 
     this.ghostInst.count = ghostCount;
-    if (ghostCount > 0) {
-      this.ghostInst.instanceMatrix.needsUpdate = true;
-      this.ghostInst.instanceColor.needsUpdate = true;
-    }
+    this.ghostInst.instanceMatrix.needsUpdate = true;
+    this.ghostInst.instanceColor.needsUpdate = true;
 
     var ticCount = 0;
     var ticColorArr = this.ticInst.instanceColor.array;
@@ -536,7 +555,7 @@ export default class SceneRenderer {
         if (frameData.ticActive[i] === 1) {
           var pos = frameData.positions[i];
           var phiVal = phiValues[i];
-          if (sgState.physics.topo === "ellipse") {
+          if (frameData.topology === "ellipse") {
             var twistVal = frameData.ellipseTwist !== undefined ? frameData.ellipseTwist : 0.0;
             phiVal += (i / N) * twistVal * Math.PI * 2 * Math.min(1.0, m);
           }
@@ -569,10 +588,8 @@ export default class SceneRenderer {
     }
 
     this.ticInst.count = ticCount;
-    if (ticCount > 0) {
-      this.ticInst.instanceMatrix.needsUpdate = true;
-      this.ticInst.instanceColor.needsUpdate = true;
-    }
+    this.ticInst.instanceMatrix.needsUpdate = true;
+    this.ticInst.instanceColor.needsUpdate = true;
 
     this._phiAttr.needsUpdate = true;
     this._glowPosAttr.needsUpdate = true;
@@ -597,7 +614,7 @@ export default class SceneRenderer {
     }
 
     // Dynamic rendering of twin foci elements for Ellipse topology
-    var isEllipse = (sgState.physics.topo === "ellipse");
+    var isEllipse = (frameData.topology === "ellipse");
     if (this.focus1 && this.focus2) {
       this.focus1.visible = isEllipse;
       this.focus2.visible = isEllipse;

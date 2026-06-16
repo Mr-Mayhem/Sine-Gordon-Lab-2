@@ -119,8 +119,9 @@ class PhysicsEngine {
         // Add correct physical gravity / inertial terms
         if (hasGimbal) {
           var th_i = (i / N) * TAU;
-          var R_c = (N * 0.8) / TAU;
-          var x_linear = -((N - 1) * 0.8) / 2.0 + i * 0.8;
+          var spacing = (this.stateRef && this.stateRef.spacing !== undefined) ? this.stateRef.spacing : 0.8;
+          var R_c = (N * spacing) / TAU;
+          var x_linear = -((N - 1) * spacing) / 2.0 + i * spacing;
 
           var gamma_i = (-th_i + 1.57079632679) * morphVal;
           var sin_g = Math.sin(gamma_i);

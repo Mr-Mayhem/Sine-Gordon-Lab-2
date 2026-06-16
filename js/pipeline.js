@@ -23,7 +23,7 @@ const PALETTE = [
 
 export function processFrame(sgState, phiV, vV, accV, prevGlowPos, prevGlowNeg, maxAcc) {
   var N = phiV.length;
-  var spacing = 0.8;
+  var spacing = sgState.spacing !== undefined ? sgState.spacing : 0.8;
   var rr = (N * spacing) / TAU;
   var tw = (N - 1) * spacing;
   var m = sgState.morph;

@@ -108,7 +108,8 @@ export default class Gimbal {
     if (visible) {
       // Calculate dynamic scale factor so support matches innermost gimbal circle
       // at morph = 0 (linear mode) and torus at morph = 1 (circular mode)
-      const tw = (this.rr * Math.PI * 2) - 0.8; // tw = (N - 1) * 0.8
+      const spacing = sgState.spacing !== undefined ? sgState.spacing : 0.8;
+      const tw = (this.rr * Math.PI * 2) - spacing; // tw = (N - 1) * spacing
       const R_linear = (tw + 4.0) / 2.0;
       const R_circular = this.rr;
 

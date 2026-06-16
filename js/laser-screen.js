@@ -249,7 +249,7 @@ export default class LaserScreen {
       const N = Math.min(this.N, phiValues.length, frameData.positions.length);
 
       const twistVal = frameData.ellipseTwist !== undefined ? frameData.ellipseTwist : 0.0;
-      const isEllipse = (sgState.physics.topo === "ellipse");
+      const isEllipse = (frameData.topology === "ellipse");
 
       for (let i = 0; i < N; i++) {
         const twistAngle = isEllipse ? (i / N) * twistVal * TAU * Math.min(1.0, frameData.morph) : 0.0;
