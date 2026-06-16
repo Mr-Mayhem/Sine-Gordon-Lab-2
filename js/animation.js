@@ -48,7 +48,7 @@ export function factoryReset(rendererRef, physics, refreshUI, DEFAULT_PHYSICS) {
   physics.syncParams(sgState.physics, true);
   sgState.posA = Math.floor(sgState.physics.N * 0.75);
   sgState.posB = Math.floor(sgState.physics.N * 0.25);
-  var target = sgState.physics.topo === "circ" ? 1 : sgState.physics.topo === "lemniscate" ? 2 : 0;
+  var target = (sgState.physics.topo === "circ" || sgState.physics.topo === "ellipse") ? 1 : sgState.physics.topo === "lemniscate" ? 2 : 0;
   _startTransition(target, rendererRef, physics, true);
   if (refreshUI) refreshUI();
 }
@@ -66,11 +66,13 @@ export function changeTopology(topo, rendererRef, physics) {
   sgState.physics.topo = topo;
   
   var lemForm = document.getElementById("sel-lemniscate-form");
+  var elParams = document.getElementById("ellipse-params");
   var linearWrap = document.getElementById("btn-linear-wrap");
   if (lemForm) lemForm.style.display = topo === "lemniscate" ? "" : "none";
+  if (elParams) elParams.style.display = topo === "ellipse" ? "" : "none";
   if (linearWrap) linearWrap.style.display = topo === "linear" ? "" : "none";
   
-  var target = topo === "circ" ? 1 : topo === "lemniscate" ? 2 : 0;
+  var target = (topo === "circ" || topo === "ellipse") ? 1 : topo === "lemniscate" ? 2 : 0;
   _startTransition(target, rendererRef, physics, false);
   
   physics.reset();
@@ -114,7 +116,7 @@ export function animate(time, rendererRef, renderer, controls, physics, recorder
 
   // Smooth topology morph target
   if (!sgState.isLerping) {
-    var tt = sgState.physics.topo === "circ" ? 1 : sgState.physics.topo === "lemniscate" ? 2 : 0;
+    var tt = (sgState.physics.topo === "circ" || sgState.physics.topo === "ellipse") ? 1 : sgState.physics.topo === "lemniscate" ? 2 : 0;
     if (Math.abs(sgState.morph - tt) > 0.001) sgState.morph += (tt - sgState.morph) * 0.08;
     else sgState.morph = tt;
   }

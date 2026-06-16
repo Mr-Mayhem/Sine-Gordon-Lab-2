@@ -30,7 +30,7 @@ export function processFrame(sgState, phiV, vV, accV, prevGlowPos, prevGlowNeg, 
   var hw = -tw / 2;
 
   var phys = sgState.physics;
-  var per = phys.topo === "circ" || phys.topo === "lemniscate" || (phys.topo === "linear" && phys.linearWrap);
+  var per = phys.topo === "circ" || phys.topo === "lemniscate" || phys.topo === "ellipse" || (phys.topo === "linear" && phys.linearWrap);
 
   var hA = accV && accV.length === N;
   var accVSmooth = null;
@@ -88,6 +88,10 @@ export function processFrame(sgState, phiV, vV, accV, prevGlowPos, prevGlowNeg, 
     }
   }
 
+  var ellipseX = sgState.ellipseX !== undefined ? sgState.ellipseX : 1.0;
+  var ellipseZ = sgState.ellipseZ !== undefined ? sgState.ellipseZ : 1.0;
+  var ellipseTwist = sgState.ellipseTwist !== undefined ? sgState.ellipseTwist : 0.0;
+
   var positions = new Array(N);
   for (var i = 0; i < N; i++) {
     var ang = (i / N) * TAU;
@@ -102,10 +106,32 @@ export function processFrame(sgState, phiV, vV, accV, prevGlowPos, prevGlowNeg, 
       ly = 1.5 + 3.5 * Math.sin(ang * 2);
       lz = rr * 1.3 * Math.sin(ang) * Math.cos(ang);
     }
+
+    var rrX = rr * Math.cos(ang);
+    var rrY = 1.5;
+    var rrZ = rr * Math.sin(ang);
+    if (phys.topo === "ellipse") {
+      var a = rr * ellipseX;
+      var b = rr * ellipseZ;
+      var eccentricity = Math.abs(ellipseX - ellipseZ) / Math.max(ellipseX, ellipseZ, 0.001);
+      var twistFade = Math.min(1.0, eccentricity / 0.15);
+      var effectiveTwist = ellipseTwist * twistFade;
+      var tAngle = ang * effectiveTwist;
+      if (ellipseX >= ellipseZ) {
+        rrX = a * Math.cos(ang);
+        rrY = 1.5 + b * Math.sin(ang) * Math.sin(tAngle);
+        rrZ = b * Math.sin(ang) * Math.cos(tAngle);
+      } else {
+        rrX = a * Math.cos(ang) * Math.cos(tAngle);
+        rrY = 1.5 + a * Math.cos(ang) * Math.sin(tAngle);
+        rrZ = b * Math.sin(ang);
+      }
+    }
+
     positions[i] = {
-      x: m <= 1 ? lerp(hw + i * spacing, rr * Math.cos(ang), m) : lerp(rr * Math.cos(ang), lx, m - 1),
-      y: m <= 1 ? 1.5 : lerp(1.5, ly, m - 1),
-      z: m <= 1 ? lerp(0, rr * Math.sin(ang), m) : lerp(rr * Math.sin(ang), lz, m - 1)
+      x: m <= 1 ? lerp(hw + i * spacing, rrX, m) : lerp(rrX, lx, m - 1),
+      y: m <= 1 ? lerp(1.5, rrY, m) : lerp(rrY, ly, m - 1),
+      z: m <= 1 ? lerp(0, rrZ, m) : lerp(rrZ, lz, m - 1)
     };
   }
 
@@ -202,8 +228,12 @@ export function processFrame(sgState, phiV, vV, accV, prevGlowPos, prevGlowNeg, 
     ringRadius: rr,
     orientationValue: sgState.orientationValue,
     lemniscateForm: sgState.lemniscateForm,
+    ellipseX: ellipseX,
+    ellipseZ: ellipseZ,
+    ellipseTwist: ellipseTwist,
     colA: sgState.colA,
-    colB: sgState.colB
+    colB: sgState.colB,
+    topology: phys.topo
   };
 }
 

@@ -56,7 +56,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   function localChangeTopology(topo) {
     sgState.physics.topo = topo;
 
-    // Default elements for linear is 100, and for circ/lemniscate is 120
+    // Default elements for linear is 100, and for circ/lemniscate/ellipse is 120
     const newN = topo === "linear" ? 100 : 120;
     sgState.posA = Math.floor(newN * 0.75);
     sgState.posB = Math.floor(newN * 0.25);
@@ -68,11 +68,13 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     }
 
     var lemForm = document.getElementById("sel-lemniscate-form");
+    var elParams = document.getElementById("ellipse-params");
     var linearWrap = document.getElementById("btn-linear-wrap");
     if (lemForm) lemForm.style.display = topo === "lemniscate" ? "" : "none";
+    if (elParams) elParams.style.display = topo === "ellipse" ? "" : "none";
     if (linearWrap) linearWrap.style.display = topo === "linear" ? "" : "none";
 
-    var target = topo === "circ" ? 1 : topo === "lemniscate" ? 2 : 0;
+    var target = (topo === "circ" || topo === "ellipse") ? 1 : topo === "lemniscate" ? 2 : 0;
     sgState.morphTarget = target;
     sgState.isLerping = true;
 
@@ -102,7 +104,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     sgState.posA = Math.floor(sgState.physics.N * 0.75);
     sgState.posB = Math.floor(sgState.physics.N * 0.25);
     var target =
-      sgState.physics.topo === "circ"
+      (sgState.physics.topo === "circ" || sgState.physics.topo === "ellipse")
         ? 1
         : sgState.physics.topo === "lemniscate"
           ? 2
@@ -661,6 +663,35 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
   safeChange("sel-lemniscate-form", function () {
     sgState.lemniscateForm = this.value;
   });
+
+  // Ellipse sliders
+  var elSliderX = document.getElementById("slider-ellipse-x");
+  if (elSliderX) {
+    elSliderX.oninput = function() {
+      sgState.ellipseX = parseFloat(this.value);
+      var display = document.getElementById("val-ellipse-x");
+      if (display) display.textContent = sgState.ellipseX.toFixed(2);
+      if (window.refreshUI) window.refreshUI();
+    };
+  }
+  var elSliderZ = document.getElementById("slider-ellipse-z");
+  if (elSliderZ) {
+    elSliderZ.oninput = function() {
+      sgState.ellipseZ = parseFloat(this.value);
+      var display = document.getElementById("val-ellipse-z");
+      if (display) display.textContent = sgState.ellipseZ.toFixed(2);
+      if (window.refreshUI) window.refreshUI();
+    };
+  }
+  var elSliderTwist = document.getElementById("slider-ellipse-twist");
+  if (elSliderTwist) {
+    elSliderTwist.oninput = function() {
+      sgState.ellipseTwist = parseFloat(this.value);
+      var display = document.getElementById("val-ellipse-twist");
+      if (display) display.textContent = sgState.ellipseTwist.toFixed(1);
+      if (window.refreshUI) window.refreshUI();
+    };
+  }
 
   // Other Dropdowns
   safeChange("sel-orientation", function () {

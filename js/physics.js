@@ -27,7 +27,7 @@ class PhysicsEngine {
     var N = this.p.N, k = this.p.kappa, g = this.p.gravity;
     var gm = this.p.gamma, dt = this.p.dt, topo = this.p.topo;
     var phi = this.phi, v = this.v, nv = this.nv, np = this.np;
-    var per = topo === "circ" || topo === "lemniscate" || (topo === "linear" && this.p.linearWrap);
+    var per = topo === "circ" || topo === "lemniscate" || topo === "ellipse" || (topo === "linear" && this.p.linearWrap);
 
     var gimbalActive = this.stateRef && this.stateRef.gimbalRingActive;
     var gimbalMode = (this.stateRef && this.stateRef.gimbalPhysicsMode) || "simplified";
@@ -112,6 +112,10 @@ class PhysicsEngine {
         // Base Sine-Gordon coupling + damping (completely lossless when user's gamma is 0)
         var f = k * (dR - dL) - gm * v[i];
 
+        // Symmetrical twist factor calculation for Ellipse
+        var twistVal = (this.stateRef && this.stateRef.ellipseTwist !== undefined) ? this.stateRef.ellipseTwist : 0.0;
+        var twistAngle = (topo === "ellipse") ? (i / N) * twistVal * TAU * Math.min(1.0, morphVal) : 0.0;
+
         // Add correct physical gravity / inertial terms
         if (hasGimbal) {
           var th_i = (i / N) * TAU;
@@ -122,8 +126,13 @@ class PhysicsEngine {
           var sin_g = Math.sin(gamma_i);
           var cos_g = Math.cos(gamma_i);
 
-          var p_x = (1 - morphVal) * x_linear + morphVal * R_c * Math.cos(th_i);
-          var p_z = morphVal * R_c * Math.sin(th_i);
+          var ellipseScaleX = (this.stateRef && this.stateRef.ellipseX !== undefined) ? this.stateRef.ellipseX : 1.0;
+          var ellipseScaleZ = (this.stateRef && this.stateRef.ellipseZ !== undefined) ? this.stateRef.ellipseZ : 1.0;
+          var eX = (topo === "ellipse") ? ellipseScaleX : 1.0;
+          var eZ = (topo === "ellipse") ? ellipseScaleZ : 1.0;
+
+          var p_x = (1 - morphVal) * x_linear + morphVal * R_c * Math.cos(th_i) * eX;
+          var p_z = morphVal * R_c * Math.sin(th_i) * eZ;
 
           var R_axial = p_x * cos_g - p_z * sin_g;
           var R_trans = p_x * sin_g + p_z * cos_g;
@@ -136,37 +145,37 @@ class PhysicsEngine {
           var dO_y_prime = dO_y;
           var dO_z_prime = dO_x * sin_g + dO_z * cos_g;
 
-          // Projected gravity torque term
-          var gravityTerm = G_y * Math.sin(phi[i]) - (G_x * sin_g + G_z * cos_g) * Math.cos(phi[i]);
+          // Projected gravity torque term with support twist
+          var gravityTerm = G_y * Math.sin(phi[i] + twistAngle) - (G_x * sin_g + G_z * cos_g) * Math.cos(phi[i] + twistAngle);
           f += gravityTerm;
 
-          // Inertial terms
+          // Inertial terms with support twist
           var L = 3.0;
 
           if (gimbalMode === "full") {
-            var u = R_trans - L * Math.sin(phi[i]);
-            var omega_dot_r = u * O_z_prime - L * O_y_prime * Math.cos(phi[i]);
-            var omega_dot_u = -Math.cos(phi[i]) * O_z_prime + O_y_prime * Math.sin(phi[i]);
+            var u = R_trans - L * Math.sin(phi[i] + twistAngle);
+            var omega_dot_r = u * O_z_prime - L * O_y_prime * Math.cos(phi[i] + twistAngle);
+            var omega_dot_u = -Math.cos(phi[i] + twistAngle) * O_z_prime + O_y_prime * Math.sin(phi[i] + twistAngle);
             var omega_sq = O_x_prime * O_x_prime + O_y_prime * O_y_prime + O_z_prime * O_z_prime;
             
-            var a_cent = omega_dot_r * omega_dot_u + omega_sq * R_trans * Math.cos(phi[i]);
-            var a_Euler = (L - R_trans * Math.sin(phi[i])) * (-dO_x_prime);
+            var a_cent = omega_dot_r * omega_dot_u + omega_sq * R_trans * Math.cos(phi[i] + twistAngle);
+            var a_Euler = (L - R_trans * Math.sin(phi[i] + twistAngle)) * (-dO_x_prime);
 
             if (Math.abs(R_axial) > 1e-4) {
-              var a_Euler_axial = -R_axial * (dO_y_prime * Math.cos(phi[i]) - dO_z_prime * Math.sin(phi[i]));
-              var a_cent_axial = O_x_prime * R_axial * (O_y_prime * Math.sin(phi[i]) + O_z_prime * Math.cos(phi[i]));
+              var a_Euler_axial = -R_axial * (dO_y_prime * Math.cos(phi[i] + twistAngle) - dO_z_prime * Math.sin(phi[i] + twistAngle));
+              var a_cent_axial = O_x_prime * R_axial * (O_y_prime * Math.sin(phi[i] + twistAngle) + O_z_prime * Math.cos(phi[i] + twistAngle));
               f += (a_cent + a_Euler + a_Euler_axial + a_cent_axial);
             } else {
               f += (a_cent + a_Euler);
             }
           } else {
-            // Simplified mode: steady Y centrifugal outward drag
-            var a_cent_simple = -O_y_prime * O_y_prime * Math.cos(phi[i]) * (R_trans - L * Math.sin(phi[i])) / L;
+            // Simplified mode: steady Y centrifugal outward drag with support twist
+            var a_cent_simple = -O_y_prime * O_y_prime * Math.cos(phi[i] + twistAngle) * (R_trans - L * Math.sin(phi[i] + twistAngle)) / L;
             f += a_cent_simple;
           }
         } else {
-          // Standard gravity if gimbal is inactive
-          f += -g * Math.sin(phi[i]);
+          // Standard gravity if gimbal is inactive with support twist
+          f += -g * Math.sin(phi[i] + twistAngle);
         }
 
         this.acc[i] = f;
@@ -190,7 +199,7 @@ class PhysicsEngine {
     var lf = 1 / Math.sqrt(Math.max(0.01, 1 - vel * vel / Math.max(0.1, p.kappa)));
     var w = Math.max(0.6, sh / lf);
     var wEff = Math.max(w, 1.5);
-    var per = p.topo === "circ" || p.topo === "lemniscate" || (p.topo === "linear" && p.linearWrap);
+    var per = p.topo === "circ" || p.topo === "lemniscate" || p.topo === "ellipse" || (p.topo === "linear" && p.linearWrap);
 
     for (var i = 0; i < N; i++) {
       var dx = i - pos;

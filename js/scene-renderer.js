@@ -62,7 +62,11 @@ export default class SceneRenderer {
         uRMinor: { value: 3.5 },
         uN: { value: self.N },
         uIsBob: { value: isBob ? 1 : 0 },
-        uLemnForm: { value: 0 }
+        uLemnForm: { value: 0 },
+        uEllipseX: { value: sgState.ellipseX !== undefined ? sgState.ellipseX : 1.0 },
+        uEllipseZ: { value: sgState.ellipseZ !== undefined ? sgState.ellipseZ : 1.0 },
+        uEllipseTwist: { value: sgState.ellipseTwist !== undefined ? sgState.ellipseTwist : 0.0 },
+        uIsEllipse: { value: sgState.physics.topo === "ellipse" ? 1.0 : 0.0 }
       });
       mat.userData.shader = shader;
 
@@ -71,9 +75,9 @@ export default class SceneRenderer {
         "attribute float aPhi;\n" +
         "attribute float aGlowPos;\n" +
         "attribute float aGlowNeg;\n" +
-        "uniform float uMorph, uSp, uRad, uKWraps, uRMinor, uN, uIsBob, uLemnForm;\n" +
+        "uniform float uMorph, uSp, uRad, uKWraps, uRMinor, uN, uIsBob, uLemnForm, uEllipseX, uEllipseZ, uEllipseTwist, uIsEllipse;\n" +
         "varying float vGlow, vGlowPos, vGlowNeg;\n" +
-        "vec3 getPivot(float idx, float N, float sp, float rad, float morph, float rMinor, float lemnForm) {\n" +
+        "vec3 getPivot(float idx, float N, float sp, float rad, float morph, float rMinor, float lemnForm, float ellX, float ellZ, float ellTwist, float isEll) {\n" +
         "  float i_wrapped;\n" +
         "  if (morph < 0.01) {\n" +
         "    i_wrapped = clamp(idx, 0.0, N - 1.0);\n" +
@@ -83,7 +87,22 @@ export default class SceneRenderer {
         "  float th = (i_wrapped / N) * 6.28318530718;\n" +
         "  float sx = -((N - 1.0) * sp) / 2.0;\n" +
         "  vec3 p0 = vec3(sx + i_wrapped * sp, 1.5, 0.0);\n" +
-        "  vec3 p1 = vec3(rad * cos(th), 1.5, rad * sin(th));\n" +
+        "  vec3 p1;\n" +
+        "  if (isEll > 0.5) {\n" +
+        "    float a = rad * ellX;\n" +
+        "    float b = rad * ellZ;\n" +
+        "    float eccentricity = abs(ellX - ellZ) / max(ellX, max(ellZ, 0.001));\n" +
+        "    float twistFade = min(1.0, eccentricity / 0.15);\n" +
+        "    float effectiveTwist = ellTwist * twistFade;\n" +
+        "    float tAngle = th * effectiveTwist;\n" +
+        "    if (ellX >= ellZ) {\n" +
+        "      p1 = vec3(a * cos(th), 1.5 + b * sin(th) * sin(tAngle), b * sin(th) * cos(tAngle));\n" +
+        "    } else {\n" +
+        "      p1 = vec3(a * cos(th) * cos(tAngle), 1.5 + a * cos(th) * sin(tAngle), b * sin(th));\n" +
+        "    }\n" +
+        "  } else {\n" +
+        "    p1 = vec3(rad * cos(th) * ellX, 1.5, rad * sin(th) * ellZ);\n" +
+        "  }\n" +
         "  vec3 p2;\n" +
         "  if (lemnForm < 0.5) {\n" +
         "    p2 = vec3(rad * 1.3 * cos(th), 1.5 + rMinor * sin(th * 2.0), rad * 1.3 * sin(th) * cos(th));\n" +
@@ -98,9 +117,9 @@ export default class SceneRenderer {
       shader.vertexShader = shader.vertexShader.replace(
         "#include <begin_vertex>",
         "\n" +
-        "vec3 piv = getPivot(aIndex, uN, uSp, uRad, uMorph, uRMinor, uLemnForm);\n" +
-        "vec3 piv_prev = getPivot(aIndex - 1.0, uN, uSp, uRad, uMorph, uRMinor, uLemnForm);\n" +
-        "vec3 piv_next = getPivot(aIndex + 1.0, uN, uSp, uRad, uMorph, uRMinor, uLemnForm);\n" +
+        "vec3 piv = getPivot(aIndex, uN, uSp, uRad, uMorph, uRMinor, uLemnForm, uEllipseX, uEllipseZ, uEllipseTwist, uIsEllipse);\n" +
+        "vec3 piv_prev = getPivot(aIndex - 1.0, uN, uSp, uRad, uMorph, uRMinor, uLemnForm, uEllipseX, uEllipseZ, uEllipseTwist, uIsEllipse);\n" +
+        "vec3 piv_next = getPivot(aIndex + 1.0, uN, uSp, uRad, uMorph, uRMinor, uLemnForm, uEllipseX, uEllipseZ, uEllipseTwist, uIsEllipse);\n" +
         "vec3 u = normalize(piv_next - piv_prev);\n" +
         "vec3 g_vec = vec3(0.0, -1.0, 0.0);\n" +
         "vec3 v_unnorm = g_vec - dot(g_vec, u) * u;\n" +
@@ -261,6 +280,21 @@ export default class SceneRenderer {
     this.modelGroup.add(this.counterA);
     this.modelGroup.add(this.counterB);
 
+    // Create twin foci reference elements for Ellipse topology
+    var focusGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+    var focusMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffff00,
+      emissive: 0x999900,
+      emissiveIntensity: 1.0,
+      roughness: 0.1,
+      metalness: 0.8
+    });
+    this.focus1 = new THREE.Mesh(focusGeometry, focusMaterial);
+    this.focus2 = new THREE.Mesh(focusGeometry, focusMaterial);
+    this.focus1.visible = false;
+    this.focus2.visible = false;
+    this.modelGroup.add(this.focus1, this.focus2);
+
     this.rodInst.count = this.N;
     this.bobInst.count = this.N;
   }
@@ -416,6 +450,10 @@ export default class SceneRenderer {
         u.uSp.value = frameData.spacing;
         u.uRad.value = frameData.ringRadius;
         u.uLemnForm.value = frameData.lemniscateForm === "bernoulli" ? 1 : 0;
+        if (u.uEllipseX) u.uEllipseX.value = frameData.ellipseX !== undefined ? frameData.ellipseX : 1.0;
+        if (u.uEllipseZ) u.uEllipseZ.value = frameData.ellipseZ !== undefined ? frameData.ellipseZ : 1.0;
+        if (u.uEllipseTwist) u.uEllipseTwist.value = frameData.ellipseTwist !== undefined ? frameData.ellipseTwist : 0.0;
+        if (u.uIsEllipse) u.uIsEllipse.value = frameData.topology === "ellipse" ? 1.0 : 0.0;
       }
     });
 
@@ -454,6 +492,10 @@ export default class SceneRenderer {
 
         var pos = frameData.positions[i];
         var phiVal = phiValues[i];
+        if (sgState.physics.topo === "ellipse") {
+          var twistVal = frameData.ellipseTwist !== undefined ? frameData.ellipseTwist : 0.0;
+          phiVal += (i / N) * twistVal * Math.PI * 2 * Math.min(1.0, m);
+        }
         var gY = frameData.ghostY[i];
         var gCol = frameData.ghostColor[i];
 
@@ -494,6 +536,10 @@ export default class SceneRenderer {
         if (frameData.ticActive[i] === 1) {
           var pos = frameData.positions[i];
           var phiVal = phiValues[i];
+          if (sgState.physics.topo === "ellipse") {
+            var twistVal = frameData.ellipseTwist !== undefined ? frameData.ellipseTwist : 0.0;
+            phiVal += (i / N) * twistVal * Math.PI * 2 * Math.min(1.0, m);
+          }
           var tCol = frameData.ticColor[i];
 
           var basis = this._calculatePhysicsBasis(i, frameData, N, m);
@@ -548,6 +594,38 @@ export default class SceneRenderer {
       this._updateCounterSprite(this.counterB, countB, frameData.colorB, frameData.positions[pB], frameData.ghostY[pB], phiValues[pB], frameData.morph, pB, frameData.spacing, frameData.ringRadius, frameData.orientationValue, N);
     } else {
       this.counterB.visible = false;
+    }
+
+    // Dynamic rendering of twin foci elements for Ellipse topology
+    var isEllipse = (sgState.physics.topo === "ellipse");
+    if (this.focus1 && this.focus2) {
+      this.focus1.visible = isEllipse;
+      this.focus2.visible = isEllipse;
+      if (isEllipse) {
+        var rr = frameData.ringRadius || 1.0;
+        var ex = frameData.ellipseX !== undefined ? frameData.ellipseX : 1.0;
+        var ez = frameData.ellipseZ !== undefined ? frameData.ellipseZ : 1.0;
+        var a = rr * ex;
+        var b = rr * ez;
+        var fX1 = 0, fZ1 = 0;
+        var fX2 = 0, fZ2 = 0;
+        if (a >= b) {
+          var c = Math.sqrt(a * a - b * b);
+          fX1 = c * m;
+          fX2 = -c * m;
+        } else {
+          var c = Math.sqrt(b * b - a * a);
+          fZ1 = c * m;
+          fZ2 = -c * m;
+        }
+        this.focus1.position.set(fX1, 1.5, fZ1);
+        this.focus2.position.set(fX2, 1.5, fZ2);
+        
+        // Dynamically scale focus dots based on morph parameter m so they emerge gracefully
+        var scaleScale = Math.max(0.01, m);
+        this.focus1.scale.set(scaleScale, scaleScale, scaleScale);
+        this.focus2.scale.set(scaleScale, scaleScale, scaleScale);
+      }
     }
 
     if (this.laserScreen) {

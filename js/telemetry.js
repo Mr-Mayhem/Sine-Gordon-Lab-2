@@ -25,9 +25,9 @@ export function generateTelemetry(physics) {
   if (phi && phi.length > 0) {
     for (var i = 0; i < phi.length; i++) {
       var diff = (i === phi.length - 1
-        ? (sgState.physics.topo === "circ" || sgState.physics.topo === "lemniscate" ? phi[0] : phi[i])
+        ? (sgState.physics.topo === "circ" || sgState.physics.topo === "lemniscate" || sgState.physics.topo === "ellipse" ? phi[0] : phi[i])
         : phi[i + 1]) - phi[i];
-      if (sgState.physics.topo === "circ" || sgState.physics.topo === "lemniscate") {
+      if (sgState.physics.topo === "circ" || sgState.physics.topo === "lemniscate" || sgState.physics.topo === "ellipse") {
         diff -= Math.round(diff / TAU) * TAU;
       }
       winding += diff;

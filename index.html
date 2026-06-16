@@ -478,12 +478,30 @@
             <select id="sel-topology" class="thumb-select !py-1">
               <option value="linear" selected>Linear</option>
               <option value="circ">Circular</option>
+              <option value="ellipse">Ellipse</option>
               <option value="lemniscate">Lemniscate</option>
             </select>
             <select id="sel-lemniscate-form" class="thumb-select !py-1" style="display:none;">
               <option value="gerono" selected>Gerono</option>
               <option value="bernoulli">Bernoulli</option>
             </select>
+            <div id="ellipse-params" class="flex flex-col gap-0.5" style="display:none;">
+              <div class="flex items-center justify-between gap-1 bg-white/5 border border-white/10 rounded px-1.5 py-0.5" title="X semi-axis scale (matches Circle if X and Z are equal)">
+                <span class="text-[8.5px] text-gray-400 font-bold select-none leading-none">X:</span>
+                <input type="range" id="slider-ellipse-x" min="0.2" max="2.5" step="0.05" value="1.0" class="w-20 h-1 accent-[#00ffcc] bg-white/10 rounded-lg cursor-pointer">
+                <span id="val-ellipse-x" class="text-[8.5px] text-white/80 font-mono w-5 text-right select-none leading-none">1.0</span>
+              </div>
+              <div class="flex items-center justify-between gap-1 bg-white/5 border border-white/10 rounded px-1.5 py-0.5" title="Z semi-axis scale (matches Circle if X and Z are equal)">
+                <span class="text-[8.5px] text-gray-400 font-bold select-none leading-none">Z:</span>
+                <input type="range" id="slider-ellipse-z" min="0.2" max="2.5" step="0.05" value="1.0" class="w-20 h-1 accent-[#00ffcc] bg-white/10 rounded-lg cursor-pointer">
+                <span id="val-ellipse-z" class="text-[8.5px] text-white/80 font-mono w-5 text-right select-none leading-none">1.0</span>
+              </div>
+              <div class="flex items-center justify-between gap-1 bg-white/5 border border-white/10 rounded px-1.5 py-0.5" title="Helical support twist (number of complete turns)">
+                <span class="text-[8.5px] text-gray-400 font-bold select-none leading-none">T:</span>
+                <input type="range" id="slider-ellipse-twist" min="-3.0" max="3.0" step="0.1" value="0.0" class="w-20 h-1 accent-[#00ffcc] bg-white/10 rounded-lg cursor-pointer">
+                <span id="val-ellipse-twist" class="text-[8.5px] text-white/80 font-mono w-5 text-right select-none leading-none">0.0</span>
+              </div>
+            </div>
             <button id="btn-linear-wrap" class="mode-tag w-auto px-2" style="display:none;">W</button>
             <select id="sel-orientation" class="thumb-select !py-1">
               <option value="horizontal" selected>Horiz</option>
