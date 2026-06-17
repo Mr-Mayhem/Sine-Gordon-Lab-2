@@ -508,7 +508,7 @@ function init() {
       renderer.render(sr.scene, camera);
     }
   };
-  rendererRef.current = new SceneRenderer(scene, 720, sgState.morph);
+  rendererRef.current = new SceneRenderer(scene, 1440, sgState.morph);
   rendererRef.current.N = sgState.physics.N;
   rendererRef.current.build(sgState, undefined, sgState.morph);
   rendererRef.current.resize(sgState.physics.N);
@@ -577,9 +577,9 @@ function init() {
   UI.setup("grav", "physics.gravity", -10, 10, 0.5, false, refreshUI, 0, function() { sgState.physics.gravity = 1; });
   UI.setup("gamma", "physics.gamma", 0, 0.5, 0.005, false, refreshUI);
   UI.setup("gimbal-damping", "gimbalDamping", 0, 0.5, 0.001, false, refreshUI, 0, function() { sgState.gimbalDamping = 0.001; });
-  UI.setup("nodes", "physics.N", 20, 720, 1, true, function() {
+  UI.setup("nodes", "physics.N", 20, 1440, 1, true, function() {
     changeElementCount(sgState.physics.N, rendererRef, physics, refreshUI);
-  }, 0, function() { 
+  }, 10, function() { 
     changeElementCount(100, rendererRef, physics, refreshUI); 
   });
 

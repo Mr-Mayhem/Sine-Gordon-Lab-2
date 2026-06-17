@@ -116,12 +116,13 @@ export function processFrame(sgState, phiV, vV, accV, prevGlowPos, prevGlowNeg, 
       var eccentricity = Math.abs(ellipseX - ellipseZ) / Math.max(ellipseX, ellipseZ, 0.001);
       var twistFade = Math.min(1.0, eccentricity / 0.15);
       var effectiveTwist = ellipseTwist * twistFade;
-      var tAngle = ang * effectiveTwist;
       if (ellipseX >= ellipseZ) {
+        var tAngle = effectiveTwist * Math.sin(ang);
         rrX = a * Math.cos(ang);
         rrY = 1.5 + b * Math.sin(ang) * Math.sin(tAngle);
         rrZ = b * Math.sin(ang) * Math.cos(tAngle);
       } else {
+        var tAngle = effectiveTwist * Math.cos(ang);
         rrX = a * Math.cos(ang) * Math.cos(tAngle);
         rrY = 1.5 + a * Math.cos(ang) * Math.sin(tAngle);
         rrZ = b * Math.sin(ang);

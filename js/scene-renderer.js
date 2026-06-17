@@ -94,10 +94,11 @@ export default class SceneRenderer {
         "    float eccentricity = abs(ellX - ellZ) / max(ellX, max(ellZ, 0.001));\n" +
         "    float twistFade = min(1.0, eccentricity / 0.15);\n" +
         "    float effectiveTwist = ellTwist * twistFade;\n" +
-        "    float tAngle = th * effectiveTwist;\n" +
         "    if (ellX >= ellZ) {\n" +
+        "      float tAngle = effectiveTwist * sin(th);\n" +
         "      p1 = vec3(a * cos(th), 1.5 + b * sin(th) * sin(tAngle), b * sin(th) * cos(tAngle));\n" +
         "    } else {\n" +
+        "      float tAngle = effectiveTwist * cos(th);\n" +
         "      p1 = vec3(a * cos(th) * cos(tAngle), 1.5 + a * cos(th) * sin(tAngle), b * sin(th));\n" +
         "    }\n" +
         "  } else {\n" +
@@ -179,14 +180,6 @@ export default class SceneRenderer {
     var spacing = sgState.spacing !== undefined ? sgState.spacing : 0.8;
     var rr = (newN * spacing) / TAU;
     var tw = (newN - 1) * spacing;
-    if (this.ring) {
-      this.ring.geometry.dispose();
-      this.ring.geometry = new THREE.TorusGeometry(rr, 0.08, 16, 128);
-    }
-    if (this.support) {
-      this.support.geometry.dispose();
-      this.support.geometry = new THREE.CylinderGeometry(0.1, 0.1, tw + 4);
-    }
     if (this.gimbal) {
       this.gimbal.build(rr);
     }
@@ -208,81 +201,6 @@ export default class SceneRenderer {
     this.scene.add(this.modelGroup);
 
     this.laserScreen = new LaserScreen(this.modelGroup, this.N, spacing);
-
-    this.support = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.1, tw + 4),
-      new THREE.MeshStandardMaterial({ color: 0x0A0A0A, metalness: 0.9 })
-    );
-    this.support.rotateZ(PI / 2);
-    this.support.position.y = 1.5;
-    this.modelGroup.add(this.support);
-
-    var self = this;
-    this.ringMat = new THREE.MeshStandardMaterial({
-      color: 0x0F0F0F,
-      metalness: 0.9,
-      roughness: 0.15
-    });
-    this.ringMat.onBeforeCompile = function(shader) {
-      Object.assign(shader.uniforms, {
-        uMorph: { value: morph },
-        uSp: { value: spacing },
-        uRad: { value: rr },
-        uEllipseX: { value: sgState.ellipseX !== undefined ? sgState.ellipseX : 1.0 },
-        uEllipseZ: { value: sgState.ellipseZ !== undefined ? sgState.ellipseZ : 1.0 },
-        uEllipseTwist: { value: sgState.ellipseTwist !== undefined ? sgState.ellipseTwist : 0.0 },
-        uIsEllipse: { value: sgState.physics.topo === "ellipse" ? 1.0 : 0.0 }
-      });
-      self.ringMat.userData.shader = shader;
-
-      shader.vertexShader =
-        "uniform float uMorph, uSp, uRad, uEllipseX, uEllipseZ, uEllipseTwist, uIsEllipse;\n" +
-        "vec3 getRingPivot(float th, float rad, float ellX, float ellZ, float ellTwist, float isEll) {\n" +
-        "  vec3 p1;\n" +
-        "  if (isEll > 0.5) {\n" +
-        "    float a = rad * ellX;\n" +
-        "    float b = rad * ellZ;\n" +
-        "    float eccentricity = abs(ellX - ellZ) / max(ellX, max(ellZ, 0.001));\n" +
-        "    float twistFade = min(1.0, eccentricity / 0.15);\n" +
-        "    float effectiveTwist = ellTwist * twistFade;\n" +
-        "    float tAngle = th * effectiveTwist;\n" +
-        "    if (ellX >= ellZ) {\n" +
-        "      p1 = vec3(a * cos(th), 1.5 + b * sin(th) * sin(tAngle), b * sin(th) * cos(tAngle));\n" +
-        "    } else {\n" +
-        "      p1 = vec3(a * cos(th) * cos(tAngle), 1.5 + a * cos(th) * sin(tAngle), b * sin(th));\n" +
-        "    }\n" +
-        "  } else {\n" +
-        "    p1 = vec3(rad * cos(th), 1.5, rad * sin(th));\n" +
-        "  }\n" +
-        "  return p1;\n" +
-        "}\n" +
-        shader.vertexShader;
-
-      shader.vertexShader = shader.vertexShader.replace(
-        "#include <begin_vertex>",
-        "\n" +
-        "float th = atan(position.y, position.x);\n" +
-        "vec3 piv_world = getRingPivot(th, uRad, uEllipseX, uEllipseZ, uEllipseTwist, uIsEllipse);\n" +
-        "vec3 piv_local = vec3(piv_world.x, piv_world.z, -(piv_world.y - 1.5));\n" +
-        "vec3 piv_next_world = getRingPivot(th + 0.01, uRad, uEllipseX, uEllipseZ, uEllipseTwist, uIsEllipse);\n" +
-        "vec3 piv_next_local = vec3(piv_next_world.x, piv_next_world.z, -(piv_next_world.y - 1.5));\n" +
-        "vec3 tangent = normalize(piv_next_local - piv_local);\n" +
-        "vec3 up = vec3(0.0, 0.0, 1.0);\n" +
-        "vec3 normal = normalize(cross(tangent, up));\n" +
-        "vec3 binormal = cross(tangent, normal);\n" +
-        "float r_cos = length(position.xy) - uRad;\n" +
-        "float r_sin = position.z;\n" +
-        "vec3 transformed = piv_local + r_cos * normal + r_sin * binormal;\n"
-      );
-    };
-
-    this.ring = new THREE.Mesh(
-      new THREE.TorusGeometry(rr, 0.08, 16, 128),
-      this.ringMat
-    );
-    this.ring.rotateX(PI / 2);
-    this.ring.position.y = 1.5;
-    this.modelGroup.add(this.ring);
 
     this.rodInst = new THREE.InstancedMesh(this.rodGeom, this.rodMat, this.maxN);
     this.bobInst = new THREE.InstancedMesh(
@@ -455,15 +373,6 @@ export default class SceneRenderer {
       this._lastSpacing = frameData.spacing;
       var newSpacing = frameData.spacing;
       var rRadius = (this.N * newSpacing) / (2 * Math.PI);
-      var twLength = (this.N - 1) * newSpacing;
-      if (this.ring) {
-        this.ring.geometry.dispose();
-        this.ring.geometry = new THREE.TorusGeometry(rRadius, 0.08, 16, 128);
-      }
-      if (this.support) {
-        this.support.geometry.dispose();
-        this.support.geometry = new THREE.CylinderGeometry(0.1, 0.1, twLength + 4);
-      }
       if (this.gimbal) {
         this.gimbal.build(rRadius);
       }
@@ -480,45 +389,7 @@ export default class SceneRenderer {
     if (N === 0) return;
     var m = frameData.morph;
 
-    if (this.support) {
-      if (frameData.gimbalRingActive) {
-        this.support.visible = m < 0.99;
-        const tw = (frameData.ringRadius * Math.PI * 2) - (frameData.spacing !== undefined ? frameData.spacing : 0.8);
-        const R_linear = (tw + 4.0) / 2.0;
-        const target_r = R_linear + (frameData.ringRadius - R_linear) * Math.max(0, Math.min(1, m));
-        const thicknessScale = Math.max(0.001, 1 - m);
-        const lengthScale = m <= 1 ? (target_r / R_linear) : 0.001;
-        this.support.scale.set(thicknessScale, lengthScale, thicknessScale);
-      } else {
-        this.support.visible = m < 0.5;
-        this.support.scale.set(Math.max(0.001, 1 - m), 1, Math.max(0.001, 1 - m));
-      }
-    }
-    if (this.ring) {
-      if (frameData.gimbalRingActive) {
-        this.ring.visible = true;
-        const tw = (frameData.ringRadius * Math.PI * 2) - (frameData.spacing !== undefined ? frameData.spacing : 0.8);
-        const R_linear = (tw + 4.0) / 2.0;
-        const target_r = R_linear + (frameData.ringRadius - R_linear) * Math.max(0, Math.min(1, m));
-        const ringScale = m <= 1 ? (target_r / frameData.ringRadius) : 1.0;
-        this.ring.scale.set(ringScale, ringScale, ringScale);
-        if (this.ringMat) {
-          this.ringMat.color.setHex(0x9e2a2b);
-          this.ringMat.emissive.setHex(0x230000);
-          this.ringMat.emissiveIntensity = 1.0;
-        }
-      } else {
-        this.ring.visible = m > 0.01 && m <= 1;
-        this.ring.scale.set(m > 1 ? 1 : m, m > 1 ? 1 : m, m > 1 ? 1 : m);
-        if (this.ringMat) {
-          this.ringMat.color.setHex(0x0F0F0F);
-          this.ringMat.emissive.setHex(0x000000);
-          this.ringMat.emissiveIntensity = 0.0;
-        }
-      }
-    }
-
-    [this.rodMat, this.bobInst.material, this.ringMat].forEach(function(mat) {
+    [this.rodMat, this.bobInst.material].forEach(function(mat) {
       if (mat && mat.userData && mat.userData.shader) {
         var u = mat.userData.shader.uniforms;
         if (u.uMorph) u.uMorph.value = m;
@@ -569,7 +440,11 @@ export default class SceneRenderer {
         var phiVal = phiValues[i];
         if (frameData.topology === "ellipse") {
           var twistVal = frameData.ellipseTwist !== undefined ? frameData.ellipseTwist : 0.0;
-          phiVal += (i / N) * twistVal * Math.PI * 2 * Math.min(1.0, m);
+          var ex = frameData.ellipseX !== undefined ? frameData.ellipseX : 1.0;
+          var ez = frameData.ellipseZ !== undefined ? frameData.ellipseZ : 1.0;
+          var ang = (i / N) * Math.PI * 2;
+          var twistAngle = (ex >= ez) ? twistVal * Math.sin(ang) : twistVal * Math.cos(ang);
+          phiVal += twistAngle * Math.min(1.0, m);
         }
         var gY = frameData.ghostY[i];
         var gCol = frameData.ghostColor[i];
@@ -611,7 +486,11 @@ export default class SceneRenderer {
           var phiVal = phiValues[i];
           if (frameData.topology === "ellipse") {
             var twistVal = frameData.ellipseTwist !== undefined ? frameData.ellipseTwist : 0.0;
-            phiVal += (i / N) * twistVal * Math.PI * 2 * Math.min(1.0, m);
+            var ex = frameData.ellipseX !== undefined ? frameData.ellipseX : 1.0;
+            var ez = frameData.ellipseZ !== undefined ? frameData.ellipseZ : 1.0;
+            var ang = (i / N) * Math.PI * 2;
+            var twistAngle = (ex >= ez) ? twistVal * Math.sin(ang) : twistVal * Math.cos(ang);
+            phiVal += twistAngle * Math.min(1.0, m);
           }
           var tCol = frameData.ticColor[i];
 

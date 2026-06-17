@@ -155,7 +155,7 @@
       <section>
         <h2>Physics Parameters</h2>
         <ul style="list-style: disc; padding-left: 1.5rem; margin: 1rem 0; color: #ccc; line-height: 1.8;">
-          <li><strong style="color: #fff;">N (Elements)</strong> — Number of pendulums in the chain (20–720). More elements = finer spatial resolution.</li>
+          <li><strong style="color: #fff;">N (Elements)</strong> — Number of pendulums in the chain (20–1440). More elements = finer spatial resolution.</li>
           <li><strong style="color: #fff;">κ (Coupling)</strong> — Torsional stiffness between neighbors (1–1000). Higher values make the chain stiffer, increasing wave speed.</li>
           <li><strong style="color: #fff;">g (Gravity)</strong> — Restoring force strength (0.1–40). Stronger gravity makes kinks narrower and faster.</li>
           <li><strong style="color: #fff;">γ (Damping)</strong> — Velocity-dependent friction (−0.01 to 0.5). Negative values add energy (anti-damping). At zero, the system is conservative.</li>
@@ -474,7 +474,7 @@
           
           <div class="w-px h-7 bg-white/10 self-stretch shrink-0"></div>
           
-          <div class="flex items-center gap-1.5 bg-white/5 rounded-lg p-1 border border-white/10">
+          <div class="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10">
             <select id="sel-topology" class="thumb-select !py-1">
               <option value="linear" selected>Linear</option>
               <option value="circ">Circular</option>
@@ -488,17 +488,17 @@
             <div id="ellipse-params" class="flex flex-col gap-0.5" style="display:none;">
               <div class="flex items-center justify-between gap-1 bg-white/5 border border-white/10 rounded px-1.5 py-0.5" title="X semi-axis scale (matches Circle if X and Z are equal)">
                 <span class="text-[8.5px] text-gray-400 font-bold select-none leading-none">X:</span>
-                <input type="range" id="slider-ellipse-x" min="0.2" max="2.5" step="0.05" value="1.0" class="w-20 h-1 accent-[#00ffcc] bg-white/10 rounded-lg cursor-pointer">
+                <input type="range" id="slider-ellipse-x" min="0.2" max="2.5" step="0.05" value="1.0" class="w-16 h-1 accent-[#00ffcc] bg-white/10 rounded-lg cursor-pointer">
                 <span id="val-ellipse-x" class="text-[8.5px] text-white/80 font-mono w-5 text-right select-none leading-none">1.0</span>
               </div>
               <div class="flex items-center justify-between gap-1 bg-white/5 border border-white/10 rounded px-1.5 py-0.5" title="Z semi-axis scale (matches Circle if X and Z are equal)">
                 <span class="text-[8.5px] text-gray-400 font-bold select-none leading-none">Z:</span>
-                <input type="range" id="slider-ellipse-z" min="0.2" max="2.5" step="0.05" value="1.0" class="w-20 h-1 accent-[#00ffcc] bg-white/10 rounded-lg cursor-pointer">
+                <input type="range" id="slider-ellipse-z" min="0.2" max="2.5" step="0.05" value="1.0" class="w-16 h-1 accent-[#00ffcc] bg-white/10 rounded-lg cursor-pointer">
                 <span id="val-ellipse-z" class="text-[8.5px] text-white/80 font-mono w-5 text-right select-none leading-none">1.0</span>
               </div>
               <div class="flex items-center justify-between gap-1 bg-white/5 border border-white/10 rounded px-1.5 py-0.5" title="Helical support twist (number of complete turns)">
                 <span class="text-[8.5px] text-gray-400 font-bold select-none leading-none">T:</span>
-                <input type="range" id="slider-ellipse-twist" min="-3.0" max="3.0" step="0.1" value="0.0" class="w-20 h-1 accent-[#00ffcc] bg-white/10 rounded-lg cursor-pointer">
+                <input type="range" id="slider-ellipse-twist" min="-3.0" max="3.0" step="0.1" value="0.0" class="w-16 h-1 accent-[#00ffcc] bg-white/10 rounded-lg cursor-pointer">
                 <span id="val-ellipse-twist" class="text-[8.5px] text-white/80 font-mono w-5 text-right select-none leading-none">0.0</span>
               </div>
             </div>

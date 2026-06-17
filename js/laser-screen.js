@@ -250,9 +250,20 @@ export default class LaserScreen {
 
       const twistVal = frameData.ellipseTwist !== undefined ? frameData.ellipseTwist : 0.0;
       const isEllipse = (frameData.topology === "ellipse");
+      const ellipseX = frameData.ellipseX !== undefined ? frameData.ellipseX : 1.0;
+      const ellipseZ = frameData.ellipseZ !== undefined ? frameData.ellipseZ : 1.0;
 
       for (let i = 0; i < N; i++) {
-        const twistAngle = isEllipse ? (i / N) * twistVal * TAU * Math.min(1.0, frameData.morph) : 0.0;
+        let twistAngle = 0;
+        if (isEllipse) {
+          const ang = (i / N) * TAU;
+          if (ellipseX >= ellipseZ) {
+            twistAngle = twistVal * Math.sin(ang);
+          } else {
+            twistAngle = twistVal * Math.cos(ang);
+          }
+          twistAngle *= Math.min(1.0, frameData.morph);
+        }
         const phi = phiValues[i] + twistAngle;
         
         // Map directional angle phi (unit circle rotation in v-w plane) directly to texture U

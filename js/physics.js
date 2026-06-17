@@ -114,7 +114,18 @@ class PhysicsEngine {
 
         // Symmetrical twist factor calculation for Ellipse
         var twistVal = (this.stateRef && this.stateRef.ellipseTwist !== undefined) ? this.stateRef.ellipseTwist : 0.0;
-        var twistAngle = (topo === "ellipse") ? (i / N) * twistVal * TAU * Math.min(1.0, morphVal) : 0.0;
+        var twistAngle = 0.0;
+        if (topo === "ellipse") {
+          var ellipseScaleX = (this.stateRef && this.stateRef.ellipseX !== undefined) ? this.stateRef.ellipseX : 1.0;
+          var ellipseScaleZ = (this.stateRef && this.stateRef.ellipseZ !== undefined) ? this.stateRef.ellipseZ : 1.0;
+          var ang = (i / N) * TAU;
+          if (ellipseScaleX >= ellipseScaleZ) {
+            twistAngle = twistVal * Math.sin(ang);
+          } else {
+            twistAngle = twistVal * Math.cos(ang);
+          }
+          twistAngle *= Math.min(1.0, morphVal);
+        }
 
         // Add correct physical gravity / inertial terms
         if (hasGimbal) {
