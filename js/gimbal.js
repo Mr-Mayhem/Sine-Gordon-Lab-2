@@ -59,28 +59,37 @@ export default class Gimbal {
 
     // Responsive 3D thicknesses based on ring size
     const tubeThickOuter = Math.max(0.18, rr * 0.009);
+    const tubeThickMiddle = tubeThickOuter * 0.9;
 
     // 1. Outer Torus (Renders clearly in 3D)
     this.outerMesh = new THREE.Mesh(
-      new THREE.TorusGeometry(rr * 1.15, tubeThickOuter, 16, 128),
+      new THREE.TorusGeometry(rr * 1.08, tubeThickOuter, 16, 128),
       this.outerMat
     );
     this.outerMesh.rotateX(Math.PI / 2);
     this.outerGroup.add(this.outerMesh);
+
+    // 2. Middle Torus (Renders concentric to the outer ring in 3D)
+    this.middleMesh = new THREE.Mesh(
+      new THREE.TorusGeometry(rr * 1.0, tubeThickMiddle, 16, 128),
+      this.middleMat
+    );
+    this.middleMesh.rotateX(Math.PI / 2);
+    this.middleGroup.add(this.middleMesh);
 
     // Cylindrical pins connecting outer ring to space/stand (along X-axis)
     const hostPinGeom = new THREE.CylinderGeometry(tubeThickOuter * 1.2, tubeThickOuter * 1.2, rr * 0.08, 16);
     hostPinGeom.rotateZ(Math.PI / 2);
     
     const pinL = new THREE.Mesh(hostPinGeom, this.pivotMat);
-    pinL.position.set(-rr * 1.19, 0, 0);
-    pinL.userData = { initialX: -rr * 1.19 };
+    pinL.position.set(-rr * 1.12, 0, 0);
+    pinL.userData = { initialX: -rr * 1.12 };
     this.outerGroup.add(pinL);
     this.pins.push(pinL);
 
     const pinR = new THREE.Mesh(hostPinGeom, this.pivotMat);
-    pinR.position.set(rr * 1.19, 0, 0);
-    pinR.userData = { initialX: rr * 1.19 };
+    pinR.position.set(rr * 1.12, 0, 0);
+    pinR.userData = { initialX: rr * 1.12 };
     this.outerGroup.add(pinR);
     this.pins.push(pinR);
 
@@ -89,14 +98,14 @@ export default class Gimbal {
     midPinGeom.rotateX(Math.PI / 2);
     
     const pinF = new THREE.Mesh(midPinGeom, this.pivotMat);
-    pinF.position.set(0, 0, -rr * 1.075);
-    pinF.userData = { initialZ: -rr * 1.075 };
+    pinF.position.set(0, 0, -rr * 1.04);
+    pinF.userData = { initialZ: -rr * 1.04 };
     this.middleGroup.add(pinF);
     this.pins.push(pinF);
 
     const pinB = new THREE.Mesh(midPinGeom, this.pivotMat);
-    pinB.position.set(0, 0, rr * 1.075);
-    pinB.userData = { initialZ: rr * 1.075 };
+    pinB.position.set(0, 0, rr * 1.04);
+    pinB.userData = { initialZ: rr * 1.04 };
     this.middleGroup.add(pinB);
     this.pins.push(pinB);
   }
@@ -122,6 +131,9 @@ export default class Gimbal {
       if (this.outerMesh) {
         this.outerMesh.scale.set(scale, scale, scale);
       }
+      if (this.middleMesh) {
+        this.middleMesh.scale.set(scale, scale, scale);
+      }
       this.pins.forEach(p => {
         p.scale.set(scale, scale, scale);
         if (p.userData && p.userData.initialX !== undefined) {
@@ -140,6 +152,7 @@ export default class Gimbal {
       this.middleGroup.rotation.set(sgState.gimbalMiddleOffset, 0, 0);
     } else {
       if (this.outerMesh) this.outerMesh.scale.set(1, 1, 1);
+      if (this.middleMesh) this.middleMesh.scale.set(1, 1, 1);
       this.pins.forEach(p => {
         p.scale.set(1, 1, 1);
         if (p.userData && p.userData.initialX !== undefined) p.position.x = p.userData.initialX;
@@ -160,6 +173,11 @@ export default class Gimbal {
       this.outerMesh.geometry.dispose();
       this.outerGroup.remove(this.outerMesh);
       this.outerMesh = null;
+    }
+    if (this.middleMesh) {
+      this.middleMesh.geometry.dispose();
+      this.middleGroup.remove(this.middleMesh);
+      this.middleMesh = null;
     }
     this.pins.forEach(pin => {
       pin.geometry.dispose();
