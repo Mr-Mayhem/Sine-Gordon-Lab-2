@@ -858,27 +858,41 @@ async function _assemble(
     const coopCoepSatisfied = typeof SharedArrayBuffer !== "undefined";
     const needMultiThreaded = format === "mp4" && coopCoepSatisfied;
 
+    let actualThreading = "Single-Threaded (ST)";
+    let threadingClass = "text-white font-medium font-mono";
+    if (needMultiThreaded) {
+      actualThreading = "Multi-Threaded (MT)";
+      threadingClass = "text-emerald-400 font-bold font-mono";
+    } else if (format === "mp4") {
+      actualThreading = "Single-Threaded (ST Fallback)";
+      threadingClass = "text-amber-400 font-bold font-mono";
+    }
+
+    if (typeof window !== "undefined" && window.sgState) {
+      window.sgState.actualThreading = actualThreading;
+      window.sgState.threadingClass = threadingClass;
+    }
+
     const threadsEl = document.getElementById("diagnostic-threads");
     if (threadsEl) {
-      if (needMultiThreaded) {
-        threadsEl.textContent = "Multi-Threaded (MT)";
-        threadsEl.className = "text-emerald-400 font-bold font-mono";
-      } else if (format === "mp4") {
-        threadsEl.textContent = "Single-Threaded (ST Fallback)";
-        threadsEl.className = "text-amber-400 font-bold font-mono";
-      } else {
-        threadsEl.textContent = "Single-Threaded (ST)";
-        threadsEl.className = "text-white font-medium font-mono";
-      }
+      threadsEl.textContent = actualThreading;
+      threadsEl.className = threadingClass;
+    }
+
+    let suffix = "";
+    if (alignedW >= 3840 && alignedH >= 2160) suffix = " (4K UHD)";
+    else if (alignedW >= 2560 && alignedH >= 1440) suffix = " (1440p QHD)";
+    else if (alignedW >= 1920 && alignedH >= 1080) suffix = " (1080p FHD)";
+    else if (alignedW >= 1280 && alignedH >= 720) suffix = " (720p HD)";
+
+    if (typeof window !== "undefined" && window.sgState) {
+      window.sgState.alignedWidth = alignedW;
+      window.sgState.alignedHeight = alignedH;
+      window.sgState.resolutionSuffix = suffix;
     }
 
     const resEl = document.getElementById("diagnostic-resolution");
     if (resEl) {
-      let suffix = "";
-      if (alignedW >= 3840 && alignedH >= 2160) suffix = " (4K UHD)";
-      else if (alignedW >= 2560 && alignedH >= 1440) suffix = " (1440p QHD)";
-      else if (alignedW >= 1920 && alignedH >= 1080) suffix = " (1080p FHD)";
-      else if (alignedW >= 1280 && alignedH >= 720) suffix = " (720p HD)";
       resEl.textContent = `${alignedW}x${alignedH}${suffix}`;
     }
   } catch (err) {
@@ -933,34 +947,42 @@ async function _assemble(
   try {
     const finalCRF = recorderRef && recorderRef.config && recorderRef.config.exportCRF !== undefined ? Number(recorderRef.config.exportCRF) : 18;
     
+    let actualCRFText = `CRF ${finalCRF}`;
+    let actualCRFClass = "text-emerald-400 font-bold font-mono";
+    if (safeguardTriggered) {
+      actualCRFClass = "text-amber-400 font-bold font-mono";
+    }
+
+    let safeguardStatus = "INACTIVE (SAFE)";
+    let safeguardClass = "text-emerald-400 font-bold font-mono uppercase";
+    if (safeguardTriggered) {
+      safeguardStatus = `ACTIVE (CRF ${rawCRF} → ${safeMinCRF})`;
+      if (safeMinCRF >= 23) {
+        safeguardClass = "text-red-400 font-bold font-mono uppercase animate-pulse";
+      } else {
+        safeguardClass = "text-amber-400 font-bold font-mono uppercase";
+      }
+    } else if (totalGPixels > 15.0) {
+      safeguardStatus = `INACTIVE (CRF ${rawCRF} SAFE)`;
+    }
+
+    if (typeof window !== "undefined" && window.sgState) {
+      window.sgState.actualCRFText = actualCRFText;
+      window.sgState.actualCRFClass = actualCRFClass;
+      window.sgState.safeguardStatus = safeguardStatus;
+      window.sgState.safeguardClass = safeguardClass;
+    }
+
     const qualEl = document.getElementById("diagnostic-quality");
     if (qualEl) {
-      qualEl.textContent = `CRF ${finalCRF}`;
-      if (safeguardTriggered) {
-        qualEl.className = "text-amber-400 font-bold font-mono";
-      } else {
-        qualEl.className = "text-emerald-400 font-bold font-mono";
-      }
+      qualEl.textContent = actualCRFText;
+      qualEl.className = actualCRFClass;
     }
 
     const safeguardEl = document.getElementById("diagnostic-safeguard");
     if (safeguardEl) {
-      if (safeguardTriggered) {
-        if (safeMinCRF >= 23) {
-          safeguardEl.textContent = `ACTIVE (CRF ${rawCRF} → ${safeMinCRF})`;
-          safeguardEl.className = "text-red-400 font-bold font-mono uppercase animate-pulse";
-        } else {
-          safeguardEl.textContent = `ACTIVE (CRF ${rawCRF} → ${safeMinCRF})`;
-          safeguardEl.className = "text-amber-400 font-bold font-mono uppercase";
-        }
-      } else {
-        let statusText = "INACTIVE (SAFE)";
-        if (totalGPixels > 15.0) {
-          statusText = `INACTIVE (CRF ${rawCRF} SAFE)`;
-        }
-        safeguardEl.textContent = statusText;
-        safeguardEl.className = "text-emerald-400 font-bold font-mono uppercase";
-      }
+      safeguardEl.textContent = safeguardStatus;
+      safeguardEl.className = safeguardClass;
     }
   } catch (err) {
     console.warn("[FFmpeg] Safeguard DOM indicators alignment failed:", err);

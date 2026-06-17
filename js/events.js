@@ -1121,25 +1121,60 @@ export function initAssemblyStatusObserver() {
       <div class="py-0.5 last:border-b-0"><strong>Live Metrics:</strong> <span class="text-[#00aaff] font-bold font-mono text-[9px]">${metrics}</span> &nbsp;<span class="text-white/30 font-normal">(${version})</span></div>
     `;
 
-    // Parse Diagnostics for Right Column (Diagnostic Report) - Always exactly 3 unified rows
+    // Parse Diagnostics for Right Column (Diagnostic Report) - Always exactly 3 or 4 unified rows matching index.html
     if (isZip) {
       rightCol.innerHTML = `
         <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Compression:</span><span class="text-white font-medium">ZIP Deflate (Fast)</span></div>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">${sgState.exportWidth}x${sgState.exportHeight}</span></div>
-        <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Target File:</span><span class="text-emerald-400 font-medium font-mono">sg_render_*.zip</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]">
+          <span class="text-white/45">Compression:</span>
+          <span class="text-white font-medium font-mono">ZIP Deflate</span>
+        </div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]">
+          <span class="text-white/45">Resolution:</span>
+          <span id="diagnostic-resolution" class="text-[#00ffcc] font-medium font-mono">${sgState.exportWidth}x${sgState.exportHeight}</span>
+        </div>
+        <div class="flex justify-between items-center py-0.5">
+          <span class="text-white/45">Target File:</span>
+          <span class="text-emerald-400 font-medium font-mono">sg_render_*.zip</span>
+        </div>
       `;
     } else {
       const formatLabel = sgState.exportFormat === "mp4" ? "MP4 (H.264)" : "WebM (VP8)";
       const coopCoepSatisfied = typeof SharedArrayBuffer !== "undefined";
       const threadingLabel = (sgState.exportFormat === "mp4" && coopCoepSatisfied) ? "Multi-Threaded (MT)" : "Single-Threaded (ST)";
-      const crfLabel = sgState.exportCRF === 0 ? "0 (Lossless)" : sgState.exportCRF === 5 ? "5 (Ultra Quality)" : sgState.exportCRF === 12 ? "12 (High Quality)" : sgState.exportCRF === 18 ? "18 (Typical Default)" : `${sgState.exportCRF}`;
+      
+      const resW = sgState.alignedWidth || sgState.exportWidth || 1280;
+      const resH = sgState.alignedHeight || sgState.exportHeight || 720;
+      const resSuffix = sgState.resolutionSuffix || "";
+      const fpsVal = sgState.exportFPS || 30;
+
+      const actCRFText = sgState.actualCRFText || (sgState.exportCRF === 0 ? "0 (Lossless)" : sgState.exportCRF === 5 ? "5 (Ultra Quality)" : sgState.exportCRF === 12 ? "12 (High Quality)" : sgState.exportCRF === 18 ? "18 (Typical Default)" : `${sgState.exportCRF || 18}`);
+      const actCRFClass = sgState.actualCRFClass || "text-amber-400 font-bold font-mono";
+
+      const sgStatus = sgState.safeguardStatus || "INACTIVE (SAFE)";
+      const sgClass = sgState.safeguardClass || "text-emerald-400 font-bold font-mono uppercase";
+
+      const threadVal = sgState.actualThreading || `${formatLabel} (${threadingLabel})`;
+      const threadClass = sgState.threadingClass || "text-white font-medium font-mono";
 
       rightCol.innerHTML = `
         <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Format / Core:</span><span class="text-white font-medium">${formatLabel} (${threadingLabel})</span></div>
-        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Resolution:</span><span class="text-[#00ffcc] font-medium font-mono">${sgState.exportWidth}x${sgState.exportHeight} @ ${sgState.exportFPS} FPS</span></div>
-        <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Quality / CRF:</span><span class="text-amber-400 font-bold font-mono">${crfLabel}</span></div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]">
+          <span class="text-white/45">CPU Threading:</span>
+          <span id="diagnostic-threads" class="${threadClass}">${threadVal}</span>
+        </div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]">
+          <span class="text-white/45">Frame Resolution:</span>
+          <span id="diagnostic-resolution" class="text-[#00ffcc] font-medium font-mono">${resW}x${resH}${resSuffix} @ ${fpsVal} FPS</span>
+        </div>
+        <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]">
+          <span class="text-white/45">Quality:</span>
+          <span id="diagnostic-quality" class="${actCRFClass}">${actCRFText}</span>
+        </div>
+        <div class="flex justify-between items-center py-0.5">
+          <span class="text-white/45">Memory Guard:</span>
+          <span id="diagnostic-safeguard" class="${sgClass}">${sgStatus}</span>
+        </div>
       `;
     }
   });
