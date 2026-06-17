@@ -1,12 +1,12 @@
 # Recorder Library Specification — `recorder-library/`
 
-**Active Version: v1.8.2-modular-hybrid**
+**Active Version: v1.10.0-modular-hybrid**
 
 This document details the architecture, capabilities, design philosophy, API contracts, directories, and integration workflows of the self-contained browser recording and rendering assembly engine. 
 
 Designed for high-performance in-browser rendering pipelines, this library is crafted to handle ultra-high resolution captures (such as 1080p, 1440p, or 4K) directly inside sandboxed browser frames using modern standards including WebGL, standard ES Modules (ESM), WebAssembly (FFmpeg.wasm), and fast sandboxed storage via the **Origin Private File System (OPFS)**.
 
-### Recent Updates in v1.8.2
+### Recent Updates in v1.10.0
 1. **Fully Encapsulated Vendor Directory**: Moves all external non-downloadable scripts (`ffmpeg.js`, `814.ffmpeg.js`, `jszip.min.js`, `FileSaver.min.js`) into an isolated `vendor/` subfolder within the module itself to make it a portable drag-and-drop package.
 2. **Atomic CDN & Sandbox Transaction Fallback**: Fixes single-threaded WASM URL resolution bugs and details how fallbacks and SHA-256 cryptographic hashes operate to satisfy secure origin policies.
 3. **Dynamic Target Aspect Ratio Locking**: Remaps capturing dimensions dynamically to match the exact target aspect ratio of the requested export resolution across all formats. This prevents dimensional discrepancy errors during in-memory and OPFS storage ZIP extraction and video rendering workflows.
@@ -14,6 +14,9 @@ Designed for high-performance in-browser rendering pipelines, this library is cr
 5. **Diagnostic Utility (Clipboard Copy)**: Introduces a robust clipboard action featuring dual-tier fallback mechanisms (`navigator.clipboard.writeText` and a hidden temporary textarea node) to grab complete diagnostic reports seamlessly inside iframes or sandboxed origins.
 6. **Programmatic Core Test Isolation Guard (`isTesting`)**: Configures and documents the synchronization safety layer that gates render ticks from calling capture functions concurrently while automated test suites run, preventing frame sequence pollution or aspect-ratio desynchronization.
 7. **HTML Head Peak Placement (Speculative Parser Protection)**: Incorporates precise documentation on why the `<script type="importmap">` must be the absolute first node inside `<head>`, precluding speculative browser loading pre-fetch races.
+8. **Extreme Spatial Resolution Grid Optimization (1440 Elements)**: Upgrades physical simulation limits from 720 to 1440 coupled pendulums. This fine-densifies the discrete spatial coordinate resolution ($dx = L/N$) while maintaining high-efficiency $O(N)$ Three.js InstancedMesh drawing capabilities and integration convergence.
+9. **Dual-Speed Non-Overlapping Sieve-Wheel Widget Layout**: Embeds compact `--` and `++` buttons to the left and right of the main `-` and `+` elements controllers, applying a high-velocity $10\times$ step multiplier (adding/subtracting 10 units per interaction). Outlines micro-flex constraints guarding alignment and preventing text wrap collisions.
+10. **Trigonometric Harmonic Twist Adaptation (Continuous Periodic Boundary Matching)**: Eliminates spatial step discontinuities at wrapped boundaries in Ellipse/Lemniscate topological structures. Substitutes raw linear twisted offsets with smooth periodic sine and cosine harmonic functions, enforcing $C^{\infty}$ continuity.
 
 ---
 
@@ -321,6 +324,105 @@ To maintain absolute uniformity of user experience and mechanical logic, this pr
   - Symmetrical state engines (such as `window.sgState` mocks) must expose the exact same properties, setters, and programmatic update hooks so that the underlying diagnostic framework can evaluate either project interchangeably.
 * **Component-Level Visual Styling Harmony**: The dark glassmorphism styling, structural layouts, HUD terminal console logs, copyable diagnostic clipboards, overlays, and modal compiler screens must use the exact same aesthetic configurations, ensuring a brand-coherent look.
 * **Scene Isolation Exception**: The only permissible divergence between the main application and the reference example is the underlying 3D visual scene. While the main app renders the complex, coupled-pendulum Sine-Gordon simulation, the reference example behaves as a lightweight learning playground rendering a Three.js Torus Knot, focusing developer attention purely on understanding and preserving the recording mechanics.
+
+
+## 12. Advanced Soliton Kinetics & High-Density Operational Controls
+
+As the Sine-Gordon Lab evolved from standard physical baselines to an advanced high-density mathematical simulator, several critical mathematical, spatial, and layout issues were resolved to permit high-resolution soliton tracing.
+
+### 12.1 Trigonometric Harmonic Twisting (Periodic Boundary Matching)
+
+In closed topological simulations (specifically in Circular and Ellipse modes), the discrete pendulum array forms a closed loop. Introducing a global twisting field (such as a winding parameter representing a continuous helical layout) is necessary to study topological boundary configurations.
+
+#### The Boundary Discontinuity Problem
+Initially, the twist angle was mapped across the pendulum chain linearly:
+
+$$\phi_{\text{linear twist}, i} = \left(\frac{i}{N}\right) \cdot w_{\text{twist}} \cdot 2\pi$$
+
+When evaluating neighbors across periodic boundaries, the angular difference $\phi_{N-1} - \phi_0$ wraps around. Because the linear phase ramps up from $0 \to \approx w_{\text{twist}} \cdot 2\pi$ at the final index:
+
+$$\Delta\phi_{\text{boundary}} = w_{\text{twist}} \cdot 2\pi$$
+
+Unless $w_{\text{twist}}$ was strictly an integer, this created a sharp step discontinuity at the boundary. The Runge-Kutta numerical integrator experienced severe localized acceleration peaks ($\propto d^2\phi/dx^2 \propto \Delta\phi / dx^2$) that immediately triggered a numerical explosion (NaN divergence or unphysical lattice shockwaves that shattered wave packets).
+
+#### The Symmetrical Harmonic Twist Resolution
+To resolve this discontinuity while allowing fractional values of $w_{\text{twist}}$, the linear ramp was replaced with a globally differentiable periodic mapping. By using closed trigonometric wave modulations aligned with the dominant geometry dimensions:
+
+* **For $X$-Dominant Geometries ($a \geq b$ on Ellipse modes)**:
+  
+  $$\phi_{\text{twist}, i} = w_{\text{twist}} \cdot \sin\left(\frac{i}{N} \cdot 2\pi\right)$$
+
+* **For $Z$-Dominant Geometries ($a < b$ on Ellipse modes)**:
+  
+  $$\phi_{\text{twist}, i} = w_{\text{twist}} \cdot \cos\left(\frac{i}{N} \cdot 2\pi\right)$$
+
+Because $\sin(0) = \sin(2\pi) = 0$ and $\cos(0) = \cos(2\pi) = 1$, the twisting phase angle is mathematically identical at the boundary. This guarantees smooth derivative continuity ($C^\infty$) at all coupling sites across the periodic wrap-around indices:
+
+$$\phi_{\text{twist}, N} \equiv \phi_{\text{twist}, 0}$$
+
+This permits fractional helical fields to warp the coordinate space smoothly. Dynamic solitons and breather envelopes can travel across boundaries indefinitely without lattice pinning or scattering artifacts.
+
+```javascript
+// Implementation snippet in geometry calculations
+const angle = (i / N) * Math.PI * 2;
+let twistAngle = 0;
+if (geometryType === "ellipse") {
+  // Trigonometrically continuously bound-matched twisting (periodic mapping)
+  if (axisA >= axisB) {
+    twistAngle = twistVal * Math.sin(angle);
+  } else {
+    twistAngle = twistVal * Math.cos(angle);
+  }
+}
+```
+
+### 12.2 High-Density Soliton Tracing (1440 Elements capacity)
+
+Standard discretizations using $N = 720$ are sufficient for wide waves, but relativistic Lorenz-contracted high-speed kinks:
+
+$$W_{\text{eff}} = W_0 \sqrt{1 - \frac{v^2}{\kappa}}$$
+
+become extremely narrow, collapsing to dimensions close to a single lattice cell. This triggers Peierls–Nabarro barrier pinning, where the soliton gets trapped on specific discrete pendulum sites and scatters extra physical energy as high-frequency phonons.
+
+#### Spatial Densification to $1440$ sites
+To achieve a finer continuum approximation, the maximum element limit was elevated from $720$ to $1440$:
+
+* **Buffer Dynamic Allocation**: All WebGL `InstancedBufferAttribute` layers are initialized with a static maximum capacity of $1440$:
+  
+  ```javascript
+  this._phiAttr = new THREE.InstancedBufferAttribute(new Float32Array(1440), 1);
+  ```
+  
+* **GPU Instanced Mesh Memory Footprint**: This $2\times$ increase in capacity keeps memory overhead extremely low ($\approx 100 \text{KB}$ overall buffer allocations), meaning frame capturing remains highly performant at 60 FPS.
+* **Physics Grid Stability**: The physical spacing parameter behaves as $dx = L / N$. Moving to $1440$ elements requires that the torsional coupling constant $\kappa$ and gravity strength parameters are integrated with sub-step micro-integrations to prevent numerical discretization instabilities from accumulating.
+
+### 12.3 High-Velocity Sieve-Wheel Navigation controls
+
+Increasing the maximum elements to $1440$ means incrementing and decrementing the pendulum count by $1$ element at a time (via standard thumbs button widgets) requires tedious, excessive user clicking.
+
+#### The Dual-Speed Step Architecture
+We introduced a high-velocity navigation model where `--` and `++` buttons run adjacent to standard elements increment selectors, multiplying the step size:
+
+$$\text{Step Size}_{\text{amplify}} = 10 \cdot S$$
+
+For elements count adjustments, the base step size $S = 1$, meaning clicking `--` or `++` modifies the pendulum count by exactly $10$ units.
+
+#### Horizontal Layout Compression Constraint
+Adding two extra buttons to the compact thumbs widget posed an interface overlapping risk inside the high-density glassmorphism dashboard. To prevent buttons from wrapping onto multiple lines or colliding with labels, a rigorous horizontal CSS layout structure was implemented:
+
+* **Flex layout structure**:
+  
+  ```html
+  <div class="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded h-[28px] px-1">
+  ```
+  
+* **Compensating Width Calculations**:
+  - Fine adjustment `--` and `++` buttons: `w-[22px]` with a text-size of `text-[10px]` and styled in muted `text-white/40` contrast.
+  - Standard `-` and `+` buttons: `w-[16px]` with a text-size of `text-[12px]` and styled in high-visibility `text-white/60`.
+  - Numeric Value indicator: `min-w-[30px]` to prevent text jumps when value changes from double-digits ($20$) to four-digits ($1440$).
+  - Row padding is minimized to `gap-0.5` utilizing inner horizontal offsets of `px-1` and container heights of exactly `28px` to guarantee pristine fitments across small notebooks and tablets.
+
+---
 
 
 

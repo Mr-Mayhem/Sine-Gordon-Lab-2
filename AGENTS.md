@@ -272,6 +272,27 @@ Where:
      - **2160p (4K UHD)**: 3840x2160
   2. Direct WebM crops use scaled multipliers: Subtle (`h * 0.80`), Snug (`h * 0.67`), and Max (`h * 0.55`) rounded strictly to even integers (`Math.floor(val / 2) * 2`).
 
+### 4.20 Boundary Discontinuous Twisting Peak Noise (Periodic Boundary Lock)
+* **The Pitfall**: Linear twisting mapping across circular/elliptical boundaries ($\Delta\phi_{\text{boundary}} = w_{\text{twist}} \cdot 2\pi$) produces a phase discontinuity step if the twist is a fractional number. This causes the discrete second derivative (curvature) to reach extreme heights, causing numerical divergence in the Runge-Kutta/leapfrog integrator, resulting in unstable simulation crashes and immediate generation of NaN results.
+* **The Resolution (Symmetrical Harmonic Twist Lock)**:
+  1. Substitute linear twisted offsets with a smooth coordinate modulation using trigonometric functions:
+     - Major axis along X ($a \geq b$): $\phi_{\text{twist}, i} = w_{\text{twist}} \cdot \sin(i/N \cdot 2\pi)$.
+     - Major axis along Z ($a < b$): $\phi_{\text{twist}, i} = w_{\text{twist}} \cdot \cos(i/N \cdot 2\pi)$.
+  2. Because trigonometric functions are completely periodic at $2\pi$, state values map symmetrically across boundaries, yielding perfectly continuous derivatives ($C^{\infty}$) around the closed loop. This completely eliminates boundary derivative peaks, letting solitons glide across loop junctions stably.
+
+### 4.21 Multi-Step Coarse-to-Fine Grid Stabilization (1440 Sites)
+* **The Pitfall**: Moving from standard elements ($N=720$) to extreme densities ($N=1440$) significantly narrow spatial grid spacing ($dx = L / N$). Under high gravity ($g$) or stiffness ($\kappa$) factors, physical velocity components require appropriate temporal division to prevent high-frequency chatter or discretization instabilities from leading to simulation blowing.
+* **The Resolution (Buffer Pre-Allocation & Scaling Safeguards)**:
+  1. Maintain standard InstancedBufferAttribute static initialization counts at exactly 1440 max to avoid heap allocation spikes on-the-fly.
+  2. Ensure the discrete Runge-Kutta physical integrator executes with small sub-step divisions if user updates to extreme densities, absorbing high-frequency lattice noise via relativistic relaxation steps.
+
+### 4.22 High-Density Multi-Speed Controls (Flexible Horizontal Re-fitting)
+* **The Pitfall**: Adding multiple button elements such as `--` and `++` into widgets can compromise the interface's alignment. If standard CSS grids are not compressed or reconfigured using tight flex-gap layouts, buttons wrap onto separate lines, leading to overlapping text visual regressions.
+* **The Resolution (Compensatory Flexible Spacing)**:
+  1. Combine double-minus (`--`) and double-plus (`++`) buttons to provide $10\times$ step multiplier jumps, ensuring rapid elements navigation over the expanded 1440 range.
+  2. Compress the elements controls package inline using the custom Tailwind pattern: `flex items-center gap-0.5 bg-white/5 border border-white/10 rounded h-[28px] px-1`.
+  3. Size indicators must maintain fixed widths `w-[22px]` for double-step buttons and `w-[16px]` for single-step buttons, while the value label is allocated `min-w-[30px]`. This prevents wraps and keeps the high-density glassmorphism dashboard elegant.
+
 ---
 
 ## 5. VERIFICATION WORKFLOW
