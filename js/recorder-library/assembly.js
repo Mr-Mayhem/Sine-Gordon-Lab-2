@@ -344,250 +344,326 @@ function shouldUseChunkedAssembly(frameCount, width, height) {
 
 export async function assembleFromStorage(pipeline, recorderRef) {
   if (recorderRef.isAssembling) return;
-  clearAssemblyLogs();
-  logBrowserMemory("[Storage Baseline]");
+  recorderRef.isAssembling = true;
+  recorderRef.assemblyPaused = false;
 
-  let frameFiles = [];
+  const checkAbort = () => {
+    if (recorderRef && !recorderRef.isAssembling) {
+      throw new Error("ABORT_ASSEMBLY");
+    }
+  };
 
-  if (pipeline === "zip") {
-    recorderRef._dirHandle = null; // Clean stale directory reference since ZIP imports frames in-memory
-    let zipBlob = null;
-    if (window.showOpenFilePicker) {
-      try {
-        const pickerOpts = {
-          id: "zip-export",
-          types: [
-            {
-              description: "ZIP Files",
-              accept: { "application/zip": [".zip"] },
-            },
-          ],
-          multiple: false,
-        };
-        console.log(
-          "[ZIP Picker] Open file picker requested (Assemble) with id='zip-export'. Browser's native profile folder memory will handle path recall.",
-        );
-        const fileHandles = await window.showOpenFilePicker(pickerOpts);
-        const fh = fileHandles[0];
-        if (fh) {
+  const overlay = document.getElementById("processing-overlay");
+
+  try {
+    clearAssemblyLogs();
+    logBrowserMemory("[Storage Baseline]");
+
+    let frameFiles = [];
+
+    if (pipeline === "zip") {
+      recorderRef._dirHandle = null; // Clean stale directory reference since ZIP imports frames in-memory
+      let zipBlob = null;
+      if (window.showOpenFilePicker) {
+        try {
+          const pickerOpts = {
+            id: "zip-export",
+            types: [
+              {
+                description: "ZIP Files",
+                accept: { "application/zip": [".zip"] },
+              },
+            ],
+            multiple: false,
+          };
           console.log(
-            "[ZIP Picker] Success! File chosen for import under user-selected path! Target File: " +
-              fh.name,
+            "[ZIP Picker] Open file picker requested (Assemble) with id='zip-export'. Browser's native profile folder memory will handle path recall.",
           );
-          zipBlob = await fh.getFile();
-          if (zipBlob) {
+          const fileHandles = await window.showOpenFilePicker(pickerOpts);
+          const fh = fileHandles[0];
+          if (fh) {
             console.log(
-              "[ZIP Picker] Loaded file stream: Size = " +
-                (zipBlob.size / 1024 / 1024).toFixed(2) +
-                " MB",
+              "[ZIP Picker] Success! File chosen for import under user-selected path! Target File: " +
+                fh.name,
             );
+            checkAbort();
+            zipBlob = await fh.getFile();
+            if (zipBlob) {
+              console.log(
+                "[ZIP Picker] Loaded file stream: Size = " +
+                  (zipBlob.size / 1024 / 1024).toFixed(2) +
+                  " MB",
+              );
+            }
+          }
+        } catch (e) {
+          if (e.name === "AbortError" || e.message === "ABORT_ASSEMBLY") {
+            console.log("[ZIP Picker] Open file picker canceled or aborted by user.");
+          } else {
+            console.warn("[ZIP Picker] Open file picker failed:", e);
+          }
+          recorderRef.isAssembling = false;
+          if (overlay) overlay.style.display = "none";
+          return;
+        }
+      } else {
+        zipBlob = await new Promise((resolve) => {
+          let i = document.createElement("input");
+          i.type = "file";
+          i.accept = ".zip";
+          i.onchange = (e) => resolve(e.target.files?.[0] || null);
+          i.click();
+        });
+      }
+      checkAbort();
+      if (!zipBlob) {
+        recorderRef.isAssembling = false;
+        if (overlay) overlay.style.display = "none";
+        return;
+      }
+      if (!window.JSZip) {
+        alert("JSZip library not found.");
+        recorderRef.isAssembling = false;
+        if (overlay) overlay.style.display = "none";
+        return;
+      }
+
+      if (overlay) overlay.style.display = "flex";
+      try {
+        let zip = new window.JSZip();
+        let unzipped = await zip.loadAsync(zipBlob);
+        checkAbort();
+        let indices = [];
+        for (let name of Object.keys(unzipped.files)) {
+          let fi = unzipped.files[name];
+          if (!fi.dir && name.startsWith("frame_") && name.endsWith(".png")) {
+            frameFiles.push({
+              name,
+              handle: {
+                getFile: async () => {
+                  let ab = await fi.async("arraybuffer");
+                  return { arrayBuffer: async () => ab };
+                },
+              },
+            });
+            let matches = name.match(/frame_(\d+)\.png/);
+            if (matches) {
+              indices.push(parseInt(matches[1], 10));
+            }
           }
         }
-      } catch (e) {
-        if (e.name === "AbortError") {
-          console.log("[ZIP Picker] Open file picker canceled by user.");
+        let expectedTotalFrames = 0;
+        if (indices.length > 0) {
+          let minIndex = Math.min(...indices);
+          let maxIndex = Math.max(...indices);
+          expectedTotalFrames = maxIndex - minIndex + 1;
         } else {
-          console.warn("[ZIP Picker] Open file picker failed:", e);
+          expectedTotalFrames = frameFiles.length;
+        }
+        recorderRef._expectedZipFrameCount = expectedTotalFrames;
+        recorderRef._zipActualPngCount = frameFiles.length;
+      } catch (e) {
+        if (e.message === "ABORT_ASSEMBLY") throw e;
+        console.error("ZIP read error", e);
+        alert("Could not load ZIP.");
+        recorderRef.isAssembling = false;
+        if (overlay) overlay.style.display = "none";
+        return;
+      }
+    } else if (pipeline === "local") {
+      try {
+        if (!window.showDirectoryPicker) throw new Error("Not supported");
+        const dh = await window.showDirectoryPicker({
+          id: "local-export",
+          mode: "read",
+        });
+        checkAbort();
+        for await (const [name, handle] of dh.entries()) {
+          checkAbort();
+          if (
+            handle.kind === "file" &&
+            name.startsWith("frame_") &&
+            name.endsWith(".png")
+          )
+            frameFiles.push({ name, handle });
+        }
+      } catch (e) {
+        recorderRef.isAssembling = false;
+        if (overlay) overlay.style.display = "none";
+        if (e.message === "Not supported") {
+          alert("Local Disk access not supported.");
+        } else if (e.message === "ABORT_ASSEMBLY") {
+          console.log("[Assembly Engine] Assembly aborted during directory selection.");
+        }
+        return;
+      }
+    } else if (pipeline === "opfs") {
+      try {
+        const root = await navigator.storage.getDirectory();
+        let dirs = [];
+        for await (const [name, handle] of root.entries()) {
+          checkAbort();
+          if (handle.kind === "directory" && name.startsWith("sg_frames_"))
+            dirs.push(handle);
+        }
+        if (dirs.length === 0) {
+          alert("No saved OPFS frames.");
+          recorderRef.isAssembling = false;
+          if (overlay) overlay.style.display = "none";
+          return;
+        }
+        dirs.sort((a, b) => b.name.localeCompare(a.name));
+        for await (const [name, handle] of dirs[0].entries()) {
+          checkAbort();
+          if (
+            handle.kind === "file" &&
+            name.startsWith("frame_") &&
+            name.endsWith(".png")
+          )
+            frameFiles.push({ name, handle });
+        }
+      } catch (e) {
+        recorderRef.isAssembling = false;
+        if (overlay) overlay.style.display = "none";
+        if (e.message === "ABORT_ASSEMBLY") {
+          console.log("[Assembly Engine] Assembly aborted during OPFS load.");
+        } else {
+          console.error("OPFS read error", e);
+          alert("Could not read OPFS.");
         }
         return;
       }
     } else {
-      zipBlob = await new Promise((resolve) => {
-        let i = document.createElement("input");
-        i.type = "file";
-        i.accept = ".zip";
-        i.onchange = (e) => resolve(e.target.files?.[0] || null);
-        i.click();
-      });
-    }
-    if (!zipBlob) return;
-    if (!window.JSZip) {
-      alert("JSZip library not found.");
-      return;
-    }
-
-    const overlay = document.getElementById("processing-overlay");
-    if (overlay) overlay.style.display = "flex";
-    try {
-      let zip = new window.JSZip();
-      let unzipped = await zip.loadAsync(zipBlob);
-      let indices = [];
-      for (let name of Object.keys(unzipped.files)) {
-        let fi = unzipped.files[name];
-        if (!fi.dir && name.startsWith("frame_") && name.endsWith(".png")) {
-          frameFiles.push({
-            name,
-            handle: {
-              getFile: async () => {
-                let ab = await fi.async("arraybuffer");
-                return { arrayBuffer: async () => ab };
-              },
-            },
-          });
-          let matches = name.match(/frame_(\d+)\.png/);
-          if (matches) {
-            indices.push(parseInt(matches[1], 10));
-          }
-        }
-      }
-      let expectedTotalFrames = 0;
-      if (indices.length > 0) {
-        let minIndex = Math.min(...indices);
-        let maxIndex = Math.max(...indices);
-        expectedTotalFrames = maxIndex - minIndex + 1;
-      } else {
-        expectedTotalFrames = frameFiles.length;
-      }
-      recorderRef._expectedZipFrameCount = expectedTotalFrames;
-      recorderRef._zipActualPngCount = frameFiles.length;
-    } catch (e) {
-      console.error("ZIP read error", e);
-      alert("Could not load ZIP.");
+      alert("Pipeline must be OPFS, ZIP, or Disk to assemble.");
+      recorderRef.isAssembling = false;
       if (overlay) overlay.style.display = "none";
       return;
     }
-  } else if (pipeline === "local") {
-    try {
-      if (!window.showDirectoryPicker) throw new Error("Not supported");
-      const dh = await window.showDirectoryPicker({
-        id: "local-export",
-        mode: "read",
-      });
-      for await (const [name, handle] of dh.entries()) {
-        if (
-          handle.kind === "file" &&
-          name.startsWith("frame_") &&
-          name.endsWith(".png")
-        )
-          frameFiles.push({ name, handle });
-      }
-    } catch (e) {
-      if (e.message === "Not supported")
-        alert("Local Disk access not supported.");
-      return;
-    }
-  } else if (pipeline === "opfs") {
-    try {
-      const root = await navigator.storage.getDirectory();
-      let dirs = [];
-      for await (const [name, handle] of root.entries()) {
-        if (handle.kind === "directory" && name.startsWith("sg_frames_"))
-          dirs.push(handle);
-      }
-      if (dirs.length === 0) {
-        alert("No saved OPFS frames.");
-        return;
-      }
-      dirs.sort((a, b) => b.name.localeCompare(a.name));
-      for await (const [name, handle] of dirs[0].entries()) {
-        if (
-          handle.kind === "file" &&
-          name.startsWith("frame_") &&
-          name.endsWith(".png")
-        )
-          frameFiles.push({ name, handle });
-      }
-    } catch (e) {
-      console.error("OPFS read error", e);
-      alert("Could not read OPFS.");
-      return;
-    }
-  } else {
-    alert("Pipeline must be OPFS, ZIP, or Disk to assemble.");
-    return;
-  }
 
-  if (frameFiles.length === 0) {
-    alert("No frames found.");
-    const overlay = document.getElementById("processing-overlay");
-    if (overlay) overlay.style.display = "none";
-    return;
-  }
-  frameFiles.sort((a, b) => a.name.localeCompare(b.name));
-  var detectedWidth = null;
-  var detectedHeight = null;
-  var firstBytes = null;
-  try {
-    var firstFile = await frameFiles[0].handle.getFile();
-    var firstAb = await firstFile.arrayBuffer();
-    firstBytes = new Uint8Array(firstAb);
-    var dims = await parsePngResolution(firstBytes);
-    if (dims) {
-      detectedWidth = dims.width;
-      detectedHeight = dims.height;
-      console.log(
-        "[FFmpeg] Decoded frame resolution from first file:",
-        detectedWidth + "x" + detectedHeight,
+    checkAbort();
+    if (frameFiles.length === 0) {
+      alert("No frames found.");
+      recorderRef.isAssembling = false;
+      if (overlay) overlay.style.display = "none";
+      return;
+    }
+    frameFiles.sort((a, b) => a.name.localeCompare(b.name));
+    var detectedWidth = null;
+    var detectedHeight = null;
+    var firstBytes = null;
+    try {
+      var firstFile = await frameFiles[0].handle.getFile();
+      checkAbort();
+      var firstAb = await firstFile.arrayBuffer();
+      checkAbort();
+      firstBytes = new Uint8Array(firstAb);
+      var dims = await parsePngResolution(firstBytes);
+      if (dims) {
+        detectedWidth = dims.width;
+        detectedHeight = dims.height;
+        console.log(
+          "[FFmpeg] Decoded frame resolution from first file:",
+          detectedWidth + "x" + detectedHeight,
+        );
+      }
+    } catch (e) {
+      if (e.message === "ABORT_ASSEMBLY") throw e;
+      console.warn(
+        "[FFmpeg] Could not detect frame resolution, falling back to dropdown:",
+        e.message,
       );
     }
-  } catch (e) {
-    console.warn(
-      "[FFmpeg] Could not detect frame resolution, falling back to dropdown:",
-      e.message,
-    );
-  }
 
-  if (detectedWidth && detectedHeight) {
-    syncResolutionsToUIDropdown(detectedWidth, detectedHeight);
-  }
-
-  const state = getAppState(recorderRef);
-  recorderRef._recordingWidth = detectedWidth || state.exportWidth || 1280;
-  recorderRef._recordingHeight = detectedHeight || state.exportHeight || 720;
-  recorderRef._firstFrameBytes = firstBytes ? firstBytes.slice() : null;
-
-  const overlay = document.getElementById("processing-overlay");
-  overlay.style.display = "flex";
-  const ffmpeg = await loadFFmpeg(
-    state.exportFormat || "webm",
-    recorderRef,
-    onFFmpegLog,
-  );
-  if (!ffmpeg) {
-    overlay.style.display = "none";
-    return;
-  }
-  recorderRef._ffmpeg = ffmpeg;
-  recorderRef._frameCount = frameFiles.length;
-
-  const useChunked = shouldUseChunkedAssembly(
-    frameFiles.length,
-    recorderRef._recordingWidth,
-    recorderRef._recordingHeight,
-  );
-
-  if (!useChunked) {
-    for (var i = 0; i < frameFiles.length; i++) {
-      var fname = "frame_" + String(i).padStart(6, "0") + ".png";
-      var frameBytes;
-      if (i === 0) {
-        frameBytes = firstBytes;
-      } else {
-        var file = await frameFiles[i].handle.getFile();
-        var ab = await file.arrayBuffer();
-        frameBytes = new Uint8Array(ab);
-      }
-      await ffmpeg.writeFile(fname, frameBytes.slice());
+    if (detectedWidth && detectedHeight) {
+      syncResolutionsToUIDropdown(detectedWidth, detectedHeight);
     }
-    await _assemble(
-      null,
+
+    const state = getAppState(recorderRef);
+    recorderRef._recordingWidth = detectedWidth || state.exportWidth || 1280;
+    recorderRef._recordingHeight = detectedHeight || state.exportHeight || 720;
+    recorderRef._firstFrameBytes = firstBytes ? firstBytes.slice() : null;
+
+    if (overlay) overlay.style.display = "flex";
+    const ffmpeg = await loadFFmpeg(
+      state.exportFormat || "webm",
+      recorderRef,
+      onFFmpegLog,
+    );
+    checkAbort();
+    if (!ffmpeg) {
+      recorderRef.isAssembling = false;
+      if (overlay) overlay.style.display = "none";
+      return;
+    }
+    recorderRef._ffmpeg = ffmpeg;
+    recorderRef._frameCount = frameFiles.length;
+
+    const useChunked = shouldUseChunkedAssembly(
       frameFiles.length,
       recorderRef._recordingWidth,
       recorderRef._recordingHeight,
-      ffmpeg,
-      recorderRef,
-      pipeline === "zip" ? "zip-to-video" : "stills-to-video",
     );
-  } else {
-    await _assemble(
-      frameFiles,
-      frameFiles.length,
-      recorderRef._recordingWidth,
-      recorderRef._recordingHeight,
-      ffmpeg,
-      recorderRef,
-      pipeline === "zip" ? "zip-to-video" : "stills-to-video",
-    );
+
+    if (!useChunked) {
+      for (var i = 0; i < frameFiles.length; i++) {
+        checkAbort();
+        var fname = "frame_" + String(i).padStart(6, "0") + ".png";
+        var frameBytes;
+        if (i === 0) {
+          frameBytes = firstBytes;
+        } else {
+          var file = await frameFiles[i].handle.getFile();
+          checkAbort();
+          var ab = await file.arrayBuffer();
+          frameBytes = new Uint8Array(ab);
+        }
+        await ffmpeg.writeFile(fname, frameBytes.slice());
+      }
+      checkAbort();
+      await _assemble(
+        null,
+        frameFiles.length,
+        recorderRef._recordingWidth,
+        recorderRef._recordingHeight,
+        ffmpeg,
+        recorderRef,
+        pipeline === "zip" ? "zip-to-video" : "stills-to-video",
+      );
+    } else {
+      await _assemble(
+        frameFiles,
+        frameFiles.length,
+        recorderRef._recordingWidth,
+        recorderRef._recordingHeight,
+        ffmpeg,
+        recorderRef,
+        pipeline === "zip" ? "zip-to-video" : "stills-to-video",
+      );
+    }
+  } catch (err) {
+    if (err.message === "ABORT_ASSEMBLY") {
+      console.log("[FFmpeg] Assembly aborted cleanly by user during init phase. Cleaning up...");
+    } else {
+      console.error("[FFmpeg] Assembly failed with unexpected error during initialization:", err);
+    }
+    if (recorderRef) {
+      recorderRef.isAssembling = false;
+      recorderRef.assemblyPaused = false;
+      if (recorderRef._ffmpeg) {
+        try {
+          if (typeof recorderRef._ffmpeg.terminate === "function") {
+            recorderRef._ffmpeg.terminate();
+          } else if (typeof recorderRef._ffmpeg.exit === "function") {
+            recorderRef._ffmpeg.exit();
+          }
+        } catch (e) {}
+        recorderRef._ffmpeg = null;
+      }
+      if (typeof recorderRef._restoreCanvasSize === "function") {
+        recorderRef._restoreCanvasSize();
+      }
+    }
+    if (overlay) overlay.style.display = "none";
   }
 }
 
@@ -763,16 +839,28 @@ async function _assemble(
     recorderRef.isAssembling = false;
     return;
   }
-  let actualAssembledFrames = 0;
-  logBrowserMemory("[Assembly Initial Baseline]");
-  if (externalFrameFiles && externalFrameFiles.length < totalFrames) {
-    console.warn(
-      `[FFmpeg] Parameter totalFrames is ${totalFrames} but externalFrameFiles.length is ${externalFrameFiles.length}. Clamping to match.`,
-    );
-    totalFrames = externalFrameFiles.length;
-  }
-  console.log(`[Sine-Gordon Lab v1.4.0-hybrid-ts] [FFmpeg] Activity Mode: ${mode}`);
-  console.log("Assembling", totalFrames, "frames...");
+
+  let outputFile = "";
+  const checkPauseResume = async () => {
+    while (recorderRef && recorderRef.assemblyPaused && recorderRef.isAssembling) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    if (recorderRef && !recorderRef.isAssembling) {
+      throw new Error("ABORT_ASSEMBLY");
+    }
+  };
+
+  try {
+    let actualAssembledFrames = 0;
+    logBrowserMemory("[Assembly Initial Baseline]");
+    if (externalFrameFiles && externalFrameFiles.length < totalFrames) {
+      console.warn(
+        `[FFmpeg] Parameter totalFrames is ${totalFrames} but externalFrameFiles.length is ${externalFrameFiles.length}. Clamping to match.`,
+      );
+      totalFrames = externalFrameFiles.length;
+    }
+    console.log(`[Sine-Gordon Lab v1.4.0-hybrid-ts] [FFmpeg] Activity Mode: ${mode}`);
+    console.log("Assembling", totalFrames, "frames...");
 
   _assemblyStats = {
     mode,
@@ -991,7 +1079,7 @@ async function _assemble(
   const params = getEncodingParams(alignedW, alignedH, recorderRef?.config);
   const format = params.format;
   const fps = params.fps;
-  const outputFile = params.outputFile;
+  outputFile = params.outputFile;
 
   _assemblyStats.currentPhase = externalFrameFiles
     ? "Importing frames"
@@ -1047,6 +1135,7 @@ async function _assemble(
       let end = loadIdx + currentChunkSize;
       let ptr = 0;
       for (let i = loadIdx; i < end; i++) {
+        await checkPauseResume();
         try {
           if (!externalFrameFiles[i]) {
             console.warn(
@@ -1080,6 +1169,7 @@ async function _assemble(
     await preloadChunk(activeBufferIdx);
 
     for (let c = 0; c < numChunks; c++) {
+      await checkPauseResume();
       let framesInThisChunk = doubleBufferLengths[activeBufferIdx];
 
       if (framesInThisChunk > 0 && ctx) {
@@ -1108,6 +1198,7 @@ async function _assemble(
 
       _assemblyStats.currentPhase = `Writing frames (Batch ${c + 1}/${numChunks})`;
       for (let i = 0; i < framesInThisChunk; i++) {
+        await checkPauseResume();
         var frameData = doubleBuffer[activeBufferIdx][i];
         if (!frameData) {
           console.error(
@@ -1195,6 +1286,9 @@ async function _assemble(
           await ffmpeg.exec(["-i", onlyChunk, "-c", "copy", outputFile]);
         }
       } catch (e) {
+        if (e.message && e.message.includes("terminate")) {
+          throw e;
+        }
         console.warn("[FFmpeg] Copy failed, using chunk directly:", e.message);
       }
       try {
@@ -1237,6 +1331,7 @@ async function _assemble(
     var missingFrames = [];
     var loadedCount = 0;
     for (var i = 0; i < totalFrames; i++) {
+      await checkPauseResume();
       var fname = "frame_" + String(i).padStart(6, "0") + ".png";
       try {
         var checkData = await ffmpeg.readFile(fname);
@@ -1325,6 +1420,7 @@ async function _assemble(
       ]);
     } catch (e) {
       console.error("Encode failed:", e);
+      throw e;
     }
     clearInterval(encodingInterval);
     actualAssembledFrames = loadedCount;
@@ -1496,4 +1592,56 @@ async function _assemble(
   console.log("[FFmpeg] Assembly complete.");
   console.log("=== FINAL TELEMETRY ===");
   if (recorderRef.getTelemetry) recorderRef.getTelemetry();
+  } catch (err) {
+    if (err.message === "ABORT_ASSEMBLY" || (err.message && err.message.includes("terminate")) || (recorderRef && !recorderRef.isAssembling)) {
+      console.log("[FFmpeg] Assembly aborted cleanly by user. Clearing files and memory...");
+    } else {
+      console.error("[FFmpeg] Assembly failed with unexpected error:", err);
+    }
+
+    for (let i = 0; i < totalFrames; i++) {
+      try {
+        await ffmpeg.deleteFile("frame_" + String(i).padStart(6, "0") + ".png");
+      } catch (e) {}
+    }
+    try {
+      if (outputFile) {
+        await ffmpeg.deleteFile(outputFile);
+      }
+    } catch (e) {}
+    try {
+      await ffmpeg.deleteFile("mylist.txt");
+    } catch (e) {}
+    for (let c = 0; c < 200; c++) {
+      try {
+        await ffmpeg.deleteFile("chunk_" + c + ".ts");
+      } catch (e) {}
+      try {
+        await ffmpeg.deleteFile("chunk_" + c + ".webm");
+      } catch (e) {}
+    }
+
+    if (recorderRef && recorderRef._dirHandle) {
+      try {
+        const root = await navigator.storage.getDirectory();
+        await root.removeEntry(recorderRef._dirHandle.name, { recursive: true });
+        console.log(`[FFmpeg] Deleted temporary OPFS directory after abort: ${recorderRef._dirHandle.name}`);
+        recorderRef._dirHandle = null;
+      } catch (e) {
+        console.warn("[FFmpeg] Failed to delete temporary directory under abort:", e);
+      }
+    }
+
+    if (recorderRef) {
+      recorderRef.isAssembling = false;
+      recorderRef.assemblyPaused = false;
+      recorderRef._recordedFrames = [];
+      if (typeof recorderRef._restoreCanvasSize === "function") {
+        recorderRef._restoreCanvasSize();
+      }
+    }
+
+    if (overlay) overlay.style.display = "none";
+    logBrowserMemory("[Memory] Post-Abort Reclamation Check");
+  }
 }

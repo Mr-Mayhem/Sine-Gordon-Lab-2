@@ -92,105 +92,282 @@
 
       <header class="flex justify-between items-start">
         <div>
-          <span class="text-xs font-bold tracking-[0.3em] text-accent uppercase">Educational Reference</span>
-          <h1 class="text-5xl font-black mt-2 tracking-tighter italic uppercase">The Sine-Gordon Lab</h1>
-          <p class="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em] mt-1">v1.10.0 • RELATIVISTIC SOLITON DYNAMICS</p>
+          <span class="text-xs font-bold tracking-[0.3em] text-accent uppercase">Educational Reference & Physics Manual</span>
+          <h1 class="text-5xl font-black mt-2 tracking-tighter italic uppercase text-[#00ffcc] glow-text">The Sine-Gordon Lab</h1>
+          <p class="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em] mt-1">v1.10.0 • RELATIVISTIC SOLITON DYNAMICS & FIELD HISTORY</p>
         </div>
         <button id="btn-close-theory" onclick="document.getElementById('theory-overlay').style.display='none';" class="btn-icon w-12 h-12 text-white hover:bg-white/10 text-xl" style="position: relative; z-index: 1010; pointer-events: auto;">✕</button>
       </header>
 
-      <section class="mt-12">
-        <h2 class="text-accent border-l-4 border-accent pl-4">Historical Context</h2>
-        <p>
-          The Sine-Gordon equation (SGE) was originally discovered in the 19th century
-          in the study of surfaces of constant negative curvature. It describes systems
-          where the restoring force is proportional to the sine of the displacement —
-          fundamentally a pendulum chain.
-        </p>
-        <div class="math bg-accent/5 border border-accent/20 rounded-2xl p-8 my-8 text-center font-mono text-white">
-          <span class="opacity-40 block mb-2 text-[10px] uppercase">Continuum Limit</span>
-          ∂²φ/∂t² − ∂²φ/∂x² + sin(φ) = 0
+      <section class="mt-12 space-y-6">
+        <h2 class="text-accent border-l-4 border-accent pl-4 text-xl font-bold uppercase tracking-wider">I. Extensive Historical Origin & Scholars</h2>
+        <div class="space-y-4 text-white/80 text-sm leading-relaxed">
+          <p>
+            The Sine-Gordon Equation (SGE) has one of the most intellectually stimulating genealogies in mathematical physics. Far from being a niche formulation, it bridges 19th-century differential geometry with modern solid-state crystals and relativistic quantum field theories. Below is a comprehensive record of the pioneering scholars and Wikipedia topics detailing the people, geometry, and physics of SGE:
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div class="p-5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+              <h3 class="text-white font-bold text-sm mb-1 uppercase tracking-wide text-cyan-400">Edmond Bour (1862)</h3>
+              <p class="text-xs text-white/70 leading-relaxed">
+                French mathematician and engineer who first discovered the equation in 1862 during his work on <strong>surfaces of constant negative curvature</strong> (pseudospheres). Bour found that when you establish coordinate meshes (Chebyshev nets) on a surface where the Gaussian curvature is constant and negative, the angle $\theta$ between the coordinate lines obeys the exact SGE relation: $\partial^2\theta/\partial u\partial v = \sin\theta$. For nearly 70 years, the Sine-Gordon relation was treated strictly as a curiosity of differential geometry.
+              </p>
+            </div>
+            <div class="p-5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+              <h3 class="text-white font-bold text-sm mb-1 uppercase tracking-wide text-cyan-400">Adolf Steuerwald (1936)</h3>
+              <p class="text-xs text-white/70 leading-relaxed">
+                As differential geometers explored surfaces of constant curvature, Steuerwald turned his attention to algebraic formulations of its coordinate transformations. In 1936, he published explicit analytical mappings representing the first systematic solutions of the Sine-Gordon equation using constant-curvature trigonometry. His work laid critical roots for what would eventually be discovered as soliton mechanics.
+              </p>
+            </div>
+            <div class="p-5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+              <h3 class="text-white font-bold text-sm mb-1 uppercase tracking-wide text-fuchsia-400">Yakov Frenkel & Tatiana Kontorova (1938)</h3>
+              <p class="text-xs text-white/70 leading-relaxed">
+                In 1938, Soviet physicists Frenkel and Kontorova bridged pure geometry to practical condensed matter physics. They introduced their famous <strong>Frenkel-Kontorova Model</strong> to explain plastic deformation and <strong>crystalline dislocations</strong> (slip lines in atomic lattices). This model represents the exact physical setup simulated in this laboratory: a discrete chain of coupled atoms subject to a periodic periodic potential (girded by torsion springs and localized gravity).
+              </p>
+            </div>
+            <div class="p-5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+              <h3 class="text-white font-bold text-sm mb-1 uppercase tracking-wide text-fuchsia-400">A. Seeger, U. Donth & A. Kochendörfer (1953)</h3>
+              <p class="text-xs text-white/70 leading-relaxed">
+                In 1953, these German researchers published pioneering physical analyses of localized, stable wave packets inside crystalline materials. They categorized the stable 2π phase twists in the lattice as particle analogs, demonstrating that Kinks, Antikinks, and Breathers are not merely transient noise but act exactly like elementary relativistic point-particles subject to external pulling forces.
+              </p>
+            </div>
+          </div>
+
+          <div class="p-5 rounded-xl bg-white/5 border border-white/10 mt-6 font-sans space-y-3">
+            <h3 class="text-white font-bold text-sm uppercase tracking-wide text-amber-400">The AKNS Revolution (1973) — Mark J. Ablowitz, David J. Kaup, Alan C. Newell, and Harvey Segur</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              In 1973, Ablowitz, Kaup, Newell, and Segur published a landmark mathematical paper demonstrating that the Sine-Gordon equation could be solved analytically for arbitrary initial states using the **Inverse Scattering Transform (IST)**. 
+            </p>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Through the IST, SGE was shown to be a **completely integrable** partial differential equation possessing a "Lax Pair" representation. This integration implies the existence of an **infinite set of conservation laws**, which physically prevents stable localized wave solutions (solitons) from decaying or dissipating. When two solitons collide under integration, they pass through each other completely intact, suffering only a brief spatial shift in phase. 
+            </p>
+          </div>
         </div>
       </section>
 
-      <section>
-        <h2 class="text-accent border-l-4 border-accent pl-4">The Discrete Model</h2>
-        <p>
-          In this laboratory, we explore the <strong>discrete Sine-Gordon system</strong>.
-          Instead of a continuous field, we simulate N coupled pendulums. The result is a
-          rich system supporting solitons — stable localized waves that maintain their
-          shape as they travel.
+      <section class="mt-12 space-y-6">
+        <h2 class="text-accent border-l-4 border-accent pl-4 text-xl font-bold uppercase tracking-wider">II. Wikipedia Topic Summaries: The Math and Concepts</h2>
+        <div class="space-y-4 text-white/80 text-sm leading-relaxed">
+          <p>
+            For readers unfamiliar with the deep mathematical physics underpinning this laboratory, several foundational concepts can be summarized from literature to explain how these remarkable properties manifest:
+          </p>
+          <div class="space-y-4 border-l border-white/10 pl-6">
+            <div>
+              <strong class="text-white text-base">1. Bäcklund Transformations</strong>
+              <p class="text-xs text-white/60 mt-1 leading-relaxed">
+                A mathematical technique that converts one solution of a partial differential equation into another. For the Sine-Gordon equation, the Bäcklund transformation relates a simple spatial state (like the static vacuum $\phi = 0$) to a brand-new non-trivial state (like a moving Kink). Historically, this was used in geometry to generate surfaces of constant negative curvature from simpler template surfaces.
+              </p>
+            </div>
+            <div>
+              <strong class="text-white text-base">2. Lax Pairs and Conservation Laws</strong>
+              <p class="text-xs text-white/60 mt-1 leading-relaxed">
+                In mathematics, a Lax Pair describes a pair of linear operators $L$ and $M$ that represent a nonlinear evolution equation. Under this formulation, the eigenvalues of the operator $L$ remain strictly constant as the physical system evolves over time. These invariant eigenvalues act as an infinite set of independent **constants of motion** (conservation laws), physically guaranteeing that solitons can never decay into thermal noise.
+              </p>
+            </div>
+            <div>
+              <strong class="text-white text-base">3. Sine-Gordon as a Field Theory</strong>
+              <p class="text-xs text-white/60 mt-1 leading-relaxed">
+                In quantum mechanics and particle physics, SGE is viewed as a model of a **self-interacting scalar field** in two-dimensional space-time. The topological solitons (Kinks and Antikinks) are interpreted as "fermionic" particles (analogous to electrons and positrons), while the oscillating Breather bound state acts as a "bosonic" meson structure. This dual representation is mathematically formalized via **Coleman's Equivalence**, proving that the quantum Sine-Gordon model is dual to the massive Thirring model.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-12 space-y-4">
+        <h2 class="text-accent border-l-4 border-accent pl-4 text-xl font-bold uppercase tracking-wider">III. Mathematical Formulations</h2>
+        <p class="text-sm text-white/80 leading-relaxed">
+          The continuous 1+1 dimensional Sine-Gordon equation in dimensionless physical coordinates is a second-order hyperbolic partial differential equation (PDE) possessing relativistic Lorentz covariance:
         </p>
-        <ul class="space-y-4 text-white/70 italic list-none border-l border-white/10 pl-6 my-6">
-          <li><strong class="text-white not-italic">Topology:</strong> The spatial arrangement (Linear, Circular, or Lemniscate). Circular mode uses periodic boundary conditions.</li>
-          <li><strong class="text-white not-italic">Kinks:</strong> Topological twists of ±2π. They are "topological" because they cannot be removed by local deformations.</li>
-          <li><strong class="text-white not-italic">Lorentz Contraction:</strong> Because the SGE is Lorentz-invariant in its continuous form, solitons exhibit relativistic effects.</li>
+        <div class="math bg-accent/5 border border-accent/20 rounded-2xl p-6 text-center font-mono text-white text-base">
+          <span class="opacity-40 block mb-2 text-[10px] uppercase">Continuum Form (c = 1)</span>
+          ∂²φ/∂t² − ∂²φ/∂x² + sin(φ) = 0
+        </div>
+        <p class="text-sm text-white/80 leading-relaxed">
+          In this digital laboratory, we solve the **discrete mechanical equivalent** representation. The system consists of $N$ coupled torsion pendulums with coupling spring stiffness $\kappa$, viscous damping $\gamma$, restoring gravity force $g$, combined with non-inertial corotation forces and torque variables:
+        </p>
+        <div class="math bg-accent/5 border border-accent/20 rounded-2xl p-6 text-center font-mono text-white text-xs leading-relaxed">
+          <span class="opacity-40 block mb-2 text-[10px] uppercase">Discrete Equations of Motion (Leapfrog Integrator)</span>
+          d²φᵢ/dt² = κ ( φᵢ₊₁ − 2φᵢ + φᵢ₋₁ ) − γ dφᵢ/dt − g sin(φᵢ) + T_inertial
+        </div>
+      </section>
+
+      <section class="mt-12 space-y-4">
+        <h2 class="text-accent border-l-4 border-accent pl-4 text-xl font-bold uppercase tracking-wider">IV. Soliton Species Guide</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="p-4 bg-white/5 border border-white/10 rounded-xl">
+            <h3 class="text-sm font-bold text-[#00ffcc]">1. Kinks (Topological Solitons)</h3>
+            <p class="text-xs text-white/70 mt-1 leading-relaxed">
+              A kink is a stable spatial twist where the pendulum chain rotates clockwise or counter-clockwise by exactly 2π (one full turn). Because the chain transitions from one stable vacuum ($\phi = 0$) to an equivalent one ($\phi = 2\pi$), it possesses a conserved **Topological Charge ($Q = +1$)**. It is topologically protected: it cannot decay or disappear without colliding with a matching anti-charge!
+            </p>
+          </div>
+          <div class="p-4 bg-white/5 border border-white/10 rounded-xl">
+            <h3 class="text-sm font-bold text-rose-400">2. Antikinks (Anti-Solitons)</h3>
+            <p class="text-xs text-white/70 mt-1 leading-relaxed">
+              An antikink represents a spatial rotation in the reverse polar direction ($\phi = 2\pi$ to $0$), carrying an opposite **Topological Charge ($Q = -1$)**. When a kink and an antikink collide, they can completely annihilate, converting their topological structural energy into high-frequency wave vibrations (phonons), acting as a beautiful analog to particle-antiparticle annihilation!
+            </p>
+          </div>
+          <div class="p-4 bg-white/5 border border-white/10 rounded-xl">
+            <h3 class="text-sm font-bold text-yellow-400">3. Breathers (Oscillatory Bound States)</h3>
+            <p class="text-xs text-white/70 mt-1 leading-relaxed">
+              Breathers are localized non-topological solutions with net charge $Q = 0$. They represent a kink and an antikink bound in an eternal harmonic embrace, oscillating at a frequency below the linear pendulum resonant cutoff. They act exactly like pulsing elementary atomic structures or composite mesons.
+            </p>
+          </div>
+          <div class="p-4 bg-white/5 border border-white/10 rounded-xl">
+            <h3 class="text-sm font-bold text-indigo-400">4. Helical Wind Fields</h3>
+            <p class="text-xs text-white/70 mt-1 leading-relaxed">
+              A helical wind adds a uniform continuous twisting gradient across the entire lattice length. In circular mode, this twists the torsion ribbon in multiple complete revolutions before locking the bounds, storing global mechanical tension and locking a non-zero topological winding state.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-12 space-y-4">
+        <h2 class="text-accent border-l-4 border-accent pl-4 text-xl font-bold uppercase tracking-wider">V. Interactive Laboratory Topologies</h2>
+        <p class="text-sm text-white/80 leading-relaxed">
+          The laboratory implements multi-dimensional spatial layouts to project and analyze soliton motion:
+        </p>
+        <ul class="space-y-4 text-sm text-white/70 pl-6 border-l border-white/10">
+          <li>
+            <strong class="text-white text-base">Linear String (1D Track)</strong><br>
+            A straight linear horizontal track of pendulums. Waves naturally reflect off the boundaries. Activating the <strong>Periodic Wrap</strong> button seamlessly links the terminal ends to allow endless rotation, converting a linear track dynamically into a torus.
+          </li>
+          <li>
+            <strong class="text-white text-base">Circular Ring (Closed Loop Topology)</strong><br>
+            Arranges masses around a complete circle of radius $R$. This topology requires matching continuous periods, trapping any injected kinks: they travel endlessly around the circle like particles in an accelerator.
+          </li>
+          <li>
+            <strong class="text-white text-base">Lemniscate (Infinity Double Loops)</strong><br>
+            Arranges nodes into a spatial figure-eight. Available in two spatial geometries:
+            <ul class="list-disc pl-6 mt-1 text-xs space-y-1">
+              <li><strong>Lemniscate of Gerono:</strong> A vertical loop mapping using orthogonal spatial coordinates, producing rich coordinate intersections.</li>
+              <li><strong>Lemniscate of Bernoulli:</strong> Balanced coplanar twin-loops featuring variable structural twists. Excellent for observing wave scattering as solitons negotiate complex curves.</li>
+            </ul>
+          </li>
         </ul>
       </section>
 
-      <section>
-        <h2 class="text-accent border-l-4 border-accent pl-4">Video Export & Speed</h2>
-        <p>
-          Use the Video Record button to capture the simulation window. The capture
-          happens frame-by-frame after you stop recording, ensuring perfect quality
-          regardless of your computer's real-time performance.
+      <section class="mt-12 space-y-4">
+        <h2 class="text-accent border-l-4 border-accent pl-4 text-xl font-bold uppercase tracking-wider">VI. Custom Rendering Layers & Physical Modes</h2>
+        <p class="text-sm text-white/80 leading-relaxed">
+          Take command of physical environments and rendering views to witness hidden facets of wave mathematics:
         </p>
-        <ul class="space-y-4 text-white/70 italic list-none border-l border-white/10 pl-6 my-6">
-          <li><strong class="text-white not-italic">Increasing Playback Speed:</strong> To make the final video play faster, increase the <strong>Export FPS</strong> dropdown. A higher frame rate (e.g., 120 or 240 fps) will play through the same number of frames more quickly.</li>
-          <li><strong class="text-white not-italic">Frame Integrity:</strong> All captured frames are preserved regardless of target FPS. The simulation's internal time-step determines the physical duration.</li>
-          <li><strong class="text-white not-italic">Format Support:</strong> If MP4 is not supported, the system falls back to <strong>WebM</strong>.</li>
+        <ul class="space-y-4 text-sm text-white/70 pl-6 border-l border-white/10">
+          <li>
+            <strong class="text-white text-base">🪐 Gimbal-Ring Inertial Mechanics</strong><br>
+            Activate a real-time rotating three-axis gimbal rig. Rotating along the vertical axis at angular speed $\Omega_y$ introduces a real-time centrifugal torque field:
+            <div class="font-mono text-xs bg-white/5 p-2 rounded my-1 text-center text-[#00ffcc]">
+              T_centrifugal = − (Ω_y²/L) cos(φᵢ) ( R_trans − L sin(φᵢ) )
+            </div>
+            This centrifugal term shifts stable gravitational vacuum. Once rotation speeds break a critical value, a classic mathematical mechanical bifurcation takes place, shifting stable angles in real-time.
+          </li>
+          <li>
+            <strong class="text-white text-base">🔦 Laser Screen Surround Mode</strong><br>
+            Wraps the laboratory in a cylindrical projection layer. Powerful laser vectors emit from each pendulum, mapping phase amplitudes directly onto the display cylinder. This acts as a rolling spatial oscilloscope, visualizing complex phase wave evolutions over time.
+          </li>
         </ul>
       </section>
 
-      <section>
-        <h2>Topologies</h2>
-        <p>The lab supports three spatial topologies, selected from the bottom bar:</p>
-        <ul style="list-style: disc; padding-left: 1.5rem; margin: 1rem 0; color: #ccc; line-height: 1.8;">
-          <li><strong style="color: #fff;">Linear</strong> — A straight chain of pendulums. Waves reflect off the boundaries. Enable <em>Periodic Wrap</em> to connect the ends.</li>
-          <li><strong style="color: #fff;">Circular</strong> — Pendulums arranged on a circle. Kinks travel endlessly around the ring. The winding number tracks net twists around the loop.</li>
-          <li><strong style="color: #fff;">Lemniscate</strong> — A figure-eight (∞) curve. Available in two forms: Gerono (vertical oscillation) and Bernoulli (coplanar).</li>
+      <section class="mt-12 space-y-4">
+        <h2 class="text-accent border-l-4 border-accent pl-4 text-xl font-bold uppercase tracking-wider">VII. Relativistic & Discrete Grid Constraints</h2>
+        <ul class="space-y-4 text-sm text-white/70 pl-6 border-l border-white/10">
+          <li>
+            <strong class="text-white text-base">Lorentz Contraction</strong><br>
+            Because the SGE is Lorentz-invariant in its continuous limit, moving wave-packets undergo relativistic contraction. As wave speed $v$ approaches $c = \sqrt{\kappa}$, the soliton's width decreases: $W(v) = W_0 \sqrt{1 - v^2/c^2}$.
+          </li>
+          <li>
+            <strong class="text-white text-base">Peierls-Nabarro Pinning (Lattice Trapping)</strong><br>
+            Because this simulation uses discrete coupled masses rather than a continuous mathematical sheet, a "grid potential trap" emerges. When a soliton contracts to less than 1.5 elements, it can get pinned to specific lattice sites, shedding its excess kinetic energy as lattice vibrations (phonons).
+          </li>
         </ul>
       </section>
 
-      <section>
-        <h2>Physics Parameters</h2>
-        <ul style="list-style: disc; padding-left: 1.5rem; margin: 1rem 0; color: #ccc; line-height: 1.8;">
-          <li><strong style="color: #fff;">N (Elements)</strong> — Number of pendulums in the chain (20–1440). More elements = finer spatial resolution.</li>
-          <li><strong style="color: #fff;">κ (Coupling)</strong> — Torsional stiffness between neighbors (1–1000). Higher values make the chain stiffer, increasing wave speed.</li>
-          <li><strong style="color: #fff;">g (Gravity)</strong> — Restoring force strength (0.1–40). Stronger gravity makes kinks narrower and faster.</li>
-          <li><strong style="color: #fff;">γ (Damping)</strong> — Velocity-dependent friction (−0.01 to 0.5). Negative values add energy (anti-damping). At zero, the system is conservative.</li>
-          <li><strong style="color: #fff;">Δt</strong> — Fixed at 0.01. The integration timestep. The semi-implicit Euler method is stable for these parameters.</li>
-          <li><strong style="color: #fff;">Time Scale</strong> — Simulation speed multiplier (0.1×–5×). Affects how many physics steps run per animation frame.</li>
+      <section class="mt-12 space-y-4">
+        <h2 class="text-accent border-l-4 border-accent pl-4 text-xl font-bold uppercase tracking-wider">VIII. Physics Parameter Reference</h2>
+        <p class="text-sm text-white/80 leading-relaxed">
+          The simulation behavior is directly controlled by the parameters in the bottom dashboard panel. These can be adjusted on-the-fly to test various physics domains:
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+          <div class="p-4 bg-white/5 border border-white/10 rounded-xl space-y-1">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400">N (ELEMENTS)</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Adjustable from 20 to 1440 elements using the ++/-- thumbwheel. This specifies the number of integrated physical masses. Higher values approximate the continuous Sine-Gordon field, whereas lower values introduce extreme micro-discretization traps.
+            </p>
+          </div>
+          <div class="p-4 bg-white/5 border border-white/10 rounded-xl space-y-1">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400">κ (Coupling Stiffness)</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Adjustable from 1 to 1000. Represents the stiffness coefficient of the torsion springs connecting adjacent pendulums. Higher coupling increases the speed of sound limit $c = \sqrt{\kappa}$ and broadens local solitons across more nodes.
+            </p>
+          </div>
+          <div class="p-4 bg-white/5 border border-white/10 rounded-xl space-y-1">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-fuchsia-400">g (Gravitational Restoring Force)</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Adjustable from 0.1 to 40. Controls the vertical gravity strength pulling pendulums to stable equilibria ($\phi = 0$). Higher gravity contracts soliton width and increases structural energy density. If gravity is set to negative values, stable equilibrium flips to $\phi = \pi$.
+            </p>
+          </div>
+          <div class="p-4 bg-white/5 border border-white/10 rounded-xl space-y-1">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-fuchsia-400">γ (Damping Coeff)</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Adjustable from -0.01 to 0.5. Represents viscous damping. At zero, the system is perfectly conservative. Negative values introduce "anti-damping" (adding localized energy to promote wave growth), while high values act to decelerate and absorb non-solitonic radiation.
+            </p>
+          </div>
+          <div class="p-4 bg-white/5 border border-white/10 rounded-xl space-y-1 col-span-1 md:col-span-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-amber-500">Δt (Timestep) & Time Scale Multiplier</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              The internal simulation integrates at a fixed timestep $\Delta t = 0.01$ to enforce thermodynamic consistency. The <strong>Time Scale</strong> multiplier (ranging from 0.1× to 5×) lets you safely throttle how many internal physical substeps run per browser screen tick, slowing down rapid collisions for precise analysis.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-12 space-y-4">
+        <h2 class="text-accent border-l-4 border-accent pl-4 text-xl font-bold uppercase tracking-wider">IX. Soliton Impulse Injector & Launch Panel</h2>
+        <p class="text-sm text-white/80 leading-relaxed">
+          The launch panel (positioned in the upper right) controls localized soliton wave packet injection. You can customize two separate regions of the lattice (<strong>Channel A</strong> and <strong>Channel B</strong>) simultaneously to study collisions, scattering, and annihilation.
+        </p>
+        <ul class="space-y-4 text-sm text-white/70 pl-6 border-l border-white/10">
+          <li>
+            <strong class="text-white text-base">Launch Center Position</strong><br>
+            Each channel can be positioned relative to the center or along degree intervals corresponding to the respective spatial boundary structures.
+          </li>
+          <li>
+            <strong class="text-white text-base">Symmetrical Injection Parameters</strong><br>
+            Specify wave <strong>Sharpness</strong> (from 0.5 to 8.0, controlling Lorentz width), <strong>Amplitude</strong> multiplier, and <strong>Launch Velocity</strong>. The integrator solves relativistic initial condition conjugate momentum vectors on active launch steps, shrinking width automatically for fast packets.
+          </li>
+          <li>
+            <strong class="text-white text-base">Dual-Channel Synchronization</strong><br>
+            Activating the main <strong class="text-[#00ffcc]">FIRE</strong> button injects both parameters simultaneously, clears background transient momentum fields, and unpauses playback automatically so you can immediately inspect the dynamic collision path.
+          </li>
         </ul>
       </section>
 
-      <section>
-        <h2>Impulse System</h2>
-        <p>
-          The launch panel (top-right) controls soliton injection. Two independent
-          spots (A and B) can be configured with different colors, positions, modes,
-          and directions.
+      <section class="mt-12 space-y-4">
+        <h2 class="text-accent border-l-4 border-accent pl-4 text-xl font-bold uppercase tracking-wider">X. Asynchronous Recording, Export & Utility Pipelines</h2>
+        <p class="text-sm text-white/80 leading-relaxed">
+          To bridge physical math modeling with professional asset exports, we pack multiple dedicated in-browser data exporters:
         </p>
-        <ul style="list-style: disc; padding-left: 1.5rem; margin: 1rem 0; color: #ccc; line-height: 1.8;">
-          <li><strong style="color: #fff;">Position</strong> — Where on the chain the impulse is applied (shown in degrees around the circle).</li>
-          <li><strong style="color: #fff;">Mode: Kink</strong> — A single 2π twist. Travels in the chosen direction.</li>
-          <li><strong style="color: #fff;">Mode: Anti</strong> — A single −2π twist (antikink).</li>
-          <li><strong style="color: #fff;">Mode: Breath</strong> — A kink-antikink pair injected close together, forming a breather.</li>
-          <li><strong style="color: #fff;">Mode: Wind</strong> — Adds a constant phase gradient around the ring (changes winding number).</li>
-          <li><strong style="color: #fff;">Sharpness</strong> — Controls kink width (0.5–8). Lower values = sharper kinks.</li>
-          <li><strong style="color: #fff;">Amplitude</strong> — Kink strength (0.1–2). At 1.0, the kink spans exactly 2π.</li>
-          <li><strong style="color: #fff;">Velocity</strong> — Initial speed (0.5–15). The Lorentz contraction narrows fast kinks.</li>
+        <ul class="space-y-4 text-sm text-white/70 pl-6 border-l border-white/15">
+          <li>
+            <strong class="text-white text-base">🎥 Perfect Frame-by-Frame WebAssembly Recorder</strong><br>
+            Unlike general screen segment recorders that stutter under frame rate lag, our custom recording engine copies WebGL frame-buffers on physical simulation ticks. The compilation engine schedules background WebAssembly workers to assemble continuous <strong>MP4</strong> (H.264 high-profile) or stable <strong>WebM</strong> (VP8) videos. Boost your <strong>Export FPS</strong> setting to speed up playback.
+          </li>
+          <li>
+            <strong class="text-white text-base">📁 Standalone Frame Chunks (Static ZIP Bundle)</strong><br>
+            Extract lossless frames frame-by-frame wrapped seamlessly inside a compressed ZIP archives. Handled asynchronously via streaming workers utilizing non-blocking JSZip loops, which offloads physical machine RAM memory constraints.
+          </li>
+          <li>
+            <strong class="text-white text-base">📊 Spreadsheet Telemetry Snapshot Exporter</strong><br>
+            Export absolute coordinate matrices ($\phi$, $\dot{\phi}$, $\ddot{\phi}$) compiled across every sequenced time moment directly into standard JSON profiles ready to be mapped in computational packages (MATLAB, Python, Excel).
+          </li>
+          <li>
+            <strong class="text-white text-base">📟 Reactive Terminal Log Console HUD & Clipboard Tools</strong><br>
+            Track background worker events and transcode phases via an integrated 380px console logging block. If compile exceptions crop up, review real-time warnings styled elegantly. Copy diagnostic profiles directly to your clipboard using the uppercase copy button.
+          </li>
         </ul>
-        <p>
-          Press <strong style="color: #00ffcc;">FIRE</strong> to inject both spots
-          simultaneously. The simulation unpauses automatically. Use
-          <strong style="color: #00ffcc;">▶ Run</strong> or the side play button
-          to pause/resume.
-        </p>
       </section>
 
       <footer class="mt-20 pt-12 border-t border-white/10 text-center mb-12">
-        <p class="text-xs text-gray-500 uppercase tracking-widest">Sine-Gordon Lab — Interactive Soliton Dynamics</p>
+        <p class="text-xs text-gray-500 uppercase tracking-widest">Sine-Gordon Lab • Interactive Relativistic Physics</p>
       </footer>
 
     </div>
@@ -202,7 +379,7 @@
       <!-- 
         ID: #btn-close-processing (Allows aborting active transcode/processing assembly sequences) 
       -->
-      <button id="btn-close-processing" onclick="document.getElementById('processing-overlay').style.display='none'; if (window.recorder) { window.recorder.isAssembling = false; if (typeof window.recorder._restoreCanvasSize === 'function') window.recorder._restoreCanvasSize(); }" style="position: absolute; top: 16px; right: 16px; z-index: 50;" class="w-8 h-8 rounded-full bg-white/10 border-0 text-white hover:bg-white/20 text-sm flex items-center justify-center cursor-pointer transition-all active:scale-95" title="Abort & Close">✕</button>
+      <button id="btn-close-processing" style="position: absolute; top: 16px; right: 16px; z-index: 50;" class="w-8 h-8 rounded-full bg-white/10 border-0 text-white hover:bg-white/20 text-sm flex items-center justify-center cursor-pointer transition-all active:scale-95" title="Abort & Close">✕</button>
 
       <header class="flex justify-between items-baseline border-b border-white/5 pb-2 shrink-0">
         <span class="text-[10px] font-black text-[#00ffcc] tracking-[0.3em] uppercase filter drop-shadow-[0_0_4px_rgba(0,255,204,0.35)] select-none">

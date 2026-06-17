@@ -601,21 +601,81 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     applyChannelStyles("b");
   });
 
-  // Processing overlay close button
-  var btnClose = document.getElementById("btn-close-processing");
-  if (btnClose) {
-    btnClose.onclick = function (e) {
-      if (e) e.stopPropagation();
-      console.log("[Assembly Engine] Hiding overlay via onclick close button");
+  // Processing overlay close button via robust event delegation
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("#btn-close-processing");
+    if (btn) {
+      console.log("[Assembly Engine] Indestructible delegate click detected on #btn-close-processing!");
+      e.preventDefault();
+      e.stopPropagation();
+      handleAssemblyCloseAttempt();
+    }
+  });
+
+  function handleAssemblyCloseAttempt() {
+    if (!window.recorder || !window.recorder.isAssembling) {
+      console.log("[Assembly Engine] Close clicked. No active assembly in progress, hiding overlay directly.");
+      var overlay = document.getElementById("processing-overlay");
+      if (overlay) overlay.style.display = "none";
+      return;
+    }
+
+    console.log("[Assembly Engine] Close clicked. Pausing assembly and prompting user...");
+    window.recorder.assemblyPaused = true;
+
+    if (document.getElementById("custom-confirm-modal")) return;
+
+    var promptEl = document.createElement("div");
+    promptEl.id = "custom-confirm-modal";
+    promptEl.className = "animate-fade-in";
+    promptEl.innerHTML = `
+      <div class="confirm-card">
+        <h3 class="confirm-title">Cancel Video Assembly?</h3>
+        <p class="confirm-desc">
+          Are you sure you want to end video assembly? This will clear all compiled frame files and memory buffers.
+        </p>
+        <div class="confirm-actions">
+          <button id="btn-confirm-yes" class="confirm-btn-yes">
+            Yes, End Assembly
+          </button>
+          <button id="btn-confirm-no" class="confirm-btn-no">
+            No, Resume
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(promptEl);
+
+    document.getElementById("btn-confirm-yes").onclick = function (ev) {
+      if (ev) ev.stopPropagation();
+      console.log("[Assembly Engine] User confirmed cancellation. Ending assembly.");
+      promptEl.remove();
+      if (window.recorder) {
+        window.recorder.isAssembling = false;
+        window.recorder.assemblyPaused = false;
+        if (window.recorder._ffmpeg) {
+          try {
+            if (typeof window.recorder._ffmpeg.terminate === "function") {
+              window.recorder._ffmpeg.terminate();
+            } else if (typeof window.recorder._ffmpeg.exit === "function") {
+              window.recorder._ffmpeg.exit();
+            }
+          } catch(e) {}
+          window.recorder._ffmpeg = null;
+        }
+      }
       var overlay = document.getElementById("processing-overlay");
       if (overlay) overlay.style.display = "none";
     };
-    btnClose.addEventListener("click", function (e) {
-      if (e) e.stopPropagation();
-      console.log("[Assembly Engine] Hiding overlay via addEventListener close button");
-      var overlay = document.getElementById("processing-overlay");
-      if (overlay) overlay.style.display = "none";
-    });
+
+    document.getElementById("btn-confirm-no").onclick = function (ev) {
+      if (ev) ev.stopPropagation();
+      console.log("[Assembly Engine] User declined cancellation. Resuming assembly.");
+      promptEl.remove();
+      if (window.recorder) {
+        window.recorder.assemblyPaused = false;
+      }
+    };
   }
   var btnCopy = document.getElementById("btn-copy-telemetry-ready");
   if (btnCopy) {
