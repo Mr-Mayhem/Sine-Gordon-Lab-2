@@ -670,7 +670,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     elSliderX.oninput = function() {
       sgState.ellipseX = parseFloat(this.value);
       var display = document.getElementById("val-ellipse-x");
-      if (display) display.textContent = sgState.ellipseX.toFixed(2);
+      if (display) display.textContent = sgState.ellipseX.toFixed(3);
       if (window.refreshUI) window.refreshUI();
     };
   }
@@ -679,7 +679,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     elSliderZ.oninput = function() {
       sgState.ellipseZ = parseFloat(this.value);
       var display = document.getElementById("val-ellipse-z");
-      if (display) display.textContent = sgState.ellipseZ.toFixed(2);
+      if (display) display.textContent = sgState.ellipseZ.toFixed(3);
       if (window.refreshUI) window.refreshUI();
     };
   }
@@ -688,7 +688,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     elSliderTwist.oninput = function() {
       sgState.ellipseTwist = parseFloat(this.value);
       var display = document.getElementById("val-ellipse-twist");
-      if (display) display.textContent = sgState.ellipseTwist.toFixed(1);
+      if (display) display.textContent = sgState.ellipseTwist.toFixed(3);
       if (window.refreshUI) window.refreshUI();
     };
   }
@@ -809,20 +809,7 @@ export function bindEvents(physics, rendererRef, recorder, snapshotEngine) {
     }
   });
 
-  // Design Sandbox Control Mode
-  safeClick("btn-design-sandbox", async function () {
-    try {
-      const { getDesignSandbox } = await import("./design-sandbox.js");
-      const sandbox = getDesignSandbox();
-      if (sandbox.isHubVisible) {
-        sandbox.hideHub();
-      } else {
-        sandbox.showHub();
-      }
-    } catch (err) {
-      console.error("[Design Sandbox Loader] Failed to load sandbox module:", err);
-    }
-  });
+
 
   // Mode & Direction
   ["kink", "anti", "breath", "wind"].forEach(function (m) {

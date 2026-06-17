@@ -87,15 +87,7 @@ export function animate(time, rendererRef, renderer, controls, physics, recorder
     return; 
   }
 
-  // Pause the tree.js animation / updates during sandbox mock display modes
-  const isSandboxPausing = window.getDesignSandbox && window.getDesignSandbox() && typeof window.getDesignSandbox().isMockActive === "function" && window.getDesignSandbox().isMockActive();
-  if (isSandboxPausing) {
-    controls.update(); // Keep camera orbit controls reactive to user movement
-    requestAnimationFrame(function(ts) {
-      animate(ts, rendererRef, renderer, controls, physics, recorder, camera);
-    });
-    return;
-  }
+
 
   // Handle topology morphing transitions
   if (sgState.isLerping) {

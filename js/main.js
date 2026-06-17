@@ -133,19 +133,19 @@ function refreshUI() {
   const valElX = document.getElementById("val-ellipse-x");
   if (sliderElX && valElX) {
     sliderElX.value = sgState.ellipseX !== undefined ? sgState.ellipseX : 1.0;
-    valElX.textContent = (sgState.ellipseX !== undefined ? sgState.ellipseX : 1.0).toFixed(2);
+    valElX.textContent = (sgState.ellipseX !== undefined ? sgState.ellipseX : 1.0).toFixed(3);
   }
   const sliderElZ = document.getElementById("slider-ellipse-z");
   const valElZ = document.getElementById("val-ellipse-z");
   if (sliderElZ && valElZ) {
     sliderElZ.value = sgState.ellipseZ !== undefined ? sgState.ellipseZ : 1.0;
-    valElZ.textContent = (sgState.ellipseZ !== undefined ? sgState.ellipseZ : 1.0).toFixed(2);
+    valElZ.textContent = (sgState.ellipseZ !== undefined ? sgState.ellipseZ : 1.0).toFixed(3);
   }
   const sliderElTwist = document.getElementById("slider-ellipse-twist");
   const valElTwist = document.getElementById("val-ellipse-twist");
   if (sliderElTwist && valElTwist) {
     sliderElTwist.value = sgState.ellipseTwist !== undefined ? sgState.ellipseTwist : 0.0;
-    valElTwist.textContent = (sgState.ellipseTwist !== undefined ? sgState.ellipseTwist : 0.0).toFixed(1);
+    valElTwist.textContent = (sgState.ellipseTwist !== undefined ? sgState.ellipseTwist : 0.0).toFixed(3);
 
     // Keep it always enabled and interactive! The physical/vertex shader math naturally
     // fades down the twist effect towards zero as the ellipse becomes circular.

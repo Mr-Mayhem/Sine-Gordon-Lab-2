@@ -284,6 +284,19 @@ html, body {
 .bg-fuchsia-400\/5 { background-color: #e879f90d; }
 .bg-cyan-400 { background-color: #22d3ee; }
 .bg-fuchsia-400 { background-color: #e879f9; }
+.bg-transparent { background-color: transparent !important; }
+.border-0 { border: none !important; }
+.rounded-md { border-radius: 6px !important; }
+.cursor-pointer { cursor: pointer !important; }
+.select-none { user-select: none !important; }
+.shrink-0 { flex-shrink: 0 !important; }
+.text-\[9px\] { font-size: 9px !important; }
+.text-\[\#aaa\] { color: #aaa !important; }
+.tracking-wide { letter-spacing: 0.025em !important; }
+.hover\:bg-white\/10:hover { background-color: rgba(255, 255, 255, 0.1) !important; }
+.hover\:text-white:hover { color: #ffffff !important; }
+.w-\[510px\] { width: 510px !important; }
+.w-8 { width: 32px !important; }
 
 /* ==========================================================================
    TEXT COLORS
@@ -756,33 +769,26 @@ html, body {
    PROCESSING OVERLAY (Assembly Engine)
    ========================================================================== */
 #processing-overlay,
-#diagnostics-overlay,
-#sandbox-widget {
+#diagnostics-overlay {
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 #processing-overlay,
 #diagnostics-overlay,
-#sandbox-widget,
 #processing-overlay *,
-#diagnostics-overlay *,
-#sandbox-widget * {
+#diagnostics-overlay * {
   font-family: var(--font-sans) !important;
 }
 
 #processing-overlay .font-mono,
 #diagnostics-overlay .font-mono,
-#sandbox-widget .font-mono,
 #processing-overlay pre,
 #diagnostics-overlay pre,
-#sandbox-widget pre,
 #processing-overlay code,
 #diagnostics-overlay code,
-#sandbox-widget code,
 #processing-overlay .font-mono *,
-#diagnostics-overlay .font-mono *,
-#sandbox-widget .font-mono * {
+#diagnostics-overlay .font-mono * {
   font-family: var(--font-mono) !important;
 }
 
