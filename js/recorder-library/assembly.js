@@ -250,7 +250,7 @@ function _updateAssemblyUI() {
   var fill = document.getElementById("progress-fill");
   if (statusEl) {
     var lines = [];
-    lines.push("<strong>Project Version:</strong> v1.7.0-hybrid-ts");
+    lines.push("<strong>Project Version:</strong> v1.10.0-hybrid-ts");
     if (s.mode) {
       lines.push("<strong>Mode:</strong> " + s.mode);
     }
@@ -850,6 +850,120 @@ async function _assemble(
     if (oc) {
       // styles are cleanly managed by index.html and style.css
     }
+  }
+
+  // --- COOP/COEP & THREADING STATUS UPDATE ---
+  try {
+    const format = (typeof window !== "undefined" && window.sgState ? window.sgState.exportFormat : "webm") || "webm";
+    const coopCoepSatisfied = typeof SharedArrayBuffer !== "undefined";
+    const needMultiThreaded = format === "mp4" && coopCoepSatisfied;
+
+    const threadsEl = document.getElementById("diagnostic-threads");
+    if (threadsEl) {
+      if (needMultiThreaded) {
+        threadsEl.textContent = "Multi-Threaded (MT)";
+        threadsEl.className = "text-emerald-400 font-bold font-mono";
+      } else if (format === "mp4") {
+        threadsEl.textContent = "Single-Threaded (ST Fallback)";
+        threadsEl.className = "text-amber-400 font-bold font-mono";
+      } else {
+        threadsEl.textContent = "Single-Threaded (ST)";
+        threadsEl.className = "text-white font-medium font-mono";
+      }
+    }
+
+    const resEl = document.getElementById("diagnostic-resolution");
+    if (resEl) {
+      let suffix = "";
+      if (alignedW >= 3840 && alignedH >= 2160) suffix = " (4K UHD)";
+      else if (alignedW >= 2560 && alignedH >= 1440) suffix = " (1440p QHD)";
+      else if (alignedW >= 1920 && alignedH >= 1080) suffix = " (1080p FHD)";
+      else if (alignedW >= 1280 && alignedH >= 720) suffix = " (720p HD)";
+      resEl.textContent = `${alignedW}x${alignedH}${suffix}`;
+    }
+  } catch (err) {
+    console.warn("[FFmpeg] Diagnostic HUD text rendering failed:", err);
+  }
+
+  // --- DYNAMIC QUALITY (CRF) SAFEGUARD FOR WASM HEAP PROTECTION ---
+  let rawCRF = 18;
+  let safeMinCRF = 18;
+  let safeguardTriggered = false;
+  let totalGPixels = 0;
+
+  if (recorderRef) {
+    if (!recorderRef.config) {
+      recorderRef.config = {};
+    }
+    rawCRF = recorderRef.config.exportCRF !== undefined ? Number(recorderRef.config.exportCRF) : 18;
+    const pixelsPerFrame = alignedW * alignedH;
+    totalGPixels = (totalFrames * pixelsPerFrame) / 1e9;
+    
+    // Default safe scale limits based on overall GPixel allocations
+    safeMinCRF = rawCRF;
+    if (totalGPixels > 80.0) {
+      safeMinCRF = 26; // Very long 1440p/4K recordings
+    } else if (totalGPixels > 40.0) {
+      safeMinCRF = 23; // Long 1440p/4K or extreme 1080p
+    } else if (totalGPixels > 15.0) {
+      safeMinCRF = 18; // Moderate protection
+    } else if (totalGPixels > 5.0) {
+      safeMinCRF = 12; // Light protection
+    }
+
+    if (rawCRF < safeMinCRF) {
+      safeguardTriggered = true;
+      console.log(
+        `[WASM Memory Safeguard] Session workload metrics: ${totalFrames} frames @ ${alignedW}x${alignedH} (~${totalGPixels.toFixed(2)} GPixels). ` +
+        `Quality preset CRF ${rawCRF} is too intensive and risks WebAssembly heap exhaustion (OOM). ` +
+        `Automatically upgrading CRF to ${safeMinCRF} for optimal visual sharpness and 100% stable memory compile throughput.`
+      );
+      appendAssemblyLog(
+        `[Memory Safeguard Warning] Adjusting quality from CRF ${rawCRF} to CRF ${safeMinCRF} to protect WebAssembly heap memory from OOM crashes (Workload: ${totalFrames} frames @ ${alignedW}x${alignedH}).`
+      );
+      recorderRef.config.exportCRF = safeMinCRF;
+    } else {
+      appendAssemblyLog(
+        `[Memory Safeguard Verification] Chosen quality CRF ${rawCRF} is safe for compile (Workload: ${totalGPixels.toFixed(3)} GPixels).`
+      );
+    }
+  }
+
+  // Update DOM Quality and Safeguard Indicator
+  try {
+    const finalCRF = recorderRef && recorderRef.config && recorderRef.config.exportCRF !== undefined ? Number(recorderRef.config.exportCRF) : 18;
+    
+    const qualEl = document.getElementById("diagnostic-quality");
+    if (qualEl) {
+      qualEl.textContent = `CRF ${finalCRF}`;
+      if (safeguardTriggered) {
+        qualEl.className = "text-amber-400 font-bold font-mono";
+      } else {
+        qualEl.className = "text-emerald-400 font-bold font-mono";
+      }
+    }
+
+    const safeguardEl = document.getElementById("diagnostic-safeguard");
+    if (safeguardEl) {
+      if (safeguardTriggered) {
+        if (safeMinCRF >= 23) {
+          safeguardEl.textContent = `ACTIVE (CRF ${rawCRF} → ${safeMinCRF})`;
+          safeguardEl.className = "text-red-400 font-bold font-mono uppercase animate-pulse";
+        } else {
+          safeguardEl.textContent = `ACTIVE (CRF ${rawCRF} → ${safeMinCRF})`;
+          safeguardEl.className = "text-amber-400 font-bold font-mono uppercase";
+        }
+      } else {
+        let statusText = "INACTIVE (SAFE)";
+        if (totalGPixels > 15.0) {
+          statusText = `INACTIVE (CRF ${rawCRF} SAFE)`;
+        }
+        safeguardEl.textContent = statusText;
+        safeguardEl.className = "text-emerald-400 font-bold font-mono uppercase";
+      }
+    }
+  } catch (err) {
+    console.warn("[FFmpeg] Safeguard DOM indicators alignment failed:", err);
   }
 
   const params = getEncodingParams(alignedW, alignedH, recorderRef?.config);

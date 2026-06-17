@@ -478,10 +478,10 @@
       </header>
 
       <!-- Analytics Cards -->
-      <section id="assembly-overview-tiles" class="grid grid-cols-2 gap-3 w-full max-w-[720px] mx-auto shrink-0 select-none h-[112px] min-h-[112px]">
+      <section id="assembly-overview-tiles" class="grid grid-cols-2 gap-3 w-full max-w-[720px] mx-auto shrink-0 select-none h-[120px] min-h-[120px]">
         <div id="assembly-status-left" class="border border-white/5 bg-white/[0.02] rounded-[10px] p-2.5 flex flex-col gap-0.5 text-left font-mono text-[9px] text-white/70 overflow-hidden h-full">
           <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Assembly Details</span>
-          <div class="py-0.5 border-b border-white/[0.02]"><strong>Version:</strong> <span class="text-white/80 font-medium">v1.8.0-modular</span></div>
+          <div class="py-0.5 border-b border-white/[0.02]"><strong>Version:</strong> <span class="text-white/80 font-medium">v1.10.0-modular</span></div>
           <div class="py-0.5 border-b border-white/[0.02]"><strong>Active Phase:</strong> <span class="text-white/80 font-medium font-bold text-amber-300" id="current-telemetry-phase">Ready</span></div>
           <div class="py-0.5 last:border-b-0"><strong>Frames Count:</strong> <span id="telemetry-frames" class="text-[#00ffcc] font-medium font-mono">0 / 0</span></div>
         </div>
@@ -490,7 +490,12 @@
           <span class="text-[#00ffcc] uppercase tracking-widest text-[8px] font-bold block mb-1">Diagnostic Report</span>
           <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">CPU Threading:</span><span id="diagnostic-threads" class="text-white font-medium">Single-Threaded</span></div>
           <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Frame Resolution:</span><span id="diagnostic-resolution" class="text-[#00ffcc] font-medium font-mono">1280x720</span></div>
-          <div class="flex justify-between items-center py-0.5"><span class="text-white/40">Quality:</span><span id="diagnostic-quality" class="text-amber-400 font-bold font-mono">18</span></div>
+          <div class="flex justify-between items-center py-0.5 border-b border-white/[0.03]"><span class="text-white/40">Quality:</span><span id="diagnostic-quality" class="text-amber-400 font-bold font-mono">18</span></div>
+          <div class="flex justify-between items-center py-0.5">
+            <span class="text-white/45">Memory Guard:</span>
+            <!-- ID: #diagnostic-safeguard (Displays active WASM Heap protection status) -->
+            <span id="diagnostic-safeguard" class="text-emerald-400 font-bold font-mono uppercase">Inactive (Safe)</span>
+          </div>
         </div>
       </section>
 

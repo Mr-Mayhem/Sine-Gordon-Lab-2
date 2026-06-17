@@ -310,6 +310,12 @@ class DesignSandbox {
       diagnosticQualEl.className = "text-[#00ffcc] font-bold font-mono";
     }
 
+    const diagnosticSafeguardEl = document.getElementById("diagnostic-safeguard");
+    if (diagnosticSafeguardEl) {
+      diagnosticSafeguardEl.textContent = "Inactive (Safe)";
+      diagnosticSafeguardEl.className = "text-emerald-400 font-bold font-mono uppercase";
+    }
+
     const phaseEl = document.getElementById("current-telemetry-phase");
     if (phaseEl) {
       phaseEl.textContent = "Transcoding Chunks ⚙";
